@@ -147,8 +147,8 @@ img {
   position: relative;
   margin: 0 auto;
   max-width: 475px;
-  padding: 5px;
-  margin: 5px 0px 5px 0px;
+  padding: 0px;
+  margin: 0px 0px 0px 0px;
   border: 0px;
 }
 
@@ -252,8 +252,8 @@ form {
 }
 
 img {
-  width: 100%;
-  max-width: 100%;
+  width: 70%;
+  max-width: 70%;
 }
 
 /*******************************************************************************
@@ -279,7 +279,7 @@ Full-Width Styles
   z-index: 10;
   padding: 10px 50px 10px 10px;
   color: #fff;
-  background: url('http://thinkaurelius.files.wordpress.com/2012/01/aurelius_icon.png?w=35') rgb(213,26,17) /*#0090ff*/ no-repeat 95% 50%;
+  background: url('../images/aurelius_icon.png') rgb(213,26,17) /*#0090ff*/ no-repeat 95% 50%;
   font-weight: 700;
   box-shadow: 0 0 10px rgba(0,0,0,.5);
   border-bottom-left-radius: 2px;
