@@ -146,7 +146,7 @@ strong {
 img {
   position: relative;
   margin: 0 auto;
-  max-width: 475px;
+  /**max-width: 475px;**/
   padding: 0px;
   margin: 0px 0px 0px 0px;
   border: 0px;
