@@ -55,6 +55,7 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <cassandra.dir>${project.build.directory}/cassandra-tmp/workdir</cassandra.dir>
+        <titan.testdir>${project.build.directory}/titan-test</titan.testdir>
     </properties>
 
     <repositories>
