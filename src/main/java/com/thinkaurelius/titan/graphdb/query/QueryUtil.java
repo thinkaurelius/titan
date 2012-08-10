@@ -38,8 +38,8 @@ public class QueryUtil {
             if (!constraints.containsKey(key)) break;
             Object o = constraints.get(key);
             num++;
-            if (o!=null && (o instanceof AtomicInterval) && ((AtomicInterval) o).isRange()) {
-                if (((AtomicInterval)o).hasHoles()) num--; //Intervals with holes have to be filtered in memory
+            if (o!=null && (o instanceof AtomicInterval) && ((AtomicInterval<?>) o).isRange()) {
+                if (((AtomicInterval<?>)o).hasHoles()) num--; //Intervals with holes have to be filtered in memory
                 break;
             }
         }

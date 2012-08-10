@@ -47,7 +47,7 @@ public abstract class TitanGraphTest extends TitanGraphTestCommon {
         log.debug("Memory after: {}",memoryAfter/1024);
         //assertTrue(memoryAfter<100*1024*1024);
     }
-    
+
     @Test
     public void testBasic() {
         TitanKey weight = makeWeightPropertyKey("weight");
@@ -63,7 +63,8 @@ public abstract class TitanGraphTest extends TitanGraphTestCommon {
         n1 = tx.getVertex(nid);
 
         for (TitanProperty prop : n1.getProperties()) {
-        	Object o = prop.getAttribute();
+            @SuppressWarnings("unused")
+            Object o = prop.getAttribute();
         }
         n1.query().relations();
         System.out.println();
@@ -88,17 +89,19 @@ public abstract class TitanGraphTest extends TitanGraphTestCommon {
 
         TitanKey weight = tx.makeType().name("weight").functional().dataType(Double.class).makePropertyKey();
 
+        @SuppressWarnings("unused")
         TitanKey someid = tx.makeType().name("someid").functional().dataType(Object.class).indexed().makePropertyKey();
 
         TitanKey number = tx.makeType().name("number").dataType(Number.class).functional().makePropertyKey();
 
+        @SuppressWarnings("unused")
         TitanKey sint = tx.makeType().name("int").dataType(SpecialInt.class).functional().makePropertyKey();
 
         TitanLabel link = tx.makeType().name("link").simple().unidirected().makeEdgeLabel();
 
         TitanLabel connect = tx.makeType().name("connect").undirected().primaryKey(id).signature(weight).
                 functional(false).makeEdgeLabel();
-        
+
         TitanVertex v1 = tx.addVertex();
         v1.setProperty("uid","v1");
         v1.setProperty("someid",100l);
@@ -109,7 +112,7 @@ public abstract class TitanGraphTest extends TitanGraphTestCommon {
         v1.setProperty("int",new SpecialInt(77));
 
         clopen();
-                
+
         id = tx.getPropertyKey("uid");
         assertEquals(TypeGroup.DEFAULT_GROUP,id.getGroup());
         assertTrue(id.isUnique());
@@ -237,6 +240,7 @@ public abstract class TitanGraphTest extends TitanGraphTestCommon {
 		
 		n3 = tx.getVertex(nid);
 		assertEquals(353,n3.getProperty("uid"));
+        @SuppressWarnings("unused")
         TitanEdge e2 = n3.addEdge("knows",tx.addVertex());
 	}
 	
@@ -287,7 +291,8 @@ public abstract class TitanGraphTest extends TitanGraphTestCommon {
 		}
 		
 	}
-	
+
+    @SuppressWarnings("unused")
 	@Test
 	public void testTypeGroup() {
 		TypeGroup g1 = TypeGroup.of(3, "group1");
@@ -474,8 +479,9 @@ public abstract class TitanGraphTest extends TitanGraphTestCommon {
         TitanLabel connect = tx.makeType().name("connect").primaryKey(time).makeEdgeLabel();
         TitanLabel friend = tx.makeType().name("friend").primaryKey(time,weight).signature(author).makeEdgeLabel();
         TitanLabel knows = tx.makeType().name("knows").primaryKey(author,weight).makeEdgeLabel();
+        @SuppressWarnings("unused")
         TitanLabel follows = tx.makeType().name("follows").makeEdgeLabel();
-        
+
         int noVertices = 100;
         TitanVertex[] vs = new TitanVertex[noVertices];
         for (int i=0;i<noVertices;i++) {

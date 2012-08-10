@@ -19,8 +19,7 @@ import java.util.Scanner;
  */
 
 public class TitanBenchmark {
-    
-    
+
     public static void main(String[] args) throws IOException {
         Preconditions.checkArgument(args.length==3);
         final int batchSize = Integer.parseInt(args[2]);
@@ -39,14 +38,18 @@ public class TitanBenchmark {
         StopWatch watch = new StopWatch();
         if (!skipLoading) {
             tx = g.startTransaction();
+
+            @SuppressWarnings("unused")
             TitanKey vertexid = tx.makeType().name("pid").dataType(Integer.class).
                     functional(false).indexed().unique().makePropertyKey();
             TitanKey time = tx.makeType().name("time").dataType(Integer.class).
                     functional(false).makePropertyKey();
+
+            @SuppressWarnings("unused")
             TitanLabel follows = tx.makeType().name("follows").primaryKey(time).makeEdgeLabel();
             tx.stopTransaction(TransactionalGraph.Conclusion.SUCCESS);
 
-            BatchGraph loader = new BatchGraph(g, BatchGraph.IdType.NUMBER, batchSize);
+            BatchGraph<TitanGraph> loader = new BatchGraph<TitanGraph>(g, BatchGraph.IdType.NUMBER, batchSize);
             loader.setEdgeIdKey(null);
             loader.setVertexIdKey("pid");
             Scanner data = new Scanner(new File(dataFile));
@@ -90,7 +93,6 @@ public class TitanBenchmark {
             watch.stop();
             System.out.println("Query 1 (ms): " + watch.getTime());
 
-
             watch.reset();watch.start();
             System.out.println("Size Q2: "+v.query().labels("follows").direction(Direction.OUT).count());
             watch.stop();
@@ -101,5 +103,5 @@ public class TitanBenchmark {
         }
 
     }
-        
+
 }

@@ -81,6 +81,7 @@ public class KryoTest {
         ByteBuffer b = ByteBuffer.allocate(100);
         kryo.writeObjectData(b, E.E1);
         b.rewind();
+        @SuppressWarnings("unused")
         E instance = kryo.readObjectData(b, E.class);
     }
 

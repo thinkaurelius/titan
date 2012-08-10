@@ -158,7 +158,7 @@ public class CTConnectionFactory implements KeyedPoolableObjectFactory {
                 		((e instanceof InvalidRequestException) ? 
                 				((InvalidRequestException) e).getWhy() : e.getMessage()));
             }
-            
+            @SuppressWarnings("unused")
             int nodeCount = 0;
             // Check schema version
             UUID benchmark = UUID.fromString(currentVersionId);
@@ -168,7 +168,7 @@ public class CTConnectionFactory implements KeyedPoolableObjectFactory {
             		nodeCount += versions.get(version).size();
             		continue;
             	}
-            	
+
             	UUID uuid = UUID.fromString(version);
             	ByteBuffer uuidBB = ti.decompose(uuid);
                 if (-1 < ti.compare(uuidBB, benchmarkBB)) {

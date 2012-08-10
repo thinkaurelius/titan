@@ -7,8 +7,6 @@ import com.thinkaurelius.titan.diskstorage.berkeleydb.je.BerkeleyJEStorageManage
 import com.thinkaurelius.titan.diskstorage.util.KeyValueStorageManagerAdapter;
 import org.apache.commons.configuration.Configuration;
 
-import static junit.framework.Assert.assertEquals;
-
 
 public class BerkeleyDBjeKeyColumnValueTest extends KeyColumnValueStoreTest {
 

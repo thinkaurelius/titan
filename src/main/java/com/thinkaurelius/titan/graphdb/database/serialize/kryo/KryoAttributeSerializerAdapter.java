@@ -6,15 +6,16 @@ import com.thinkaurelius.titan.core.AttributeSerializer;
 
 import java.nio.ByteBuffer;
 
+@SuppressWarnings({"unchecked","rawtypes"})
 public class KryoAttributeSerializerAdapter<T> extends Serializer {
 
 	private final AttributeSerializer<T> serializer;
-	
+
 	KryoAttributeSerializerAdapter(AttributeSerializer<T> serializer) {
 		Preconditions.checkNotNull(serializer);
 		this.serializer=serializer;
 	}
-	
+
 	@Override
 	public T readObjectData(ByteBuffer buffer, Class type) {
 		return serializer.read(buffer);

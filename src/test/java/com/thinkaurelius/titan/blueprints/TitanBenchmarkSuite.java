@@ -1,8 +1,5 @@
 package com.thinkaurelius.titan.blueprints;
 
-import com.thinkaurelius.titan.core.*;
-import com.thinkaurelius.titan.core.TitanEdge;
-import com.thinkaurelius.titan.core.TitanVertex;
 import com.tinkerpop.blueprints.*;
 import com.tinkerpop.blueprints.impls.GraphTest;
 import com.tinkerpop.blueprints.util.io.graphml.GraphMLReader;

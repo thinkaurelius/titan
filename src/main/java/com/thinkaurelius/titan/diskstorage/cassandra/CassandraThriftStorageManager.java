@@ -1,7 +1,5 @@
 package com.thinkaurelius.titan.diskstorage.cassandra;
 
-import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Map;

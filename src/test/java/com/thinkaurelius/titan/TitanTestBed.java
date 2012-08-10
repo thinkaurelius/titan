@@ -1,11 +1,8 @@
 package com.thinkaurelius.titan;
 
-import com.google.common.collect.ImmutableList;
 import com.thinkaurelius.titan.core.*;
 import org.apache.commons.configuration.BaseConfiguration;
-import org.apache.commons.configuration.CompositeConfiguration;
 import org.apache.commons.configuration.Configuration;
-import org.apache.commons.configuration.HierarchicalConfiguration;
 
 /**
  * (c) Matthias Broecheler (me@matthiasb.com)
@@ -18,8 +15,9 @@ public class TitanTestBed {
 
         int i = 5;
         Integer ii = i;
+        @SuppressWarnings("unused")
         Long ll = Long.valueOf(ii);
-        
+
         Configuration conf = new BaseConfiguration();
         conf.setProperty("storage.backend","hbase");
         //conf.setProperty("storage.hostname","127.0.0.1");

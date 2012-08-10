@@ -16,6 +16,7 @@ import static org.junit.Assert.*;
 
 public class ByteBufferTest {
 
+    @SuppressWarnings("unused")
 	private Logger log = LoggerFactory.getLogger(ByteBufferTest.class);
 	
 	@Before

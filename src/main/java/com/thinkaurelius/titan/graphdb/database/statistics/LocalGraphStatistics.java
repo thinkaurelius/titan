@@ -27,6 +27,7 @@ public class LocalGraphStatistics implements InternalGraphStatistics {
 	private long noRelationships;
 	private long noProperties;
 	
+	@SuppressWarnings("unchecked")
 	public LocalGraphStatistics(PropertiesConfiguration file) {
 		persistence=file;
 		//Initialize

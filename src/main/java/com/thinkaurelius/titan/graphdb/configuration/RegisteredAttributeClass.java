@@ -3,8 +3,7 @@ package com.thinkaurelius.titan.graphdb.configuration;
 import com.thinkaurelius.titan.core.AttributeSerializer;
 import com.thinkaurelius.titan.graphdb.database.serialize.Serializer;
 
-import java.io.Serializable;
-
+@SuppressWarnings("rawtypes")
 public class RegisteredAttributeClass<T> implements Comparable<RegisteredAttributeClass>{
 
     private final Class<T> type;
@@ -30,15 +29,15 @@ public class RegisteredAttributeClass<T> implements Comparable<RegisteredAttribu
 	public boolean equals(Object oth) {
 		if (this==oth) return true;
 		else if (!getClass().isInstance(oth)) return false;
-		return type.equals(((RegisteredAttributeClass<?>)oth).type) || position==((RegisteredAttributeClass)oth).position;
+		return type.equals(((RegisteredAttributeClass<?>)oth).type) || position==((RegisteredAttributeClass<?>)oth).position;
 	}
 
     @Override
     public String toString() {
         return type.toString() + "#" + position;
     }
-    
-    @Override
+
+	@Override
     public int compareTo(RegisteredAttributeClass registeredAttributeClass) {
         return position - registeredAttributeClass.position;
     }

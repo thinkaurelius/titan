@@ -113,6 +113,7 @@ public class OrderedKeyValueStoreAdapter extends KeyValueStoreAdapter implements
 		
 	}
 	
+	@SuppressWarnings("unused")
 	private class KeyColumnSliceSelector implements KeySelector {
 
 		private final ByteBuffer keyStart;

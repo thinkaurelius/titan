@@ -1,6 +1,5 @@
 package com.thinkaurelius.titan.graphdb.transaction;
 
-import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.collect.ArrayListMultimap;
@@ -8,7 +7,6 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Multimap;
 import com.thinkaurelius.titan.core.*;
-import com.thinkaurelius.titan.core.InvalidElementException;
 import com.thinkaurelius.titan.graphdb.blueprints.TitanBlueprintsTransaction;
 import com.thinkaurelius.titan.graphdb.database.InternalTitanGraph;
 import com.thinkaurelius.titan.graphdb.query.ComplexTitanQuery;
@@ -27,7 +25,6 @@ import com.thinkaurelius.titan.util.datastructures.Factory;
 import com.thinkaurelius.titan.util.datastructures.Maps;
 import com.tinkerpop.blueprints.Edge;
 import com.tinkerpop.blueprints.Vertex;
-import com.tinkerpop.blueprints.util.PropertyFilteredIterable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,6 +39,7 @@ import java.util.concurrent.locks.ReentrantLock;
 
 public abstract class AbstractTitanTx extends TitanBlueprintsTransaction implements InternalTitanTransaction {
 
+    @SuppressWarnings("unused")
 	private static final Logger log = LoggerFactory.getLogger(AbstractTitanTx.class);
 
     protected InternalTitanGraph graphdb;
@@ -315,6 +313,7 @@ public abstract class AbstractTitanTx extends TitanBlueprintsTransaction impleme
 		return new ComplexTitanQuery((InternalTitanVertex) getVertex(nodeid));
 	}
 
+	@SuppressWarnings({"unchecked", "rawtypes"})
 	@Override
 	public Iterable<Vertex> getVertices() {
         verifyOpen();
@@ -322,7 +321,7 @@ public abstract class AbstractTitanTx extends TitanBlueprintsTransaction impleme
         if (newNodes!=null) 
             iter = Iterables.concat(vertexCache.getAll(),newNodes);
         else iter = vertexCache.getAll();
-        
+
         iter = Iterables.filter(iter,new Predicate<InternalTitanVertex>() {
             @Override
             public boolean apply( InternalTitanVertex input) {
@@ -435,6 +434,7 @@ public abstract class AbstractTitanTx extends TitanBlueprintsTransaction impleme
 
     // #### General Indexed Properties #####
 
+	@SuppressWarnings({"unchecked", "rawtypes"})
 	@Override
 	public Iterable<Vertex> getVertices(String key, Object attribute) {
         Preconditions.checkNotNull(key);

@@ -6,16 +6,14 @@ import java.nio.ByteBuffer;
 
 public class DoubleSerializer implements AttributeSerializer<Double> {
 
-	private static final long serialVersionUID = -1719511496523862718L;
-
     public static final int DECIMALS = 6;
     private static int MULTIPLIER = 0;
-    
+
     static {
         MULTIPLIER =1;
         for (int i=0;i<DECIMALS;i++) MULTIPLIER *=10;
     }
-    
+
 	@Override
 	public Double read(ByteBuffer buffer) {
 		long convert = buffer.getLong();

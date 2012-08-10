@@ -135,69 +135,81 @@ public class HBaseStorageManager implements StorageManager {
 		return dataStore;
 	}
 	
-	private OrderedKeyColumnValueStore openDatabase(String name, LocalLockMediator llm, OrderedKeyColumnValueStore lockStore)
-			throws GraphStorageException {
-		
-		HBaseAdmin adm = null;
-		try {
-			adm = new HBaseAdmin(hconf);
-		} catch (IOException e) {
-			throw new GraphDatabaseException(e);
-		}
-		
-		// Create our table, if necessary
-		HTableDescriptor desc = null;
-		try {
-		    desc = new HTableDescriptor(tableName);
-			adm.createTable(desc);
-		} catch (TableExistsException e) {
-			try {
-				desc = adm.getTableDescriptor(tableName.getBytes());
-			} catch (IOException ee) {
-				throw new GraphStorageException(ee);
-			}
-		} catch (IOException e) {
-			throw new GraphStorageException(e);
-		}
-		
-		assert null != desc;
-		
-		// Create our column family, if necessary
-		if (null == desc.getFamily(name.getBytes())) {
-			try {
-				adm.disableTable(tableName);
-				desc.addFamily(new HColumnDescriptor(name));
-				adm.modifyTable(tableName.getBytes(), desc);
-				log.debug("Added HBase column family {}", name);
-				try {
-					Thread.sleep(5000L);
-				} catch (InterruptedException ie) {
-					throw new GraphStorageException(ie);
-				}
-				adm.enableTable(tableName);
-			} catch (TableNotFoundException ee) {
-				log.error("TableNotFoundException", ee);
-				throw new GraphStorageException(ee);
-			} catch (org.apache.hadoop.hbase.TableExistsException ee) {
-				log.debug("Swallowing exception {}", ee);
-			} catch (IOException ee) {
-				throw new GraphStorageException(ee);
-			}
-		}
-			
-		assert null != desc;
-		
-		// Retrieve an object to interact with our now-initialized table
-//		HTable table;
-//		try {
-//			table = new HTable(conf, tableName);
-//		} catch (IOException e) {
-//			throw new GraphStorageException(e);
-//		}
-		
-		return new HBaseOrderedKeyColumnValueStore(hconf, tableName, name, lockStore,
-				llm, rid, lockRetryCount, lockWaitMS, lockExpireMS);
-	}
+    private OrderedKeyColumnValueStore openDatabase(String name,
+            LocalLockMediator llm, OrderedKeyColumnValueStore lockStore)
+            throws GraphStorageException {
+
+        HBaseAdmin adm = null;
+        try {
+            try {
+                adm = new HBaseAdmin(hconf);
+            } catch (IOException e) {
+                throw new GraphDatabaseException(e);
+            }
+
+            // Create our table, if necessary
+            HTableDescriptor desc = null;
+            try {
+                desc = new HTableDescriptor(tableName);
+                adm.createTable(desc);
+            } catch (TableExistsException e) {
+                try {
+                    desc = adm.getTableDescriptor(tableName.getBytes());
+                } catch (IOException ee) {
+                    throw new GraphStorageException(ee);
+                }
+            } catch (IOException e) {
+                throw new GraphStorageException(e);
+            }
+
+            assert null != desc;
+
+            // Create our column family, if necessary
+            if (null == desc.getFamily(name.getBytes())) {
+                try {
+                    adm.disableTable(tableName);
+                    desc.addFamily(new HColumnDescriptor(name));
+                    adm.modifyTable(tableName.getBytes(), desc);
+                    log.debug("Added HBase column family {}", name);
+                    try {
+                        Thread.sleep(5000L);
+                    } catch (InterruptedException ie) {
+                        throw new GraphStorageException(ie);
+                    }
+                    adm.enableTable(tableName);
+                } catch (TableNotFoundException ee) {
+                    log.error("TableNotFoundException", ee);
+                    throw new GraphStorageException(ee);
+                } catch (org.apache.hadoop.hbase.TableExistsException ee) {
+                    log.debug("Swallowing exception {}", ee);
+                } catch (IOException ee) {
+                    throw new GraphStorageException(ee);
+                }
+            }
+
+            assert null != desc;
+
+            // Retrieve an object to interact with our now-initialized table
+            // HTable table;
+            // try {
+            // table = new HTable(conf, tableName);
+            // } catch (IOException e) {
+            // throw new GraphStorageException(e);
+            // }
+
+            return new HBaseOrderedKeyColumnValueStore(hconf, tableName, name,
+                    lockStore, llm, rid, lockRetryCount, lockWaitMS,
+                    lockExpireMS);
+        } finally {
+            if (adm != null) {
+                try {
+                    adm.close();
+                } catch (IOException e) {
+                    // Do nothing
+                }
+            }
+        }
+    }
 
 	@Override
 	public TransactionHandle beginTransaction() {
@@ -217,8 +229,9 @@ public class HBaseStorageManager implements StorageManager {
     @Override
     public void clearStorage() {
         Configuration conf = HBaseConfiguration.create();
+        HBaseAdmin adm = null; 
         try {
-            HBaseAdmin adm = new HBaseAdmin(conf);
+            adm = new HBaseAdmin(conf);
             try {
                 adm.disableTable(tableName);
             } catch (Exception e) {
@@ -236,6 +249,14 @@ public class HBaseStorageManager implements StorageManager {
             // Do nothing
         } catch (IOException e) {
             throw new GraphStorageException(e);
+        } finally {
+          if (adm != null) {
+            try {
+               adm.close();
+            } catch (IOException e) {
+                // Do nothing
+            }
+          }
         }
     }
 

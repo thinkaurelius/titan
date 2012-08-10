@@ -1,9 +1,7 @@
 package com.thinkaurelius.titan.graphdb.transaction;
 
 import com.thinkaurelius.titan.core.DefaultTypeMaker;
-import com.thinkaurelius.titan.graphdb.blueprints.BlueprintsDefaultTypeMaker;
 import com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfiguration;
-import org.apache.commons.lang.builder.HashCodeBuilder;
 
 /***
  * Provides functionality to configure a {@link com.thinkaurelius.titan.core.TitanTransaction}.

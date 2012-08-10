@@ -15,7 +15,6 @@ import java.util.*;
 
 public class ComplexTitanQuery extends AtomicTitanQuery {
 
-    
     public ComplexTitanQuery(InternalTitanVertex n) {
         super(n);
     }
@@ -55,7 +54,6 @@ public class ComplexTitanQuery extends AtomicTitanQuery {
         }
     }
 
-
     /* ---------------------------------------------------------------
       * Query Execution
       * ---------------------------------------------------------------
@@ -82,24 +80,22 @@ public class ComplexTitanQuery extends AtomicTitanQuery {
     @Override
     public Iterable<TitanProperty> properties() {
         if (isAtomic()) return super.properties();
-        else return new DisjunctiveQueryIterable(this,TitanProperty.class);
+        else return new DisjunctiveQueryIterable<TitanProperty>(this,TitanProperty.class);
     }
-
 
     @Override
     public Iterator<TitanProperty> propertyIterator() {
         if (isAtomic()) return super.propertyIterator();
-        else return new DisjunctiveQueryIterator(this,TitanProperty.class);
+        else return new DisjunctiveQueryIterator<TitanProperty>(this,TitanProperty.class);
     }
-
 
     @Override
     public Iterator<TitanEdge> edgeIterator() {
         if (isAtomic()) return super.edgeIterator();
-        else return new DisjunctiveQueryIterator(this,TitanEdge.class);
+        else return new DisjunctiveQueryIterator<TitanEdge>(this,TitanEdge.class);
     }
 
-
+    @SuppressWarnings({"unchecked","rawtypes"})
     @Override
     public Iterable<Edge> edges() {
         if (isAtomic()) return super.edges();
@@ -109,19 +105,19 @@ public class ComplexTitanQuery extends AtomicTitanQuery {
     @Override
     public Iterable<TitanEdge> titanEdges() {
         if (isAtomic()) return super.titanEdges();
-        else return new DisjunctiveQueryIterable(this,TitanEdge.class);
+        else return new DisjunctiveQueryIterable<TitanEdge>(this,TitanEdge.class);
     }
 
     @Override
     public Iterator<TitanRelation> relationIterator() {
         if (isAtomic()) return super.relationIterator();
-        else return new DisjunctiveQueryIterator(this,TitanRelation.class);
+        else return new DisjunctiveQueryIterator<TitanRelation>(this,TitanRelation.class);
     }
 
     @Override
     public Iterable<TitanRelation> relations() {
         if (isAtomic()) return super.relations();
-        else return new DisjunctiveQueryIterable(this,TitanRelation.class);
+        else return new DisjunctiveQueryIterable<TitanRelation>(this,TitanRelation.class);
     }
 
     @Override
@@ -140,6 +136,7 @@ public class ComplexTitanQuery extends AtomicTitanQuery {
         }
     }
 
+    @SuppressWarnings({"unchecked", "rawtypes"})
     @Override
     public Iterable<Vertex> vertices() {
         return (Iterable)vertexIds();

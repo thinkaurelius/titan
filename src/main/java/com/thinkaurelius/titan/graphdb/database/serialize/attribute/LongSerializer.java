@@ -6,6 +6,7 @@ import java.nio.ByteBuffer;
 
 public class LongSerializer implements AttributeSerializer<Long> {
 
+    @SuppressWarnings("unused")
 	private static final long serialVersionUID = -8438674418838450877L;
 
 	@Override

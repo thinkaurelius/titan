@@ -85,6 +85,7 @@ public class IDManagementTest {
 			long id;
 			long groupID = RandomGenerator.randomLong(1, eid.getMaxGroupID());
             long partitionID = RandomGenerator.randomLong(1, eid.getMaxPartitionID());
+            @SuppressWarnings("unused")
 			boolean isProperty=false;
 			if (Math.random()<0.5) {
 				id = eid.getRelationshipTypeID(RandomGenerator.randomLong(1, eid.getMaxEdgeTypeID()),

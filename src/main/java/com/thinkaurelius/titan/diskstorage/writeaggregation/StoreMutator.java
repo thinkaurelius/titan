@@ -1,8 +1,6 @@
 package com.thinkaurelius.titan.diskstorage.writeaggregation;
 
 import com.thinkaurelius.titan.diskstorage.Entry;
-import com.thinkaurelius.titan.diskstorage.LockKeyColumnValueStore;
-
 import java.nio.ByteBuffer;
 import java.util.List;
 

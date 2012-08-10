@@ -6,7 +6,6 @@ import com.thinkaurelius.titan.diskstorage.TransactionHandle;
 
 import java.nio.ByteBuffer;
 import java.util.List;
-import java.util.Map;
 
 public class ReadOnlyOrderedKeyValueStore extends ReadOnlyKeyValueStore implements OrderedKeyColumnValueStore{
 

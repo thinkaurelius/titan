@@ -3,7 +3,6 @@ package com.thinkaurelius.titan.diskstorage.util;
 import cern.colt.map.AbstractIntIntMap;
 import cern.colt.map.OpenIntIntHashMap;
 import com.google.common.base.Preconditions;
-import com.thinkaurelius.titan.core.GraphDatabaseException;
 import com.thinkaurelius.titan.core.GraphStorageException;
 
 import java.io.*;

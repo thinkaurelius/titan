@@ -8,7 +8,9 @@ import java.io.Serializable;
 
 public class SpecialInt implements Serializable {
 
-    private int value;
+	private static final long serialVersionUID = -3140817057952829487L;
+
+	private int value;
 
     public SpecialInt(int value) {
         this.value=value;

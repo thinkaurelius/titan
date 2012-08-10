@@ -1,6 +1,5 @@
 package com.thinkaurelius.titan.tinkerpop.rexster;
 
-import com.google.common.collect.ImmutableList;
 import com.thinkaurelius.titan.core.TitanFactory;
 import com.tinkerpop.blueprints.Graph;
 import com.tinkerpop.rexster.Tokens;
@@ -33,6 +32,7 @@ public class TitanGraphConfiguration implements GraphConfiguration {
             try {
                 final Configuration titanConfigProperties = ((HierarchicalConfiguration) properties).configurationAt(Tokens.REXSTER_GRAPH_PROPERTIES);
 
+                @SuppressWarnings("unchecked")
                 final Iterator<String> titanConfigPropertiesKeys = titanConfigProperties.getKeys();
                 while (titanConfigPropertiesKeys.hasNext()) {
                     String key = titanConfigPropertiesKeys.next();

@@ -384,7 +384,7 @@ public class StandardTitanGraph extends TitanBlueprintsGraph implements Internal
                         if (constraints.containsKey(keysig[i])) {
                             Object iv = constraints.get(keysig[i]);
                             applicableConstraints.add(iv);
-                            if (iv!=null && (iv instanceof AtomicInterval) && ((AtomicInterval)iv).isRange()) {
+                            if (iv!=null && (iv instanceof AtomicInterval) && ((AtomicInterval<?>)iv).isRange()) {
                                 isRange=true;
                                 break;
                             }
@@ -408,7 +408,7 @@ public class StandardTitanGraph extends TitanBlueprintsGraph implements Internal
                             //Write all applicable key constraints
                             for (Object iv : applicableConstraints) {
                                 if (iv instanceof AtomicInterval) {
-                                    AtomicInterval interval = (AtomicInterval)iv;
+                                    AtomicInterval<?> interval = (AtomicInterval<?>)iv;
                                     if (interval.isPoint()) {
                                         start.writeObject(interval.getStartPoint());
                                         if (isRange) end.writeObject(interval.getStartPoint());
@@ -492,13 +492,12 @@ public class StandardTitanGraph extends TitanBlueprintsGraph implements Internal
     private List<Entry> appendResults(ByteBuffer key, ByteBuffer columnStart, ByteBuffer columnEnd,
                                       List<Entry> entries, LimitTracker limit, TransactionHandle txh) {
 		if (limit.limitExhausted()) return null;
-		List<Entry> results = null;
-        results = edgeStore.getSlice(key, columnStart, columnEnd, limit.getLimit(), txh);
+		List<Entry> results = edgeStore.getSlice(key, columnStart, columnEnd, limit.getLimit(), txh);
         limit.retrieved(results.size());
 
-		if (results==null) return null;
-		else if (entries==null) return results;
-		else {
+		if (entries==null) {
+			return results;
+		} else {
 			entries.addAll(results);
 			return entries;
 		}

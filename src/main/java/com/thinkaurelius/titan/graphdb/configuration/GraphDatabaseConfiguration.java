@@ -45,10 +45,11 @@ import java.util.*;
  *
  */
 public class GraphDatabaseConfiguration {
-	
-	private static final Logger log =
-		LoggerFactory.getLogger(GraphDatabaseConfiguration.class);
 
+    @SuppressWarnings("unused")
+    private static final Logger log = LoggerFactory.getLogger(GraphDatabaseConfiguration.class);
+
+    @SuppressWarnings("serial")
     private static final Map<String,Class<? extends StorageManager>> preregisteredStorageManagers = new HashMap<String,Class<? extends StorageManager>>() {{
         put("local", BerkeleyJEStorageAdapter.class);
         put("berkeleyje", BerkeleyJEStorageAdapter.class);
@@ -57,7 +58,8 @@ public class GraphDatabaseConfiguration {
         put("astyanax", AstyanaxStorageManager.class);
     }};
 
-    private static final Map<String,DefaultTypeMaker> preregisteredAutoType = new HashMap<String,DefaultTypeMaker>() {{
+    @SuppressWarnings("serial")
+	private static final Map<String,DefaultTypeMaker> preregisteredAutoType = new HashMap<String,DefaultTypeMaker>() {{
         put("blueprints", BlueprintsDefaultTypeMaker.INSTANCE);
     }};
 
@@ -117,7 +119,7 @@ public class GraphDatabaseConfiguration {
      */
     public static final String AUTO_TYPE_KEY = "autotype";
     public static final String AUTO_TYPE_DEFAULT = "blueprints";
-    
+
     private static final String ID_RANDOMIZER_BITS_KEY = "id-random-bits";
     private static final int ID_RANDOMIZER_BITS_DEFAULT = 0;
 
@@ -183,16 +185,14 @@ public class GraphDatabaseConfiguration {
 
     private static final String STORAGE_EDGESTORE_DEFAULT = "edgestore";
     private static final String STORAGE_PROPERTYINDEX_DEFAULT = "propertyindex";
-    
-    
+
     private final Configuration configuration;
-    
+
     private boolean readOnly;
     private boolean flushIDs;
     private boolean batchLoading;
     private DefaultTypeMaker defaultTypeMaker;
-    
-    
+
     public GraphDatabaseConfiguration(Configuration config) {
         Preconditions.checkNotNull(config);
         this.configuration = config;
@@ -251,16 +251,16 @@ public class GraphDatabaseConfiguration {
     public boolean hasBufferMutations() {
         return configuration.getInt(BUFFER_SIZE_KEY, BUFFER_SIZE_DEFAULT)>0;
     }
-    
+
     public int getBufferSize() {
         int size = configuration.getInt(BUFFER_SIZE_KEY, BUFFER_SIZE_DEFAULT);
         Preconditions.checkArgument(size>0,"Buffer size must be positive");
         return size;
     }
-    
 
     public static List<RegisteredAttributeClass<?>> getRegisteredAttributeClasses(Configuration config) {
         List<RegisteredAttributeClass<?>> all = new ArrayList<RegisteredAttributeClass<?>>();
+        @SuppressWarnings("unchecked")
         Iterator<String> iter = config.getKeys();
         while (iter.hasNext()) {
             String key = iter.next();
@@ -280,8 +280,8 @@ public class GraphDatabaseConfiguration {
                 if (config.containsKey(SERIALIZER_PREFIX+position)) {
                     String serializername = config.getString(SERIALIZER_PREFIX+position);
                     try {
-                        Class sclass = Class.forName(serializername);
-                        serializer = (AttributeSerializer)sclass.newInstance();
+                        Class<?> sclass = Class.forName(serializername);
+                        serializer = (AttributeSerializer<?>)sclass.newInstance();
                     } catch (ClassNotFoundException e) {
                         throw new IllegalArgumentException("Could not find serializer class" + serializername);
                     } catch (InstantiationException e) {
@@ -290,6 +290,7 @@ public class GraphDatabaseConfiguration {
                         throw new IllegalArgumentException("Could not instantiate serializer class" + serializername,e);
                     }
                 }
+                @SuppressWarnings({"unchecked","rawtypes"})
                 RegisteredAttributeClass reg = new RegisteredAttributeClass(clazz,serializer,position);
                 for (int i=0;i<all.size();i++) {
                     if (all.get(i).equals(reg)) {
@@ -331,8 +332,8 @@ public class GraphDatabaseConfiguration {
         }
 
         try {
-            Class clazz = Class.forName(clazzname);
-            Constructor constructor = clazz.getConstructor(Configuration.class);
+            Class<?> clazz = Class.forName(clazzname);
+            Constructor<?> constructor = clazz.getConstructor(Configuration.class);
             StorageManager storage = (StorageManager)constructor.newInstance(storageconfig);
             return storage;
         } catch (ClassNotFoundException e) {
@@ -406,6 +407,7 @@ public class GraphDatabaseConfiguration {
 		return getPath(getHomeDirectory());
 	}
 
+    @SuppressWarnings("unused")
 	private static File getSubDirectory(String base, String sub) {
 		File subdir = new File(base, sub);
 		if (!subdir.exists()) {
@@ -417,6 +419,7 @@ public class GraphDatabaseConfiguration {
 		return subdir;
 	}
 
+    @SuppressWarnings("unused")
 	private static String getFileName(String dir, String file) {
 		if (!dir.endsWith(File.separator)) dir = dir + File.separator;
 		return dir + file;

@@ -10,6 +10,8 @@ package com.thinkaurelius.titan.core;
  */
 public class InvalidElementException extends GraphDatabaseException {
 
+    private static final long serialVersionUID = -6810739250149922561L;
+
     private final TitanVertex element;
 
     /**
@@ -30,7 +32,7 @@ public class InvalidElementException extends GraphDatabaseException {
     public TitanVertex getElement() {
         return element;
     }
-    
+
     @Override
     public String toString() {
         return super.toString() + " [" + element.toString() + "]";
