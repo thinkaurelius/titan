@@ -4,7 +4,6 @@ import com.thinkaurelius.titan.StorageSetup;
 import com.thinkaurelius.titan.diskstorage.KeyColumnValueStoreTest;
 import com.thinkaurelius.titan.diskstorage.StorageManager;
 import com.thinkaurelius.titan.diskstorage.cassandra.CassandraProcessStarter;
-import com.thinkaurelius.titan.testutil.CassandraUtil;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 

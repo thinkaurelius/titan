@@ -13,15 +13,16 @@ import java.util.Iterator;
 public class KeyValueStorageManagerAdapter implements StorageManager {
 
     public static final String KEYLENGTH_NAMESPACE = "keylengths";
-    
-	private final KeyValueStorageManager manager;
-	
-	private final ImmutableMap<String,Integer> keyLengths;
-	
-	public KeyValueStorageManagerAdapter(KeyValueStorageManager manager, Configuration config) {
-		this.manager = manager;
-		Configuration keylen = config.subset(KEYLENGTH_NAMESPACE);
+
+    private final KeyValueStorageManager manager;
+
+    private final ImmutableMap<String,Integer> keyLengths;
+
+    public KeyValueStorageManagerAdapter(KeyValueStorageManager manager, Configuration config) {
+        this.manager = manager;
+        Configuration keylen = config.subset(KEYLENGTH_NAMESPACE);
         ImmutableMap.Builder<String,Integer> builder = ImmutableMap.builder();
+        @SuppressWarnings("unchecked")
         Iterator<String> keys = keylen.getKeys();
         while(keys.hasNext()) {
             String name = keys.next();
@@ -30,9 +31,8 @@ public class KeyValueStorageManagerAdapter implements StorageManager {
             builder.put(name,Integer.valueOf(length));
         }
         keyLengths = builder.build();
-        
-	}
-		
+    }
+
 	@Override
 	public TransactionHandle beginTransaction() {
 		return manager.beginTransaction();

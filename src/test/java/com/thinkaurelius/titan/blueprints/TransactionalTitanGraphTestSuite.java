@@ -3,9 +3,6 @@ package com.thinkaurelius.titan.blueprints;
 import com.tinkerpop.blueprints.*;
 import com.tinkerpop.blueprints.impls.GraphTest;
 
-import java.util.Random;
-import java.util.concurrent.atomic.AtomicInteger;
-
 /**
  * (c) Matthias Broecheler (me@matthiasb.com)
  */

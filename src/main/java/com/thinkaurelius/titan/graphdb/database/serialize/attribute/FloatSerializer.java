@@ -6,9 +6,6 @@ import java.nio.ByteBuffer;
 
 public class FloatSerializer implements AttributeSerializer<Float> {
 
-	private static final long serialVersionUID = -1719511423423862718L;
-
-
     public static final int DECIMALS = 3;
     private static int MULTIPLIER = 0;
 

@@ -69,7 +69,7 @@ public class VertexUtil {
                                     Object attribute = ((TitanProperty)ie).getAttribute();
                                     assert attribute!=null;
                                     assert o instanceof AtomicInterval;
-                                    AtomicInterval iv = (AtomicInterval)o;
+                                    AtomicInterval<?> iv = (AtomicInterval<?>)o;
                                     if (iv.inInterval(attribute)) count++;
                                 }
                             }

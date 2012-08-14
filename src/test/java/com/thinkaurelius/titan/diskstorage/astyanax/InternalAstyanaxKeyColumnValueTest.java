@@ -6,7 +6,6 @@ import com.thinkaurelius.titan.StorageSetup;
 import com.thinkaurelius.titan.diskstorage.KeyColumnValueStoreTest;
 import com.thinkaurelius.titan.diskstorage.StorageManager;
 import com.thinkaurelius.titan.diskstorage.cassandra.CassandraDaemonWrapper;
-import com.thinkaurelius.titan.testutil.CassandraUtil;
 
 public class InternalAstyanaxKeyColumnValueTest extends KeyColumnValueStoreTest {
 

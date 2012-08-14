@@ -1,6 +1,5 @@
 package com.thinkaurelius.titan.graphdb.blueprints;
 
-import com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfiguration;
 import com.tinkerpop.blueprints.Features;
 
 /**
@@ -8,7 +7,8 @@ import com.tinkerpop.blueprints.Features;
  */
 
 public class TitanFeatures {
-    
+
+    @SuppressWarnings("deprecation")
     public static Features getBaselineTitanFeatures() {
         Features features = new Features();
         features.supportsDuplicateEdges = true;
@@ -44,5 +44,5 @@ public class TitanFeatures {
         features.checkCompliance();
         return features;
     }
-    
+
 }

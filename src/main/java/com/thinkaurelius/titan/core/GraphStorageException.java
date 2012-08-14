@@ -1,7 +1,5 @@
 package com.thinkaurelius.titan.core;
 
-import com.thinkaurelius.titan.util.datastructures.ExceptionUtil;
-
 /**
  * Exception thrown in the storage layer of the graph database.
  * 

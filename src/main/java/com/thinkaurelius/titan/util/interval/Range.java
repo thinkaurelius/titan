@@ -169,7 +169,7 @@ public class Range<V extends Comparable<V>> implements AtomicInterval<V> {
                     eInc = o.endInclusive;
                 }
             }
-            return new Range(nstart,nend,sInc,eInc);
+            return new Range<V>(nstart,nend,sInc,eInc);
         }
     }
 

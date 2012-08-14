@@ -61,8 +61,9 @@ public class IDManager implements IDInspector {
 	public static final long defaultGroupBits = 6;
 	
 	private static final long edgeTypeDirectionOffset=totalNoBits-edgeTypeDirectionBits;
+    @SuppressWarnings("unused")
 	private static final long edgeTypeDirectionMask  = ((1l<<edgeTypeDirectionBits)-1) << (edgeTypeDirectionOffset);
-	
+    @SuppressWarnings("unused")
 	private static final long maxDirectionID = (1l<<edgeTypeDirectionBits)-2; //Need extra number for bounding
 
 	public static final long edgeTypePaddingMask = (1l<<edgeTypePaddingBits)-1;
@@ -80,9 +81,11 @@ public class IDManager implements IDInspector {
     private final long inverseGroupIDMask;
 
 	private final long groupIDMaskTMP;
+    @SuppressWarnings("unused")
 	private final long groupIDFrontMask;
 	private final long groupIDDeltaOffset;
 	private final long edgeTypeIDBackLength;
+    @SuppressWarnings("unused")
 	private final long edgeTypeCountPartMask;
 	
 	private final long maxGroupID;

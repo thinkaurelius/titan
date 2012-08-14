@@ -61,7 +61,8 @@ public class RangeWithHoles<V extends Comparable<V>> extends Range<V> {
         return super.inInterval(obj) && !holes.contains(obj);
     }
 
-    @Override
+    @SuppressWarnings({"rawtypes", "unchecked"})
+	@Override
     public AtomicInterval<V> intersect(AtomicInterval<V> other) {
         AtomicInterval<V> res = super.intersect(other);
         if (res==null) return null;
@@ -81,5 +82,5 @@ public class RangeWithHoles<V extends Comparable<V>> extends Range<V> {
             return new RangeWithHoles(res.getStartPoint(),res.getEndPoint(),res.startInclusive(),res.endInclusive(),ImmutableSet.of(newholes));
         }
     }
-    
+
 }

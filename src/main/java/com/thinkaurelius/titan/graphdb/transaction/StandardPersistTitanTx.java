@@ -26,6 +26,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class StandardPersistTitanTx extends AbstractTitanTx {
 
+    @SuppressWarnings("unused")
 	private static final Logger log = LoggerFactory.getLogger(StandardPersistTitanTx.class);
 	
 

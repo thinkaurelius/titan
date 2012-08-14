@@ -40,7 +40,8 @@ public class DisjunctiveQueryIterator<T extends TitanRelation> implements Iterat
             return nextIter!=null && nextIter.hasNext();
         } else return true;
     }
-    
+
+    @SuppressWarnings("unchecked")
     private void initializeNextIter() {
         if (nextIter==null) {
             while (position<queries.size() && remainingLimit>0 && (nextIter==null || !nextIter.hasNext())) {

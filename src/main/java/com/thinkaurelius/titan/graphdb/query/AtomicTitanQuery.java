@@ -25,11 +25,11 @@ import java.util.Map;
 public class AtomicTitanQuery implements InternalTitanQuery {
 
     protected final InternalTitanTransaction tx;
-	private InternalTitanVertex node;
+    private InternalTitanVertex node;
     private long nodeid;
-    
+
     private boolean inMemoryRetrieval=false;
-    
+
     private Direction dir;
     protected TitanType[] types;
     private TypeGroup group;
@@ -41,7 +41,6 @@ public class AtomicTitanQuery implements InternalTitanQuery {
     private boolean queryUnmodifiable;
 
     private long limit = Long.MAX_VALUE;
-    
 
     public AtomicTitanQuery(InternalTitanTransaction tx) {
         this.tx=tx;
@@ -147,7 +146,7 @@ public class AtomicTitanQuery implements InternalTitanQuery {
         } else {
             assert etype.isPropertyKey();
             Preconditions.checkArgument(((TitanKey) etype).getDataType().isInstance(value), "Value is not an instance of the property key's data type.");
-            return withPropertyConstraint(etype,new PointInterval(value));
+            return withPropertyConstraint(etype,new PointInterval<Object>(value));
         }
     }
 
@@ -163,7 +162,7 @@ public class AtomicTitanQuery implements InternalTitanQuery {
         Preconditions.checkNotNull(start);
         Preconditions.checkNotNull(end);
         Preconditions.checkNotNull(key);
-        return withPropertyConstraint(key, new Range(start, end));
+        return withPropertyConstraint(key, new Range<T>(start, end));
     }
 
     @Override
@@ -171,13 +170,14 @@ public class AtomicTitanQuery implements InternalTitanQuery {
         if (!tx.containsType(key)) throw new IllegalArgumentException("Unknown property key: " + key);
         return interval(tx.getPropertyKey(key), start, end);
     }
-    
+
     @Override
     public<T extends Comparable<T>> TitanQuery has(String ptype, T value, Query.Compare compare) {
         if (!tx.containsType(ptype)) throw new IllegalArgumentException("Unknown property key: " + ptype);
         return has(tx.getPropertyKey(ptype),value,compare);
     }
 
+    @SuppressWarnings("unchecked")
     public<T extends Comparable<T>> TitanQuery has(TitanKey ptype, T value, Query.Compare compare) {
         Preconditions.checkNotNull(value);
         Preconditions.checkNotNull(compare);
@@ -429,6 +429,7 @@ public class AtomicTitanQuery implements InternalTitanQuery {
 		return new RemovableRelationIterator<TitanEdge>(node.getRelations(this, true).iterator());
 	}
 
+	@SuppressWarnings({"unchecked", "rawtypes"})
 	@Override
 	public Iterable<Edge> edges() {
 		edgesOnly();
@@ -498,6 +499,7 @@ public class AtomicTitanQuery implements InternalTitanQuery {
         }
     }
 
+    @SuppressWarnings({"unchecked", "rawtypes"})
     @Override
     public Iterable<Vertex> vertices() {
         return (Iterable)vertexIds();

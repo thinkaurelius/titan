@@ -3,8 +3,6 @@ package com.thinkaurelius.titan;
 import cern.colt.function.LongObjectProcedure;
 import cern.colt.map.AbstractLongObjectMap;
 import cern.colt.map.OpenLongObjectHashMap;
-import com.sleepycat.je.util.DbCacheSize;
-
 import java.io.IOException;
 
 public class TestBed {
