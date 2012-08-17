@@ -1,12 +1,9 @@
 package com.thinkaurelius.titan.graphdb.transaction;
 
-import com.google.common.base.Preconditions;
-import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Multimap;
 import com.thinkaurelius.titan.core.*;
 import com.thinkaurelius.titan.graphdb.blueprints.TitanBlueprintsTransaction;
 import com.thinkaurelius.titan.graphdb.database.InternalTitanGraph;
+import com.thinkaurelius.titan.graphdb.idmanagement.IDInspector;
 import com.thinkaurelius.titan.graphdb.query.ComplexTitanQuery;
 import com.thinkaurelius.titan.graphdb.query.InternalTitanQuery;
 import com.thinkaurelius.titan.graphdb.relations.AttributeUtil;
@@ -15,15 +12,10 @@ import com.thinkaurelius.titan.graphdb.relations.factory.RelationFactory;
 import com.thinkaurelius.titan.graphdb.types.InternalTitanType;
 import com.thinkaurelius.titan.graphdb.types.manager.TypeManager;
 import com.thinkaurelius.titan.graphdb.types.system.SystemKey;
-import com.thinkaurelius.titan.graphdb.idmanagement.IDInspector;
 import com.thinkaurelius.titan.graphdb.vertices.InternalTitanVertex;
 import com.thinkaurelius.titan.graphdb.vertices.factory.VertexFactory;
 import com.thinkaurelius.titan.util.datastructures.Factory;
 import com.thinkaurelius.titan.util.datastructures.Maps;
-import com.tinkerpop.blueprints.Edge;
-import com.tinkerpop.blueprints.Vertex;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.Collections;
 import java.util.HashSet;
@@ -34,12 +26,21 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Multimap;
+import com.tinkerpop.blueprints.Edge;
+import com.tinkerpop.blueprints.Vertex;
+
 public abstract class AbstractTitanTx extends TitanBlueprintsTransaction implements InternalTitanTransaction {
 
     @SuppressWarnings("unused")
     private static final Logger log = LoggerFactory.getLogger(AbstractTitanTx.class);
-
-    private static final Set<InternalTitanVertex> NO_NODES = ImmutableSet.of();
 
     protected InternalTitanGraph graphdb;
 
@@ -47,11 +48,11 @@ public abstract class AbstractTitanTx extends TitanBlueprintsTransaction impleme
     protected final VertexFactory vertexFactory;
     protected final RelationFactory edgeFactory;
 
-    private ConcurrentMap<TitanKey, ConcurrentMap<Object, TitanVertex>> keyIndex;
+    private final ConcurrentMap<TitanKey, ConcurrentMap<Object, TitanVertex>> keyIndex;
     private final Lock keyedPropertyCreateLock;
-    private ConcurrentMap<TitanKey, Multimap<Object, TitanVertex>> attributeIndex;
+    private final ConcurrentMap<TitanKey, Multimap<Object, TitanVertex>> attributeIndex;
 
-    private Set<InternalTitanVertex> newNodes;
+    private final Optional<Set<InternalTitanVertex>> newNodes;
     private VertexCache vertexCache;
 
     private boolean isOpen;
@@ -69,9 +70,10 @@ public abstract class AbstractTitanTx extends TitanBlueprintsTransaction impleme
         isOpen = true;
 
         if (!config.isReadOnly()) { // TODO: don't maintain newNodes for batch loading transactions
-            newNodes = Collections.newSetFromMap(new ConcurrentHashMap<InternalTitanVertex, Boolean>(10, 0.75f, 2));
+            newNodes = Optional.of(Collections.newSetFromMap(new ConcurrentHashMap<InternalTitanVertex, Boolean>(10,
+                    0.75f, 2)));
         } else {
-            newNodes = NO_NODES;
+            newNodes = Optional.absent();
         }
         vertexCache = new StandardVertexCache();
 
@@ -106,10 +108,8 @@ public abstract class AbstractTitanTx extends TitanBlueprintsTransaction impleme
             graphdb.assignID(n);
             if (isNode)
                 vertexCache.add(n, n.getID());
-        } else if (newNodes != NO_NODES) {
-            if (isNode) {
-                newNodes.add(n);
-            }
+        } else if (isNode && newNodes.isPresent()) {
+            newNodes.get().add(n);
         }
     }
 
@@ -144,10 +144,10 @@ public abstract class AbstractTitanTx extends TitanBlueprintsTransaction impleme
 
     private InternalTitanVertex getExisting(long id) {
         synchronized (vertexCache) {
-            InternalTitanVertex node = vertexCache.get(id);
-            if (node == null) {
+            if (!vertexCache.contains(id)) {
                 IDInspector idspec = graphdb.getIDInspector();
 
+                InternalTitanVertex node = null;
                 if (idspec.isEdgeTypeID(id)) {
                     node = etManager.getType(id, this);
                 } else if (graphdb.isReferenceVertexID(id)) {
@@ -156,11 +156,11 @@ public abstract class AbstractTitanTx extends TitanBlueprintsTransaction impleme
                     node = vertexFactory.createExisting(this, id);
                 } else
                     throw new IllegalArgumentException("ID could not be recognized");
+                Preconditions.checkNotNull(node);
                 vertexCache.add(node, id);
             }
-            return node;
+            return vertexCache.get(id);
         }
-
     }
 
     @Override
@@ -170,8 +170,8 @@ public abstract class AbstractTitanTx extends TitanBlueprintsTransaction impleme
         if (n.hasID()) {
             removed = vertexCache.remove(n.getID());
         } else {
-            if (newNodes != NO_NODES)
-                removed = newNodes.remove(n);
+            if (newNodes.isPresent())
+                removed = newNodes.get().remove(n);
             else
                 removed = true;
         }
@@ -197,7 +197,7 @@ public abstract class AbstractTitanTx extends TitanBlueprintsTransaction impleme
             if (isUniqueKey)
                 keyedPropertyCreateLock.unlock();
         }
-        assert (e != null);
+        Preconditions.checkNotNull(e);
         return (TitanProperty) e;
     }
 
@@ -229,19 +229,19 @@ public abstract class AbstractTitanTx extends TitanBlueprintsTransaction impleme
     @Override
     public boolean containsType(String name) {
         verifyOpen();
-        Map<Object, TitanVertex> subindex = keyIndex.get(SystemKey.TypeName);
-        if (subindex == null || !subindex.containsKey(name)) {
-            return etManager.containsType(name, this);
-        } else
+        if (keyIndex.containsKey(SystemKey.TypeName) && keyIndex.get(SystemKey.TypeName).containsKey(name)) {
             return true;
+        } else {
+            return etManager.containsType(name, this);
+        }
     }
 
     @Override
     public TitanType getType(String name) {
         verifyOpen();
-        Map<Object, TitanVertex> subindex = keyIndex.get(SystemKey.TypeName);
         TitanType et = null;
-        if (subindex != null) {
+        if (keyIndex.containsKey(SystemKey.TypeName)) {
+            Map<Object, TitanVertex> subindex = keyIndex.get(SystemKey.TypeName);
             et = (TitanType) subindex.get(name);
         }
         if (et == null) {
@@ -400,11 +400,11 @@ public abstract class AbstractTitanTx extends TitanBlueprintsTransaction impleme
         Preconditions.checkNotNull(key);
         Preconditions.checkArgument(key.isUnique(), "Key is not declared unique");
         value = AttributeUtil.prepareAttribute(value, key.getDataType());
-        Map<Object, TitanVertex> subindex = keyIndex.get(key);
-        if (subindex == null) {
+        if (!keyIndex.containsKey(key)) {
             return null;
         } else {
             // TODO: check for NO-ENTRY and return null
+            Map<Object, TitanVertex> subindex = keyIndex.get(key);
             return subindex.get(value);
         }
     }
@@ -462,15 +462,12 @@ public abstract class AbstractTitanTx extends TitanBlueprintsTransaction impleme
     }
 
     /*
-     * --------------------------------------------------------------- Transaction Handling
-     * ---------------------------------------------------------------
+     * --------------------------------------------- Transaction Handling ---------------------------------------------
      */
 
     private void close() {
         vertexCache.close();
-        vertexCache = null;
         keyIndex.clear();
-        keyIndex = null;
         isOpen = false;
     }
 
@@ -506,7 +503,7 @@ public abstract class AbstractTitanTx extends TitanBlueprintsTransaction impleme
 
     @Override
     public boolean hasModifications() {
-        return !config.isReadOnly() && !newNodes.isEmpty();
+        return !config.isReadOnly() && newNodes.isPresent() && !newNodes.get().isEmpty();
     }
 
 }
