@@ -1,0 +1,2 @@
+com.thinkaurelius.titan.diskstorage.astyanax.AstyanaxStorageManagerFactory
+com.thinkaurelius.titan.diskstorage.cassandra.CassandraThriftStorageManagerFactory

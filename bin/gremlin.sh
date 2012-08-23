@@ -1,3 +1,3 @@
 #!/bin/bash
 
-`dirname $0`/../target/titan-*-standalone/bin/gremlin.sh $@
+`dirname $0`/../titan-distribution/target/titan-*-standalone/bin/gremlin.sh $@
