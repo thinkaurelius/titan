@@ -13,7 +13,6 @@ public class EntityLifeCycle {
 	 */
 	final static byte New = 1;
 
-	
 	/**
 	 * The entity has been loaded from the database and has not changed
 	 * after initial loading.
@@ -29,6 +28,4 @@ public class EntityLifeCycle {
 	 * The entity has been deleted but not yet erased from the database.
 	 */
 	final static byte Deleted = 4;
-
-	
 }

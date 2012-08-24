@@ -51,6 +51,4 @@ public interface TitanGraph extends Graph, KeyIndexableGraph, ThreadedTransactio
      * @see #shutdown()
      */
     public boolean isOpen();
-
-	
 }

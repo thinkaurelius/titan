@@ -14,7 +14,7 @@ public abstract class LocatedElement implements InternalElement {
 	}
 	
 	public LocatedElement(long _id) {
-		Preconditions.checkArgument(_id>NoID);
+		Preconditions.checkArgument(_id > NoID);
 		id = _id;
 	}
 	
@@ -30,19 +30,19 @@ public abstract class LocatedElement implements InternalElement {
 	@Override
 	public long getID() {
 		if (!hasID()) throw new IllegalStateException("The entity has not yet been assigned an id");
-		else return id;
+        return id;
 	}
 
 	@Override
 	public boolean hasID() {
-		return id>NoID;
+		return id > NoID;
 	}
 
 	
 	@Override
 	public void setID(long id) {
 		Preconditions.checkArgument(isNew());
-		Preconditions.checkArgument(id!=NoID,"Illegal id: " + id);
+		Preconditions.checkArgument(id != NoID, "Illegal id: " + id);
 		if (hasID()) throw new IllegalStateException("The entity has already been assigned an id: " + getID());
 		this.id = id;
 	}
