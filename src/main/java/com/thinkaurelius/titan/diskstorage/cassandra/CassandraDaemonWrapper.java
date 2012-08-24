@@ -20,8 +20,7 @@ public class CassandraDaemonWrapper {
 	
 	public static synchronized void start(String cassandraYamlPath) {
 		if (started) {
-			if (null != cassandraYamlPath &&
-					!cassandraYamlPath.equals(liveCassandraYamlPath)) {
+			if (null != cassandraYamlPath && !cassandraYamlPath.equals(liveCassandraYamlPath)) {
 				log.warn("Can't start in-process Cassandra instance " +
 						"with yaml path {} because an instance was " +
 						"previously started with yaml path {}", 
@@ -30,7 +29,7 @@ public class CassandraDaemonWrapper {
 			
 			return;
 		}
-		
+
 		log.debug("Current working directory: {}", System.getProperty("user.dir"));
 		
 		System.setProperty("cassandra.config", cassandraYamlPath);
@@ -39,7 +38,7 @@ public class CassandraDaemonWrapper {
 		(new Thread(new CassandraRunner())).run();
 		
 		liveCassandraYamlPath = cassandraYamlPath;
-		
+
 		started = true;
 	}
 	

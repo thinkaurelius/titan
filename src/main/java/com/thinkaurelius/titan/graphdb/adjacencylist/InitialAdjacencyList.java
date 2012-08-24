@@ -10,62 +10,62 @@ import java.util.Iterator;
 
 public class InitialAdjacencyList implements AdjacencyList {
 
-	private static final Iterable<InternalRelation> Empty = IterablesUtil.emptyIterable();
-	
-	private final AdjacencyListFactory factory;
-	
-	InitialAdjacencyList(AdjacencyListFactory factory) {
-		this.factory=factory;
-	}
-	
-	@Override
-	public synchronized AdjacencyList addEdge(InternalRelation e, ModificationStatus status) {
-		return factory.extend(this, e, status);
-	}
+    private static final Iterable<InternalRelation> Empty = IterablesUtil.emptyIterable();
 
-	@Override
-	public synchronized AdjacencyList addEdge(InternalRelation e, boolean checkTypeUniqueness, ModificationStatus status) {
-		return factory.extend(this, e, status);
-	}
+    private final AdjacencyListFactory factory;
 
-	@Override
-	public boolean containsEdge(InternalRelation e) {
-		return false;
-	}
+    InitialAdjacencyList(AdjacencyListFactory factory) {
+        this.factory = factory;
+    }
 
-	@Override
-	public Iterable<InternalRelation> getEdges() {
-		return Empty;
-	}
+    @Override
+    public synchronized AdjacencyList addEdge(InternalRelation e, ModificationStatus status) {
+        return factory.extend(this, e, status);
+    }
 
-	@Override
-	public Iterable<InternalRelation> getEdges(TitanType type) {
-		return Empty;
-	}
-	
-	@Override
-	public Iterable<InternalRelation> getEdges(TypeGroup group) {
-		return Empty;
-	}
+    @Override
+    public synchronized AdjacencyList addEdge(InternalRelation e, boolean checkTypeUniqueness, ModificationStatus status) {
+        return factory.extend(this, e, status);
+    }
 
-	@Override
-	public void removeEdge(InternalRelation e, ModificationStatus status) {
-		status.nochange();
-	}
+    @Override
+    public boolean containsEdge(InternalRelation e) {
+        return false;
+    }
 
-	@Override
-	public AdjacencyListFactory getFactory() {
-		return factory;
-	}
+    @Override
+    public Iterable<InternalRelation> getEdges() {
+        return Empty;
+    }
 
-	@Override
-	public Iterator<InternalRelation> iterator() {
-		return Iterators.emptyIterator();
-	}
+    @Override
+    public Iterable<InternalRelation> getEdges(TitanType type) {
+        return Empty;
+    }
 
-	@Override
-	public boolean isEmpty() {
-		return true;
-	}
+    @Override
+    public Iterable<InternalRelation> getEdges(TypeGroup group) {
+        return Empty;
+    }
+
+    @Override
+    public void removeEdge(InternalRelation e, ModificationStatus status) {
+        status.nochange();
+    }
+
+    @Override
+    public AdjacencyListFactory getFactory() {
+        return factory;
+    }
+
+    @Override
+    public Iterator<InternalRelation> iterator() {
+        return Iterators.emptyIterator();
+    }
+
+    @Override
+    public boolean isEmpty() {
+        return true;
+    }
 
 }
