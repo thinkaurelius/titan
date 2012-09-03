@@ -17,7 +17,7 @@
     <div id="header_wrap" class="outer">
         <header class="inner">
           <a id="forkme_banner" href="https://github.com/thinkaurelius/titan/wiki">View Documentation</a>
-
+	      <!--<img src="images/titan-banner.gif" />-->
           <h1 id="project_title">TITAN</h1>
           <h2 id="project_tagline">A Highly Scalable, Distributed Graph Database</h2>
           <section id="downloads">                                                                                                                  
@@ -29,37 +29,87 @@
     <!-- MAIN CONTENT -->
     <div id="main_content_wrap" class="outer">
       <section id="main_content" class="inner">
-      <center>
+<!--      <center>
         <img src="images/titan-logo.png" />
       </center>
-	
+-->	
 <!----->
 
-<p>Titan is a distributed <a href="http://en.wikipedia.org/wiki/Graph_database">graph database</a> optimized for storing and processing large-scale graphs within a multi-machine cluster. The primary features of Titan are itemized below.</p>
+<img id="titanlogo" src="images/titan-logo2.png" />
+
+<p>Titan is a highly scalable <a href="http://en.wikipedia.org/wiki/Graph_database">graph database</a> optimized for storing and querying large graphs with billions of vertices and edges distributed across a multi-machine cluster. 
+Titan is a transactional database that can support <a href="http://thinkaurelius.com/2012/08/06/titan-provides-real-time-big-graph-data/">thousands of concurrent users</a>.</p>
+
+<p>In addition, Titan provides the following features:</p>
 
 <ul>
-<li>Support for various distributed storage layers
+<li>Support for <a href="http://en.wikipedia.org/wiki/ACID">ACID</a> and <a href="http://en.wikipedia.org/wiki/Eventual_consistency">eventual consistency</a> models</li>
 
+<li>Support for various storage layers which simplifies integration into existing database environments 
 <ul>
-<li>
-<a href="http://cassandra.apache.org/">Cassandra</a> 1.1</li>
-<li>
-<a href="http://hbase.apache.org/">HBase</a> 0.92</li>
+<li><a href="http://cassandra.apache.org/">Apache Cassandra</a></li>
+<li><a href="http://hbase.apache.org/">Apache HBase</a></li>
+<li><a href="http://www.oracle.com/technetwork/database/berkeleydb/overview/index-093405.html">Oracle BerkeleyDB</a></li>
 </ul>
 </li>
-<li>Natively implements the <a href="http://blueprints.tinkerpop.com">Blueprints</a> graph API
 
+<li>Data distribution and replication for performance and safety</li>
+
+
+<li>Native implementation of the <a href="http://blueprints.tinkerpop.com">Blueprints</a> graph API  and support for the full TinkerPop stack of technologies:
 <ul>
-<li>
-<a href="http://gremlin.tinkerpop.com">Gremlin</a> graph traversal language</li>
-<li>
-<a href="http://frames.tinkerpop.com">Frames</a> graph-to-object mapper</li>
-<li>
-<a href="http://rexster.tinkerpop.com">Rexster</a> graph server</li>
+<li><a href="http://gremlin.tinkerpop.com">Gremlin</a> graph traversal language</li>
+<li><a href="http://frames.tinkerpop.com">Frames</a> graph-to-object mapper</li>
+<li><a href="http://rexster.tinkerpop.com">Rexster</a> graph server</li>
 </ul>
 </li>
+
 <li>Open source with the liberal <a href="http://www.apache.org/licenses/LICENSE-2.0.html">Apache 2</a> license</li>
 </ul>
+
+<p><a href="https://github.com/downloads/thinkaurelius/titan/titan-0.1-alpha.zip">Download Titan 0.1</a> or <a href="https://github.com/thinkaurelius/titan">clone from github.</a>
+&nbsp;Join the <a href="https://groups.google.com/forum/#!forum/aureliusgraphs">Titan mailing list</a> to stay up-to-date.
+
+<h2> Quick Start </h2>
+
+<div class="highlight"><pre><span class="nt">&lt;dependency&gt;</span>
+   <span class="nt">&lt;groupId&gt;</span>com.thinkaurelius<span class="nt">&lt;/groupId&gt;</span>
+   <span class="nt">&lt;artifactId&gt;</span>titan<span class="nt">&lt;/artifactId&gt;</span>
+   <span class="nt">&lt;version&gt;</span>0.1.0<span class="nt">&lt;/version&gt;</span>
+<span class="nt">&lt;/dependency&gt;</span>
+</pre></div>
+
+<br>
+
+<div class="highlight"><pre><span class="n">Graph</span> <span class="n">graph</span> <span class="o">=</span> <span class="n">TitanFactory</span><span class="o">.</span><span class="na">open</span><span class="o">(</span><span class="s">"/tmp/local-titan"</span><span class="o">)</span>
+<span class="n">Vertex</span> <span class="n">a</span> <span class="o">=</span> <span class="n">graph</span><span class="o">.</span><span class="na">addVertex</span><span class="o">();</span>
+<span class="n">Vertex</span> <span class="n">b</span> <span class="o">=</span> <span class="n">graph</span><span class="o">.</span><span class="na">addVertex</span><span class="o">();</span>
+<span class="n">a</span><span class="o">.</span><span class="na">setProperty</span><span class="o">(</span><span class="s">"name"</span><span class="o">,</span> <span class="s">"hercules"</span><span class="o">);</span>
+<span class="n">b</span><span class="o">.</span><span class="na">setProperty</span><span class="o">(</span><span class="s">"name"</span><span class="o">,</span> <span class="s">"cerberus"</span><span class="o">);</span>
+<span class="n">Edge</span> <span class="n">e</span> <span class="o">=</span> <span class="n">graph</span><span class="o">.</span><span class="na">addEdge</span><span class="o">(</span><span class="n">a</span><span class="o">,</span> <span class="n">b</span><span class="o">,</span> <span class="s">"battled"</span><span class="o">);</span>
+<span class="n">e</span><span class="o">.</span><span class="na">setProperty</span><span class="o">(</span><span class="s">"time"</span><span class="o">,</span> <span class="mi">12</span><span class="o">);</span>
+</pre></div>
+
+<p>Check out the <a href="https://github.com/thinkaurelius/titan/wiki">Titan documentation</a> for more information.</p>
+
+<h2> Titan News </h2>
+
+<ul>
+<li>Titan 0.1 has been released. <a href="">Check out what's new.</a></li>
+<li>Titan was presented at the Cassandra 2012 summit (<a href="http://www.slideshare.net/knowfrominfo/titan-big-graph-data-with-cassandra">slides</a> and <a href="http://www.youtube.com/watch?v=ZkAYA4Kd8JE&feature=youtu.be">video</a>).
+<li>A thorough, large-scale <a href="http://thinkaurelius.com/2012/08/06/titan-provides-real-time-big-graph-data/">benchmark evaluation</a> of Titan shows that it can scale to billion edge graphs with thousands of concurrent users while maintaining low latency query response.</li>
+<li><a href="http://www.slideshare.net/slidarko/titan-the-rise-of-big-graph-data">Titan: The Rise of Big Graph Data</a> is the launch presentation of Titan containing an introduction to Titan and graph databases in general.</li>
+</ul>
+
+
+<h2> Support </h2>
+
+<p>The <a href="https://github.com/thinkaurelius/titan/wiki">Titan documentation</a> contains a step-by-step guide to getting started with Titan as well as in-depth discussion of advanced Titan data modeling and querying topics.</p>
+
+<p>The <a href="http://thinkaurelius.github.com/titan/javadoc/snapshot">Titan API JavaDoc</a> documents all public interfaces to the database.</p>
+
+<p>If you cannot find an answer to your question in the Titan documentation, please direct it to the Aurelius <a href="https://groups.google.com/forum/#!forum/aureliusgraphs">mailing list</a>. 
+For TinkerPop related discussions, use the Gremlin-Users <a href="https://groups.google.com/forum/#!forum/gremlin-users">mailing list</a>.</p>
 
       </section>
     </div>

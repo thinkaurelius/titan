@@ -80,7 +80,7 @@ h1 {
 
 h2 {
   padding-bottom: 10px;
-  font-size: 32px;
+  font-size: 28px;
   background: url('../images/bg_hr.png') repeat-x bottom;
 }
 
@@ -277,8 +277,13 @@ Full-Width Styles
   background: url('../images/aurelius-icon.png') rgb(213,26,17) /*#0090ff*/ no-repeat 95% 50%;
   font-weight: 700;
   box-shadow: 0 0 10px rgba(0,0,0,.5);
-  border-bottom-left-radius: 2px;
-  border-bottom-right-radius: 2px;
+  border-bottom-left-radius: 3px;
+  border-bottom-right-radius: 3px;
+}
+
+#forkme_banner:hover {
+  background: url('../images/aurelius-icon.png') rgb(242,242,242) /*#0090ff*/ no-repeat 95% 50%;
+  color: #2D2D2D;
 }
 
 #header_wrap {
@@ -291,7 +296,16 @@ Full-Width Styles
 }
 
 #header_wrap .inner {
-  padding: 50px 10px 30px 10px;
+  padding: 10px 10px 30px 10px;
+}
+
+#header_wrap img {
+	float : left;
+	margin-right: 20px;
+}
+
+#header_wrap h1 {
+	padding-top: 40px;
 }
 
 #project_title {
@@ -327,7 +341,7 @@ Full-Width Styles
   height:70px;
   text-indent: -5000px;
   overflow: hidden;
-  background: url(../images/sprite_download.png) no-repeat bottom left;
+  background: url(../images/sprite_download.png) no-repeat top left;
 }
 
 .tar_download_link {
@@ -342,7 +356,7 @@ Full-Width Styles
 }
 
 .zip_download_link:hover {
-  background: url(../images/sprite_download.png) no-repeat top left;
+  background: url(../images/sprite_download.png) no-repeat bottom left;
 }
 
 .tar_download_link:hover {
@@ -357,6 +371,15 @@ Full-Width Styles
 
 #main_content {
   padding-top: 40px;
+}
+
+img#titanlogo {
+	float: right;
+	margin: 5px;
+}
+
+ul ul {
+	margin-bottom: 0px;
 }
 
 #footer_wrap {
