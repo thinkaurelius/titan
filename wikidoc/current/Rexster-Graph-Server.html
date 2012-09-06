@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-type" content="text/html;charset=utf-8">
+  <link rel="stylesheet" type="text/css" href="../public/css/gollum.css" media="all">
+  <link rel="stylesheet" type="text/css" href="../public/css/editor.css" media="all">
+  <link rel="stylesheet" type="text/css" href="../public/css/dialog.css" media="all">
+  <link rel="stylesheet" type="text/css" href="../public/css/template.css" media="all">
+  
+  <!--[if IE 7]>
+  <link rel="stylesheet" type="text/css" href="../public/css/ie7.css" media="all">
+  <![endif]-->
+  
+  <script type="text/javascript" src="../public/css/jquery.js"></script>
+  <script type="text/javascript" src="../public/css/gollum.js"></script>
+  <script type="text/javascript" src="../public/css/gollum.dialog.js"></script>
+  <script type="text/javascript" src="../public/css/gollum.placeholder.js"></script>
+  
+  <script type="text/javascript" 
+    src="../public/css/editor/gollum.editor.js"></script>
+  <title>Rexster Graph Server</title>
+</head>
+<body>
+
+<div id="wiki-wrapper" class="page">
+<div id="head"><h3><a href="Home.html">Aurelius Titan 0.1.0</a></h3>
+  <h1>Rexster Graph Server</h1>
+  <ul class="actions">
+    <li class="minibutton"><a href="/pages"
+      class="action-all-pages">All Pages</a></li>
+    <li class="minibutton" class="jaws">
+      <a href="#" id="minibutton-new-page">New Page</a></li>
+    <li class="minibutton"><a href="/edit/Rexster-Graph-Server"
+       class="action-edit-page">Edit Page</a></li>
+    <li class="minibutton"><a href="/history/Rexster-Graph-Server"
+       class="action-page-history">Page History</a></li>
+  </ul>
+  <div id="searchbar">
+    <form action="/search" method="get" id="search-form">
+    <div id="searchbar-fauxtext">
+      <input type="text" name="q" id="search-query" value="Search&hellip;" autocomplete="off">
+      <a href="#" id="search-submit" title="Search this wiki">
+        <span>Search</span>
+      </a>
+    </div>
+    </form>
+  </div></div>
+<div id="wiki-content">
+  <div class="wrap">
+  <div id="wiki-body" class="gollum-textile-content">
+    <div id="template">
+      <p><a href="http://rexster.tinkerpop.com"><img src="https://github.com/tinkerpop/rexster/raw/master/doc/images/rexster-logo.png" alt="" /></a></p>
+<p><a href="http://rexster.tinkerpop.com">Rexster</a> exposes any Titan graph database via a <span class="caps">JSON</span>-based <span class="caps">REST</span> interface. In this way, the raw graph&#x2019;s vertices and edges can be referenced using <span class="caps">REST</span> endpoints. Moreover, provided and custom algorithms (called <a href="https://github.com/tinkerpop/rexster/wiki/Rexster-Kibbles">Kibbles</a>) can be stored on the server, triggered via <span class="caps">HTTP</span>, and their results returned via <span class="caps">JSON</span>. Finally, Rexster provides an administration and visualization interface that can be accessed from most major web browsers.</p>
+<h2>The Benefits of Rexster</h2>
+<p><a href="https://github.com/tinkerpop/rexster/raw/master/doc/images/rexster-dog-house-viz.png"><img src="https://github.com/tinkerpop/rexster/raw/master/doc/images/rexster-dog-house-viz.png" width="434px" /></a><a href="https://github.com/tinkerpop/rexster/raw/master/doc/images/rexster-dog-house-gremlin.png"><img src="https://github.com/tinkerpop/rexster/raw/master/doc/images/rexster-dog-house-gremlin.png" width="450px" /></a></p>
+<p>The following is a list of the <a href="https://github.com/tinkerpop/rexster/wiki/The-Benefits-of-Rexster">benefits of using Rexster</a>.</p>
+<ul><li><a href="https://github.com/tinkerpop/rexster/wiki/Mapping-a-URI-to-JSON"><span class="caps">JSON</span>-based <span class="caps">REST</span> interface</a> ensures language agnostic connectivity to Titan.
+	<ul><li>See <a href="http://bulbflow.com/">Bulbs</a> for a Python connector.</li>
+	</ul></li>
+	<li><span class="caps">HTML</span>/JavaScript <a href="https://github.com/tinkerpop/rexster/wiki/The-Dog-House">graphical user interface</a> for graph administration and visualization.</li>
+	<li>Extend with more RESTful endpoints by adding <a href="https://github.com/tinkerpop/rexster/wiki/Creating-an-Extension">kibbles</a> to Rexster.
+	<ul><li>See <a href="https://github.com/tinkerpop/rexster/wiki/Rexster-Kibbles">Rexster-Kibbles</a> provided by TinkerPop.</li>
+	</ul></li>
+	<li>Remote Gremlin traversals via the <a href="https://github.com/tinkerpop/rexster/wiki/Gremlin-Extension">Gremlin extensions</a> and the <a href="https://github.com/tinkerpop/rexster/wiki/Rexster-Console">Rexster console</a>.</li>
+	<li><a href="https://github.com/tinkerpop/rexster/wiki/Rexster-Security">Security support</a> via user authentification.</li>
+</ul><h2>Downloading and Starting Rexster</h2>
+<p>Before using Rexster with Titan, it must for be downloaded. Rexster can be downloaded at <a href="https://github.com/tinkerpop/rexster/downloads">this location</a>. Below is a snippet of shell commands that demonstrate the process for getting Rexster downloaded and started using a default configuration.</p>
+<pre><code>$ curl -L https://github.com/downloads/tinkerpop/rexster/rexster-server-x.y.z.zip &gt; rexster-server-x.y.z.zip
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current ...
+...
+$ unzip rexster-server-x.y.z.zip
+Archive:  rexster-server-x.y.z.zip
+   creating: rexster-server-x.y.z/
+...
+$ cd rexster-server-x.y.z
+$ ./rexster-server.sh --start</code></pre>
+<p>Use <code>CTRL-C</code> to kill the server. Now that Rexster is downloaded and working, it is necessary to configure Rexster to work with Titan (see Rexster&#x2019;s <a href="https://github.com/tinkerpop/rexster/wiki/Getting-Started">Getting Started</a> page).</p>
+<h2>Configuring Rexster</h2>
+<p>This section explains how to configure Rexster to use a Titan graph database. An example <code>rexster.xml</code> file is provided below (see <a href="https://github.com/tinkerpop/rexster/wiki/Rexster-Configuration">Rexster Configuration</a>).</p>
+<pre><code>&lt;?xml version="1.0" encoding="UTF-8"?&gt;
+&lt;rexster&gt;
+  &lt;rexster-server-port&gt;8182&lt;/rexster-server-port&gt;
+  &lt;rexster-server-host&gt;0.0.0.0&lt;/rexster-server-host&gt;
+  &lt;rexster-shutdown-port&gt;8183&lt;/rexster-shutdown-port&gt;
+  &lt;rexster-shutdown-host&gt;127.0.0.1&lt;/rexster-shutdown-host&gt;
+  &lt;rexpro-server-port&gt;8184&lt;/rexpro-server-port&gt;
+  &lt;rexpro-session-max-idle&gt;1790000&lt;/rexpro-session-max-idle&gt;
+  &lt;rexpro-session-check-interval&gt;3000000&lt;/rexpro-session-check-interval&gt;
+  &lt;base-uri&gt;http://localhost&lt;/base-uri&gt;
+  &lt;web-root&gt;public&lt;/web-root&gt;
+  &lt;character-set&gt;UTF-8&lt;/character-set&gt;
+  &lt;security&gt;
+    &lt;authentication&gt;
+        &lt;type&gt;default&lt;/type&gt;
+        &lt;configuration&gt;
+          &lt;users&gt;
+            &lt;user&gt;
+              &lt;username&gt;rexster&lt;/username&gt;
+              &lt;password&gt;rexster&lt;/password&gt;
+            &lt;/user&gt;
+          &lt;/users&gt;
+        &lt;/configuration&gt;
+    &lt;/authentication&gt;
+  &lt;/security&gt;
+  &lt;graphs&gt;
+    &lt;graph&gt;
+      &lt;graph-name&gt;titanexample&lt;/graph-name&gt;
+      &lt;graph-type&gt;com.thinkaurelius.titan.tinkerpop.rexster.TitanGraphConfiguration&lt;/graph-type&gt;
+      &lt;graph-location&gt;tmp/titan&lt;/graph-location&gt;
+      &lt;graph-read-only&gt;false&lt;/graph-read-only&gt;
+      &lt;properties&gt;
+            &lt;storage.backend&gt;local&lt;/storage.backend&gt;
+            &lt;buffer-size&gt;100&lt;/buffer-size&gt;
+      &lt;/properties&gt;
+      &lt;extensions&gt;
+        &lt;allows&gt;
+          &lt;allow&gt;tp:gremlin&lt;/allow&gt;
+        &lt;/allows&gt;
+      &lt;/extensions&gt;
+    &lt;/graph&gt;
+  &lt;/graphs&gt;
+&lt;/rexster&gt;</code></pre>
+<p><span class="float-right"><span><img src="https://github.com/tinkerpop/rexster/raw/master/doc/images/rexster-character-2.png" width="100px" /></span></span><br />
+There are three ways to configure Rexster for use with Titan:</p>
+<ol><li>If building Titan and Rexster from source, copy the <code>target/titan-x.y-jar-with-dependencies.jar</code> to the Rexster <code>./rexster-server/src/main/ext</code> directory and then do <code>mvn clean install</code> on Rexster.</li>
+	<li>If building Titan from source and using Rexster distribution, copy the <code>target/titan-x.y-jar-with-dependencies.jar</code> to the Rexster <code>./rexster-server/target/rexster-server-${VERSION}/ext</code> directory.</li>
+	<li>If using the Titan zipped distribution download, copy all jar files in the <code>lib</code> directory to the Rexster <code>./rexster-server/target/rexster-server-${VERSION}/ext</code> directory.</li>
+</ol><p><strong><span class="caps">NOTE</span></strong>: Future releases (beyond the 0.1) will have a much more efficient/easier packaging model.</p>
+<p>Once that is done, specify the graph type as shown above. Rexster&#x2019;s <em>graph-location</em> option is equivalent to Titan&#x2019;s <em>storage.directory</em>. In the event that Titan is being configured for &#x201C;local&#x201D; mode, please make sure that this value is an existing directory.  All other Titan specific configurations are subsumed under <em>properties</em>. In the example above, the backend and the buffer size are configured. Any of the <a href="Graph-Configuration">Titan configurations</a> can be used here. For more information on configuring Rexster, please see the <a href="https://github.com/tinkerpop/rexster/wiki/Rexster-Configuration">Rexster configuration</a> documentation.</p>
+<h2><span class="caps">REST</span> <span class="caps">API</span> Limitations</h2>
+<p>Rexster has a rich <a href="https://github.com/tinkerpop/rexster/wiki/Basic-REST-API"><span class="caps">API</span></a> for working with Blueprints Graph implementations, but there are some limitations to consider when using Rexster with Titan:</p>
+<ul><li>Titan automatically assigns identifiers. Hence, the <span class="caps">POST</span> of an edge cannot be done with an identifier. In other words, do this: <code>http://localhost/graphs/titan/edges</code> and <em>not</em> this <code>http://localhost/graphs/titan/edges/1234</code>.</li>
+	<li>Titan uses vertex indexes and does not support manual indexes. Hence, all operations on the <code>indices</code> resource are not supported. Use key indexes instead.</li>
+</ul>
+    </div>
+  </div>
+  </div>
+
+</div>
+<div id="footer">
+  <p id="last-edit">Last edited by <b>okram</b>, 2012-09-06 19:50:26</p>
+</div>
+</div>
+
+<script type="text/javascript" src="../public/css/MathJax/MathJax.js"></script>
+
+
+</body>
+</html>

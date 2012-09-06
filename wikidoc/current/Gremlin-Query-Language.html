@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-type" content="text/html;charset=utf-8">
+  <link rel="stylesheet" type="text/css" href="../public/css/gollum.css" media="all">
+  <link rel="stylesheet" type="text/css" href="../public/css/editor.css" media="all">
+  <link rel="stylesheet" type="text/css" href="../public/css/dialog.css" media="all">
+  <link rel="stylesheet" type="text/css" href="../public/css/template.css" media="all">
+  
+  <!--[if IE 7]>
+  <link rel="stylesheet" type="text/css" href="../public/css/ie7.css" media="all">
+  <![endif]-->
+  
+  <script type="text/javascript" src="../public/css/jquery.js"></script>
+  <script type="text/javascript" src="../public/css/gollum.js"></script>
+  <script type="text/javascript" src="../public/css/gollum.dialog.js"></script>
+  <script type="text/javascript" src="../public/css/gollum.placeholder.js"></script>
+  
+  <script type="text/javascript" 
+    src="../public/css/editor/gollum.editor.js"></script>
+  <title>Gremlin Query Language</title>
+</head>
+<body>
+
+<div id="wiki-wrapper" class="page">
+<div id="head"><h3><a href="Home.html">Aurelius Titan 0.1.0</a></h3>
+  <h1>Gremlin Query Language</h1>
+  <ul class="actions">
+    <li class="minibutton"><a href="/pages"
+      class="action-all-pages">All Pages</a></li>
+    <li class="minibutton" class="jaws">
+      <a href="#" id="minibutton-new-page">New Page</a></li>
+    <li class="minibutton"><a href="/edit/Gremlin-Query-Language"
+       class="action-edit-page">Edit Page</a></li>
+    <li class="minibutton"><a href="/history/Gremlin-Query-Language"
+       class="action-page-history">Page History</a></li>
+  </ul>
+  <div id="searchbar">
+    <form action="/search" method="get" id="search-form">
+    <div id="searchbar-fauxtext">
+      <input type="text" name="q" id="search-query" value="Search&hellip;" autocomplete="off">
+      <a href="#" id="search-submit" title="Search this wiki">
+        <span>Search</span>
+      </a>
+    </div>
+    </form>
+  </div></div>
+<div id="wiki-content">
+  <div class="wrap">
+  <div id="wiki-body" class="gollum-textile-content">
+    <div id="template">
+      <p><img src="https://github.com/tinkerpop/gremlin/raw/master/doc/images/gremlin-logo.png" alt="" /></p>
+<p>Titan supports the standard Gremlin graph query language for complex graph retrieval and mutation operations.  <a href="http://gremlin.tinkerpop.com">Gremlin</a> is a functional language whereby traversal operators are chained together to form path-like expressions. Data (e.g. a vertex) is inserted into the &#x201C;left&#x201D; of the function chain and data (e.g. property values) is emitted from the &#x201C;right&#x201D; of the function chain. This section of documentation will only briefly overview Gremlin. For more complete documentation on Gremlin, please see the <a href="http://gremlin.tinkerpop.com">online documentation</a>. Moreover, the examples are with respects to Gremlin-Groovy and note that there are other <a href="https://github.com/tinkerpop/gremlin/wiki/JVM-Language-Implementations"><span class="caps">JVM</span> language implementations of Gremlin</a>.</p>
+<h2>Traversing using Functions</h2>
+<p>The example below returns the name of all the people that have battled the same monsters as Hercules who themselves are not Hercules (i.e. &#x201C;co-battlers&#x201D; or perhaps, &#x201C;allies&#x201D;).</p>
+<pre><code>hercules.out('battled').in('battled').except([hercules]).name</code></pre>
+<p>The example above has 4 chained functions: <code>out</code>, <code>in</code>, <code>except</code>, and <code>property</code> (i.e. <code>name</code> is shorthand for <code>property('name')</code>). The function signatures of each are itemized below, where <code>V</code> is vertex and <code>U</code> is any object.</p>
+<ol><li><code>out: V -&gt; V</code></li>
+	<li><code>in: V -&gt; V</code></li>
+	<li><code>except: U -&gt; U</code></li>
+	<li><code>property: V -&gt; U</code></li>
+</ol><p>When chaining together functions, the incoming type must match the outgoing type, where <code>U</code> matches anything. Thus, the &#x201C;co-battled/ally&#x201D; traversal above is correct.</p>
+<h2>Helper Configuration Files for Easy Local Connectivity</h2>
+<p>When working with Gremlin against a local instance of <a class="internal present" href="Using-HBase.html">HBase</a> or <a class="internal present" href="Using-Cassandra.html">Cassandra</a>, the following behavior is constantly repeated.</p>
+<pre><code>conf = new BaseConfiguration();
+conf.setProperty("storage.backend","cassandra");
+conf.setProperty("storage.hostname","127.0.0.1");</code></pre>
+<p>To make this easier, there are two configuration files in the <code>bin/</code> directory: <code>cassandra.local</code> and <code>hbase.local</code>. These can be used as such:</p>
+<pre><code>TitanFactory.open("bin/cassandra.local")</code></pre>
+<p>or</p>
+<pre><code>TitanFactory.open("bin/hbase.local")</code></pre>
+<h2>Next Steps</h2>
+<ul><li>Read the <a href="http://gremlin.tinkerpop.com">Gremlin Manual</a> to learn more about this expressive query language.</li>
+	<li>Learn about the <a class="internal present" href="Rexster-Graph-Server.html">Rexster Graph Server</a> that exposes any Titan graph through a RESTful interface.</li>
+</ul>
+    </div>
+  </div>
+  </div>
+
+</div>
+<div id="footer">
+  <p id="last-edit">Last edited by <b>okram</b>, 2012-09-06 19:50:26</p>
+</div>
+</div>
+
+<script type="text/javascript" src="../public/css/MathJax/MathJax.js"></script>
+
+
+</body>
+</html>

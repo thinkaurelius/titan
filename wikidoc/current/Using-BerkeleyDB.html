@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-type" content="text/html;charset=utf-8">
+  <link rel="stylesheet" type="text/css" href="../public/css/gollum.css" media="all">
+  <link rel="stylesheet" type="text/css" href="../public/css/editor.css" media="all">
+  <link rel="stylesheet" type="text/css" href="../public/css/dialog.css" media="all">
+  <link rel="stylesheet" type="text/css" href="../public/css/template.css" media="all">
+  
+  <!--[if IE 7]>
+  <link rel="stylesheet" type="text/css" href="../public/css/ie7.css" media="all">
+  <![endif]-->
+  
+  <script type="text/javascript" src="../public/css/jquery.js"></script>
+  <script type="text/javascript" src="../public/css/gollum.js"></script>
+  <script type="text/javascript" src="../public/css/gollum.dialog.js"></script>
+  <script type="text/javascript" src="../public/css/gollum.placeholder.js"></script>
+  
+  <script type="text/javascript" 
+    src="../public/css/editor/gollum.editor.js"></script>
+  <title>Using BerkeleyDB</title>
+</head>
+<body>
+
+<div id="wiki-wrapper" class="page">
+<div id="head"><h3><a href="Home.html">Aurelius Titan 0.1.0</a></h3>
+  <h1>Using BerkeleyDB</h1>
+  <ul class="actions">
+    <li class="minibutton"><a href="/pages"
+      class="action-all-pages">All Pages</a></li>
+    <li class="minibutton" class="jaws">
+      <a href="#" id="minibutton-new-page">New Page</a></li>
+    <li class="minibutton"><a href="/edit/Using-BerkeleyDB"
+       class="action-edit-page">Edit Page</a></li>
+    <li class="minibutton"><a href="/history/Using-BerkeleyDB"
+       class="action-page-history">Page History</a></li>
+  </ul>
+  <div id="searchbar">
+    <form action="/search" method="get" id="search-form">
+    <div id="searchbar-fauxtext">
+      <input type="text" name="q" id="search-query" value="Search&hellip;" autocomplete="off">
+      <a href="#" id="search-submit" title="Search this wiki">
+        <span>Search</span>
+      </a>
+    </div>
+    </form>
+  </div></div>
+<div id="wiki-content">
+  <div class="wrap">
+  <div id="wiki-body" class="gollum-textile-content">
+    <div id="template">
+      <p><a href="http://www.oracle.com/technetwork/products/berkeleydb"><span class="float-left"><span><img src="http://sepp.oetiker.ch/subversion-1.4.4-rp/images/Oracle_BerkeleyDB_clr.bmp" width="300px" /></span></span></a></p>
+<p>The <a href="http://www.oracle.com/technetwork/products/berkeleydb">Oracle BerkeleyDB</a> storage backend runs in the same <span class="caps">JVM</span> as Titan and provides local persistence on a single machine. Hence, the BerkeleyDB storage backend requires that all of the graph data fits on the local disk and all of the frequently accessed graph elements fit into main memory. This imposes a practical limitation of graphs with 10-100s million vertices on commodity hardware. However, for graphs of that size the BerkeleyDB storage backend exhibits high performance because all data can be accessed locally within the same <span class="caps">JVM</span>.<br /><br /></p>
+<blockquote>
+<p>Berkeley DB enables the development of custom data management solutions, without the overhead traditionally associated with such custom projects. Berkeley DB provides a collection of well-proven building-block technologies that can be configured to address any application need from the hand-held device to the datacenter, from a local storage solution to a world-wide distributed one, from kilobytes to petabytes. &#x2014; <a href="http://www.oracle.com/technetwork/products/berkeleydb">BerkeleyDB Homepage</a></p>
+</blockquote>
+<h2>BerkeleyDB Setup</h2>
+<p>Since BerkeleyDB runs in the same <span class="caps">JVM</span> as Titan, connecting the two only requires a simple configuration and no additional setup:</p>
+<pre><code>Configuration conf = new BaseConfiguration();
+conf.setProperty("storage.directory", "/tmp/graph");
+conf.setProperty("storage.backend", "local");
+TitanGraph graph = TitanFactory.open(conf);</code></pre>
+<p>Currently, BerkeleyDB is the default local storage backend. So, we can use the TitanFactory helper method to open the same graph database.</p>
+<pre><code>TitanGraph graph = TitanFactory.open("/tmp/graph")</code></pre>
+<p>This has the same effect as the configuration above, with the only difference that it will create the directory in case it does not already exist where the configuration above would raise an exception.</p>
+<h2>BerkeleyDB Specific Configuration</h2>
+<p>In addition to the general <a href="Graph-Configuration">Titan Graph Configuration</a>, there are the following BerkeleyDB specific Titan configuration options:</p>
+<table><tr><th>Option </th>
+		<th>Description </th>
+		<th>Value </th>
+		<th>Default </th>
+		<th>Modifiable </th>
+	</tr><tr><td> storage.transactions </td>
+		<td> Whether concurrent transactions should be enabled </td>
+		<td> <em>true</em> or <em>false</em> </td>
+		<td> true </td>
+		<td> Yes </td>
+	</tr><tr><td> storage.cache_percentage </td>
+		<td> The percentage of <span class="caps">JVM</span> heap space (configured via -Xmx) to be allocated to BerkeleyDB for its cache. Try to give BerkeleyDB as much space as possible without causing memory problems for Titan. For instance, if Titan only runs short transactions, use a value of 80 or higher. </td>
+		<td> 1-99 </td>
+		<td> 65 </td>
+		<td> Yes </td>
+	</tr></table><h2>Ideal Use Case</h2>
+<p>The BerkeleyDB storage backend is best suited for small to medium size graphs with up to 100 million vertices on commodity hardware. For graphs of that size, it will likely deliver higher performance than the distributed storage backends. Note, that BerkeleyDB is also limited in the number of concurrent requests it can handle efficiently because it runs on a single machine. Hence, it is not well suited for applications with many concurrent users mutating the graph, even if that graph is small to medium size.</p>
+<p>Since BerkeleyDB runs in the same <span class="caps">JVM</span> as Titan, this storage backend is ideally suited for unit testing of application code using Titan.</p>
+    </div>
+  </div>
+  </div>
+
+</div>
+<div id="footer">
+  <p id="last-edit">Last edited by <b>okram</b>, 2012-09-06 19:50:26</p>
+</div>
+</div>
+
+<script type="text/javascript" src="../public/css/MathJax/MathJax.js"></script>
+
+
+</body>
+</html>
