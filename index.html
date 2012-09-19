@@ -81,14 +81,8 @@ Read the <a href="https://github.com/thinkaurelius/titan/wiki">Titan documentati
 </pre></div>
 
 <br>
-
-<div class="highlight"><pre><span class="n">Graph</span> <span class="n">graph</span> <span class="o">=</span> <span class="n">TitanFactory</span><span class="o">.</span><span class="na">open</span><span class="o">(</span><span class="s">"/tmp/local-titan"</span><span class="o">)</span>
-<span class="n">Vertex</span> <span class="n">a</span> <span class="o">=</span> <span class="n">graph</span><span class="o">.</span><span class="na">addVertex</span><span class="o">();</span>
-<span class="n">Vertex</span> <span class="n">b</span> <span class="o">=</span> <span class="n">graph</span><span class="o">.</span><span class="na">addVertex</span><span class="o">();</span>
-<span class="n">a</span><span class="o">.</span><span class="na">setProperty</span><span class="o">(</span><span class="s">"name"</span><span class="o">,</span> <span class="s">"hercules"</span><span class="o">);</span>
-<span class="n">b</span><span class="o">.</span><span class="na">setProperty</span><span class="o">(</span><span class="s">"name"</span><span class="o">,</span> <span class="s">"cerberus"</span><span class="o">);</span>
-<span class="n">Edge</span> <span class="n">e</span> <span class="o">=</span> <span class="n">graph</span><span class="o">.</span><span class="na">addEdge</span><span class="o">(</span><span class="n">a</span><span class="o">,</span> <span class="n">b</span><span class="o">,</span> <span class="s">"battled"</span><span class="o">);</span>
-<span class="n">e</span><span class="o">.</span><span class="na">setProperty</span><span class="o">(</span><span class="s">"time"</span><span class="o">,</span> <span class="mi">12</span><span class="o">);</span>
+<div class="highlight"><pre><span class="c1">// who is hercules' grandfather?</span>
+<span class="n">g</span><span class="o">.</span><span class="na">V</span><span class="o">(</span><span class="s1">'name'</span><span class="o">,</span><span class="s1">'hercules'</span><span class="o">).</span><span class="na">out</span><span class="o">(</span><span class="s1">'father'</span><span class="o">).</span><span class="na">out</span><span class="o">(</span><span class="s1">'father'</span><span class="o">).</span><span class="na">name</span>
 </pre></div>
 
 <p>Continue with the <a href="https://github.com/thinkaurelius/titan/wiki/Getting-Started">Getting Started with Titan</a> guide for a step-by-step introduction.</p>
