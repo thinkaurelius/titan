@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-type" content="text/html;charset=utf-8">
+  <link rel="stylesheet" type="text/css" href="../public/css/gollum.css" media="all">
+  <link rel="stylesheet" type="text/css" href="../public/css/editor.css" media="all">
+  <link rel="stylesheet" type="text/css" href="../public/css/dialog.css" media="all">
+  <link rel="stylesheet" type="text/css" href="../public/css/template.css" media="all">
+  
+  <!--[if IE 7]>
+  <link rel="stylesheet" type="text/css" href="../public/css/ie7.css" media="all">
+  <![endif]-->
+  
+  <script type="text/javascript" src="../public/css/jquery.js"></script>
+  <script type="text/javascript" src="../public/css/gollum.js"></script>
+  <script type="text/javascript" src="../public/css/gollum.dialog.js"></script>
+  <script type="text/javascript" src="../public/css/gollum.placeholder.js"></script>
+  
+  <script type="text/javascript" 
+    src="../public/css/editor/gollum.editor.js"></script>
+  <title>Building Titan</title>
+</head>
+<body>
+
+<div id="wiki-wrapper" class="page">
+<div id="head"><h3><a href="Home.html">Aurelius Titan 0.2</a></h3>
+  <h1>Building Titan</h1>
+  <ul class="actions">
+    <li class="minibutton"><a href="/pages"
+      class="action-all-pages">All Pages</a></li>
+    <li class="minibutton" class="jaws">
+      <a href="#" id="minibutton-new-page">New Page</a></li>
+    <li class="minibutton"><a href="/edit/Building-Titan"
+       class="action-edit-page">Edit Page</a></li>
+    <li class="minibutton"><a href="/history/Building-Titan"
+       class="action-page-history">Page History</a></li>
+  </ul>
+  <div id="searchbar">
+    <form action="/search" method="get" id="search-form">
+    <div id="searchbar-fauxtext">
+      <input type="text" name="q" id="search-query" value="Search&hellip;" autocomplete="off">
+      <a href="#" id="search-submit" title="Search this wiki">
+        <span>Search</span>
+      </a>
+    </div>
+    </form>
+  </div></div>
+<div id="wiki-content">
+  <div class="wrap">
+  <div id="wiki-body" class="gollum-textile-content">
+    <div id="template">
+      <p><img src="https://github.com/thinkaurelius/titan/raw/master/doc/images/building-titan.png" alt="" /></p>
+<p>To build Titan you need <a href="http://git-scm.com/">git</a> and <a href="http://maven.apache.org/">Maven</a>.</p>
+<ol><li>Clone the <a href="https://github.com/thinkaurelius/titan">Titan repository from GitHub</a> to a local directory.</li>
+	<li>In that directory, execute <code>mvn clean install</code>. This will build Titan and run the internal test suite. The internal test suite has no external dependencies. Note, that running all test cases requires a significant amount of time. To skip the tests when building Titan, execute <code>mvn clean install -DskipTests</code></li>
+	<li>For comprehensive test coverage, execute <code>mvn clean test -P comprehensive</code>. This will run additional test covering communication to external storage backends, performance tests and concurrency tests. The comprehensive test suite uses Cassandra and HBase as external databases and requires that Cassandra and HBase are installed. Moreover, HBase must be manually started before and manually stopped after executing the command. The assumption of an externally-started HBase instance will likely be removed as development on the Titan HBase adapter continues. Please refer to the <a href="Using-Cassandra">Cassandra</a> and <a href="Using-HBase">HBase</a> wiki pages for more information. Note, that running the comprehensive test suite requires a significant amount of of time (&gt; 1 hour).</li>
+</ol><h2>Depending on Titan Snapshots</h2>
+<p>For developing against the most current version of Titan, depend on Titan snapshot releases. Note, that these releases are development releases and therefore unstable and likely to change. Unless one is interested in the most recent development status of Titan, we recommend to use the stable Titan release instead.</p>
+<pre><code>&lt;dependency&gt;
+   &lt;groupId&gt;com.thinkaurelius.titan&lt;/groupId&gt;
+   &lt;artifactId&gt;titan&lt;/artifactId&gt;
+   &lt;version&gt;X.Y.Z-SNAPSHOT&lt;/version&gt;
+&lt;/dependency&gt;</code></pre><br />
+Check the <a href="https://github.com/thinkaurelius/titan/tree/">master branch</a> for the most current release version.<br />
+SNAPSHOTs are available through the <a href="https://oss.sonatype.org/content/repositories/snapshots/com/thinkaurelius/titan/">Sonatype repository</a>.
+<p>When adding this dependency, be sure to add the following repository to the <code>pom.xml</code>:</p>
+<pre><code>&lt;repository&gt;
+  &lt;id&gt;sonatype-nexus-snapshots&lt;/id&gt;
+  &lt;name&gt;Sonatype Nexus Snapshots&lt;/name&gt;
+  &lt;url&gt;https://oss.sonatype.org/content/repositories/snapshots&lt;/url&gt;
+  &lt;releases&gt;
+    &lt;enabled&gt;false&lt;/enabled&gt;
+  &lt;/releases&gt;
+  &lt;snapshots&gt;
+    &lt;enabled&gt;true&lt;/enabled&gt;
+  &lt;/snapshots&gt;
+&lt;/repository&gt;</code></pre>
+<h2>FAQs</h2>
+<p>1. <strong>Maven build causes dozens of &#x201C;[<span class="caps">WARNING</span>] We have a duplicate&#x2026;&#x201D; errors</strong><br />
+Make sure to use the maven-assembly-plugin when building or depending on Titan. Please refer to the following <a href="https://github.com/thinkaurelius/titan/issues/84">ticket</a> for more information</p>
+    </div>
+  </div>
+  </div>
+
+</div>
+<div id="footer">
+  <p id="last-edit">Last edited by <b>okram</b>, 2012-12-24 03:56:13</p>
+</div>
+</div>
+
+<script type="text/javascript" src="../public/css/MathJax/MathJax.js"></script>
+
+
+</body>
+</html>

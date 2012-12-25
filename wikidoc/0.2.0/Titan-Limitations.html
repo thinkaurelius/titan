@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-type" content="text/html;charset=utf-8">
+  <link rel="stylesheet" type="text/css" href="../public/css/gollum.css" media="all">
+  <link rel="stylesheet" type="text/css" href="../public/css/editor.css" media="all">
+  <link rel="stylesheet" type="text/css" href="../public/css/dialog.css" media="all">
+  <link rel="stylesheet" type="text/css" href="../public/css/template.css" media="all">
+  
+  <!--[if IE 7]>
+  <link rel="stylesheet" type="text/css" href="../public/css/ie7.css" media="all">
+  <![endif]-->
+  
+  <script type="text/javascript" src="../public/css/jquery.js"></script>
+  <script type="text/javascript" src="../public/css/gollum.js"></script>
+  <script type="text/javascript" src="../public/css/gollum.dialog.js"></script>
+  <script type="text/javascript" src="../public/css/gollum.placeholder.js"></script>
+  
+  <script type="text/javascript" 
+    src="../public/css/editor/gollum.editor.js"></script>
+  <title>Titan Limitations</title>
+</head>
+<body>
+
+<div id="wiki-wrapper" class="page">
+<div id="head"><h3><a href="Home.html">Aurelius Titan 0.2</a></h3>
+  <h1>Titan Limitations</h1>
+  <ul class="actions">
+    <li class="minibutton"><a href="/pages"
+      class="action-all-pages">All Pages</a></li>
+    <li class="minibutton" class="jaws">
+      <a href="#" id="minibutton-new-page">New Page</a></li>
+    <li class="minibutton"><a href="/edit/Titan-Limitations"
+       class="action-edit-page">Edit Page</a></li>
+    <li class="minibutton"><a href="/history/Titan-Limitations"
+       class="action-page-history">Page History</a></li>
+  </ul>
+  <div id="searchbar">
+    <form action="/search" method="get" id="search-form">
+    <div id="searchbar-fauxtext">
+      <input type="text" name="q" id="search-query" value="Search&hellip;" autocomplete="off">
+      <a href="#" id="search-submit" title="Search this wiki">
+        <span>Search</span>
+      </a>
+    </div>
+    </form>
+  </div></div>
+<div id="wiki-content">
+  <div class="wrap">
+  <div id="wiki-body" class="gollum-textile-content">
+    <div id="template">
+      <p><span class="float-left"><span><img src="https://github.com/thinkaurelius/titan/raw/master/doc/images/titan-head.png" /></span></span> There are various limitations and &#x201C;gotchas&#x201D; that one should be aware of when using Titan. Some of these limitations are necessary design choices and others are issues that will be rectified as Titan development continues.</p>
+<p><br /><br /><br /><br /></p>
+<h2>Design Limitations</h2>
+<h3>Size Limitation</h3>
+<p>Titan can store up to a quintillion edges (2^60) and half as many vertices. That limitation is imposed by Titan&#x2019;s id scheme.</p>
+<h3>Global Graph Operations</h3>
+<p>Titan only supports iteration over all vertices and edges for local storage backends. For distributed storage backends, such iteration will likely cause <code>OutOfMemoryException</code> and is therefore disabled. Use <a href="http://thinkaurelius.github.com/faunus/">Faunus</a> to implement global graph operations on distributed Titan graphs.</p>
+<h3>Transactional Scope</h3>
+<p>Titan strictly enforces the transactional scope, which means that all elements associated with a transaction become unavailable when that transaction is stopped. To learn how to refresh elements, read more on <a class="internal present" href="Transaction-Handling.html">Transaction Handling</a>.</p>
+<h2>Temporary Limitations</h2>
+<h3>Key Index Must Be Created Prior to Key Being Used</h3>
+<p>To index vertices by key, the respective key index must be created before the key is first used in a vertex property. Read more about creating <a class="internal present" href="Blueprints-Interface.html">vertex indexes</a>.</p>
+<h3>Unable to Drop Key Indices</h3>
+<p>Once an index has been created for a key, it can never be removed.</p>
+<h3>Types Can Not Be Changed Once Created</h3>
+<p>This pitfall constrains the graph schema. While the graph schema can be extended, previous declarations cannot be changed.</p>
+<h3>Batch Loading Speed</h3>
+<p>Titan provides a batch loading mode that can be enabled through the <a href="Graph-Configuration">configuration</a>. However, this batch mode only facilitates faster loading into the storage backend, it does not use storage backend specific batch loading techniques that prepare the data in memory for disk storage. As such, batch loading in Titan is currently slower than batch loading modes provided by single machine databases.</p>
+<p>Another limitation related to batch loading is the failure to load millions of edges into a single vertex at once or in a short time of period. Such <em>supernode loading</em> can fail for some storage backends. This limitation also applies to dense index entries. For more information, please refer to <a href="https://github.com/thinkaurelius/titan/issues/11">the ticket</a></p>
+<h2>Beware</h2>
+<h3>Custom Class Datatype</h3>
+<p>Titan supports arbitrary objects as attribute values on properties. However, when using a custom class as data type it is important to either configure a custom serializer or ensure that the default serializer can successfully handle these objects. Please read <a class="internal present" href="Datatype-and-Attribute-Serializer-Configuration.html">Datatype and Attribute Serializer Configuration</a> for more information.</p>
+    </div>
+  </div>
+  </div>
+
+</div>
+<div id="footer">
+  <p id="last-edit">Last edited by <b>okram</b>, 2012-12-24 03:56:13</p>
+</div>
+</div>
+
+<script type="text/javascript" src="../public/css/MathJax/MathJax.js"></script>
+
+
+</body>
+</html>

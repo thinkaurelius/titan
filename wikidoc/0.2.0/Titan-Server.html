@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-type" content="text/html;charset=utf-8">
+  <link rel="stylesheet" type="text/css" href="../public/css/gollum.css" media="all">
+  <link rel="stylesheet" type="text/css" href="../public/css/editor.css" media="all">
+  <link rel="stylesheet" type="text/css" href="../public/css/dialog.css" media="all">
+  <link rel="stylesheet" type="text/css" href="../public/css/template.css" media="all">
+  
+  <!--[if IE 7]>
+  <link rel="stylesheet" type="text/css" href="../public/css/ie7.css" media="all">
+  <![endif]-->
+  
+  <script type="text/javascript" src="../public/css/jquery.js"></script>
+  <script type="text/javascript" src="../public/css/gollum.js"></script>
+  <script type="text/javascript" src="../public/css/gollum.dialog.js"></script>
+  <script type="text/javascript" src="../public/css/gollum.placeholder.js"></script>
+  
+  <script type="text/javascript" 
+    src="../public/css/editor/gollum.editor.js"></script>
+  <title>Titan Server</title>
+</head>
+<body>
+
+<div id="wiki-wrapper" class="page">
+<div id="head"><h3><a href="Home.html">Aurelius Titan 0.2</a></h3>
+  <h1>Titan Server</h1>
+  <ul class="actions">
+    <li class="minibutton"><a href="/pages"
+      class="action-all-pages">All Pages</a></li>
+    <li class="minibutton" class="jaws">
+      <a href="#" id="minibutton-new-page">New Page</a></li>
+    <li class="minibutton"><a href="/edit/Titan-Server"
+       class="action-edit-page">Edit Page</a></li>
+    <li class="minibutton"><a href="/history/Titan-Server"
+       class="action-page-history">Page History</a></li>
+  </ul>
+  <div id="searchbar">
+    <form action="/search" method="get" id="search-form">
+    <div id="searchbar-fauxtext">
+      <input type="text" name="q" id="search-query" value="Search&hellip;" autocomplete="off">
+      <a href="#" id="search-submit" title="Search this wiki">
+        <span>Search</span>
+      </a>
+    </div>
+    </form>
+  </div></div>
+<div id="wiki-content">
+  <div class="wrap">
+  <div id="wiki-body" class="gollum-textile-content">
+    <div id="template">
+      <p><span class="float-right"><span><img src="https://raw.github.com/thinkaurelius/titan/master/doc/images/titan-server-embedded.png" width="200px" /></span></span></p>
+<p>Titan Server is a <a class="internal present" href="Gremlin-Query-Language.html">Gremlin</a> server for the Titan graph database. It manages remote connections to the Titan graph database and thereby allows applications to execute Gremlin queries against a Titan graph cluster. Titan Server builds on RexPro, a light-weight component of the Rexster Server which can efficiently handle hundreds of database connections.</p>
+<h3>Start Titan Server</h3>
+<p>To start the Titan Server, execute the titan script in the bin folder of the Titan distribution.</p>
+<pre><code>$ ./bin/titan.sh rexster-config.xml titan-config.properties</code></pre>
+<p>The script expects two arguments:</p>
+<ol><li>A configuration file for the RexPro server. Refer to the RexPro section of the <a href="https://github.com/tinkerpop/rexster/wiki/Rexster-Configuration">Rexster configuration documentation</a> for more information on how to configure the RexPro connection manager of Titan Server. This first argument is optional and can be omitted, in which case default configurations are used for RexPro.</li>
+	<li>A configuration file for the Titan graph database. Refer to the <a class="internal present" href="Graph-Configuration.html">Graph Configuration</a> documentation for more information.</li>
+</ol><p>After starting the server it can be terminated pressing CTRL+C or sending the corresponding kill signal to the process.</p>
+<h3>Connecting to Titan Server</h3>
+<p>The client application can now connect to the Titan Server on the configured hostname and port to issue gremlin queries using <code>RexsterTitanClient</code>.</p>
+<pre><code>RexsterTitanClient client = new RexsterTitanClient("127.0.0.1");
+List&lt;Map&lt;String,Object&gt;&gt; result;
+result = client.query("g.V('name','saturn').in('father').map");
+// answer: [{name="jupiter", type="god"}]
+
+Map&lt;String,Object&gt; params = new HashMap&lt;String,Object&gt;();
+params.put("name","saturn");
+result = client.query("g.V('name',name).in('father').map",params);
+client.close();</code></pre>
+<p>First, a connection to the Titan Server is established. Gremlin queries are issued as strings using the <code>RexsterTitanClient.query()</code> methods. Each query is executed in its own transaction. Explicit transaction handling is not necessary. The result set is a list of query answers, where each query answer is represented as a map of key-value pairs. <code>RexsterTitanClient</code> provides additional <code>query()</code> methods where the signature of each query answer can be specified as a template. The second query is semantically identical to the first, but in this case we are passing in the name as a variable binding for the corresponding variable used in the query.</p>
+<p>Once all queries have been issued, the connection is closed.</p>
+<h3>Rexster Console</h3>
+<p><code>RexsterTitanClient</code> is used to connect to Titan Server from within an application. Outside of an application, use the <a href="https://github.com/tinkerpop/rexster/wiki/Rexster-Console">Rexster Console</a> to connect to a Titan Server and issue Gremlin queries. Rexster Console provides access to a remote Gremlin <span class="caps">REPL</span> that is included in the Titan distribution. Download Rexster Console from the <a href="http://rexster.tinkerpop.com">Rexster project</a></p>
+<p>Start Rexster Console from the command line. The following assumes that Titan Server is running locally on the default port. To configure an alternative hostname or port, refer to the <a href="https://github.com/tinkerpop/rexster/wiki/Rexster-Console">Rexster Console documentation</a></p>
+<pre><code>./bin/rexster-console.sh</code></pre>
+<p>Once the console has loaded, issue Gremlin queries against the Titan Server. Note, that Rexster Console does not manage transactions as RexsterTitanClient does.</p>
+<pre><code>        (l_(l
+(_______( 0 0
+(        (-Y-) &lt;woof&gt;
+l l-----l l
+l l,,   l l,,
+opening session with Rexster [localhost:8185]--&gt; ready
+?h for help
+
+rexster[groovy]&gt; g.V('name','saturn').name
+==&gt;saturn</code></pre>
+<h3>Titan Embedding</h3>
+<p>Titan Server is most useful when Titan runs embedded with the storage backend of choice. Under such a deployment scenario, Titan, Rexster, and the storage backend run in the same <span class="caps">JVM</span>. This makes calls between the components very efficient and leads to the best performing setup. Refer to the documentation of the respective <a class="internal present" href="Storage-Backend-Overview.html">storage backends</a> for information on how to run Titan embedded.</p>
+<h2>Next Steps</h2>
+<ul><li>Read the <a class="internal present" href="Storage-Backend-Overview.html">Storage Backend Overview</a> for more information on choosing and configuring a storage backend for Titan.</li>
+	<li>Titan Server builds on RexPro, a component of the Rexster Server. Learn about the full <a class="internal present" href="Rexster-Graph-Server.html">Rexster Graph Server</a> that exposes any Titan graph as a <span class="caps">REST</span> endpoint.</li>
+</ul>
+    </div>
+  </div>
+  </div>
+
+</div>
+<div id="footer">
+  <p id="last-edit">Last edited by <b>okram</b>, 2012-12-24 03:56:13</p>
+</div>
+</div>
+
+<script type="text/javascript" src="../public/css/MathJax/MathJax.js"></script>
+
+
+</body>
+</html>

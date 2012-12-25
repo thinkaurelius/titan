@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-type" content="text/html;charset=utf-8">
+  <link rel="stylesheet" type="text/css" href="../public/css/gollum.css" media="all">
+  <link rel="stylesheet" type="text/css" href="../public/css/editor.css" media="all">
+  <link rel="stylesheet" type="text/css" href="../public/css/dialog.css" media="all">
+  <link rel="stylesheet" type="text/css" href="../public/css/template.css" media="all">
+  
+  <!--[if IE 7]>
+  <link rel="stylesheet" type="text/css" href="../public/css/ie7.css" media="all">
+  <![endif]-->
+  
+  <script type="text/javascript" src="../public/css/jquery.js"></script>
+  <script type="text/javascript" src="../public/css/gollum.js"></script>
+  <script type="text/javascript" src="../public/css/gollum.dialog.js"></script>
+  <script type="text/javascript" src="../public/css/gollum.placeholder.js"></script>
+  
+  <script type="text/javascript" 
+    src="../public/css/editor/gollum.editor.js"></script>
+  <title>Multi Threaded Transactions</title>
+</head>
+<body>
+
+<div id="wiki-wrapper" class="page">
+<div id="head"><h3><a href="Home.html">Aurelius Titan 0.2</a></h3>
+  <h1>Multi Threaded Transactions</h1>
+  <ul class="actions">
+    <li class="minibutton"><a href="/pages"
+      class="action-all-pages">All Pages</a></li>
+    <li class="minibutton" class="jaws">
+      <a href="#" id="minibutton-new-page">New Page</a></li>
+    <li class="minibutton"><a href="/edit/Multi-Threaded-Transactions"
+       class="action-edit-page">Edit Page</a></li>
+    <li class="minibutton"><a href="/history/Multi-Threaded-Transactions"
+       class="action-page-history">Page History</a></li>
+  </ul>
+  <div id="searchbar">
+    <form action="/search" method="get" id="search-form">
+    <div id="searchbar-fauxtext">
+      <input type="text" name="q" id="search-query" value="Search&hellip;" autocomplete="off">
+      <a href="#" id="search-submit" title="Search this wiki">
+        <span>Search</span>
+      </a>
+    </div>
+    </form>
+  </div></div>
+<div id="wiki-content">
+  <div class="wrap">
+  <div id="wiki-body" class="gollum-textile-content">
+    <div id="template">
+      <p>Titan supports multi-threaded transactions through Blueprint&#x2019;s <code>ThreadedTransactionalGraph</code> interface. Hence, to speed up transaction processing and utilize multi-core architectures multiple threads can run concurrently in a single transaction.</p>
+<p>With Blueprints&#x2019; default <a class="internal present" href="Transaction-Handling.html">transaction handling</a> each thread automatically opens its own transaction against the graph database. To open a thread-independent transaction, use the <code>startTransaction()</code> method.</p>
+<pre><code>TransactionalGraph tx = g.startTransaction();
+Thread[] threads = new Thread[10];
+for (int i=0;i&lt;threads.length;i++) {
+    threads[i]=new Thread(new DoSomething(tx));
+    threads[i].start();
+}
+for (int i=0;i&lt;threads.length;i++) threads[i].join();
+tx.stopTransaction(TransactionalGraph.Conclusion.SUCCESS);</code></pre>
+<p>The <code>startTransaction()</code> method returns a new <code>TransactionalGraph</code> object that represents this newly opened transaction. The graph object <code>tx</code> supports all of the method that the original graph did, but does so without opening new transactions for each thread. This allows us to start multiple threads which all do-something in the same transaction and finally commit the transaction when all threads have completed their work.</p>
+<p>Titan relies on optimized concurrent data structures to support hundreds of concurrent threads running efficiently in a single transaction.</p>
+<h2>Next steps</h2>
+<ul><li>Read more about <a href="https://github.com/tinkerpop/blueprints/wiki/Graph-Transactions">Blueprint&#x2019;s ThreadedTransactionalGraph</a>.</li>
+	<li>Read about default <a class="internal present" href="Transaction-Handling.html">Transaction Handling</a>.</li>
+</ul>
+    </div>
+  </div>
+  </div>
+
+</div>
+<div id="footer">
+  <p id="last-edit">Last edited by <b>okram</b>, 2012-12-24 03:56:13</p>
+</div>
+</div>
+
+<script type="text/javascript" src="../public/css/MathJax/MathJax.js"></script>
+
+
+</body>
+</html>
