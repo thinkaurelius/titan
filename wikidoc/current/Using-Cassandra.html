@@ -171,6 +171,8 @@ http://rexster.titan.machine2/mygraph/tp/gremlin?script=g.v(1).out('follows').ou
 		<td> 1 </td>
 		<td> No </td>
 	</tr></table><p>For more information on Cassandra consistency levels and acceptable values, please refer to the <a href="http://wiki.apache.org/cassandra/API">Cassandra documentation</a>. In general, higher levels are more consistent and robust but have higher latency.</p>
+<h2>Global Graph Operations<a class="anchor" id="Global-Graph-Operations" href="#Global-Graph-Operations"></a></h2>
+<p>Titan over Cassandra supports global vertex and edge iteration. However, note that all these vertices and/or edges will be loaded into memory which can cause <code>OutOfMemoryException</code>. Use <a href="http://thinkaurelius.github.com/faunus/">Faunus</a> to iterate over all vertices or edges in large graphs.</p>
 <h2>Deploying on Amazon EC2<a class="anchor" id="Deploying-on-Amazon-EC2" href="#Deploying-on-Amazon-EC2"></a></h2>
 <p><a href="http://aws.amazon.com/ec2/"><img src="http://cdn001.practicalclouds.com/user-content/1_Dave%20McCormick//logos/Amazon%20AWS%20plus%20EC2%20logo_scaled.png" alt="" /></a></p>
 <blockquote>
@@ -227,7 +229,7 @@ You have successfully connected this Titan instance to the Cassandra cluster and
 
 </div>
 <div id="footer">
-  <p id="last-edit">Last edited by <b>okram</b>, 2013-01-08 00:52:06</p>
+  <p id="last-edit">Last edited by <b>mbroecheler</b>, 2013-03-22 02:29:27</p>
   <p>
     
   </p>

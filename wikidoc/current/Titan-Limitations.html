@@ -72,10 +72,10 @@ Mousetrap.bind(['e'], function( e ) {
 <h2>Design Limitations<a class="anchor" id="Design-Limitations" href="#Design-Limitations"></a></h2>
 <h3>Size Limitation<a class="anchor" id="Size-Limitation" href="#Size-Limitation"></a></h3>
 <p>Titan can store up to a quintillion edges (2^60) and half as many vertices. That limitation is imposed by Titan’s id scheme.</p>
-<h3>Global Graph Operations<a class="anchor" id="Global-Graph-Operations" href="#Global-Graph-Operations"></a></h3>
-<p>Titan only supports iteration over all vertices and edges for local storage backends. For distributed storage backends, such iteration will likely cause <code>OutOfMemoryException</code> and is therefore disabled. Use <a href="http://thinkaurelius.github.com/faunus/">Faunus</a> to implement global graph operations on distributed Titan graphs.</p>
 <h3>Transactional Scope<a class="anchor" id="Transactional-Scope" href="#Transactional-Scope"></a></h3>
 <p>Titan strictly enforces the transactional scope, which means that all elements associated with a transaction become unavailable when that transaction is stopped. To learn how to refresh elements, read more on <a class="internal present" href="Transaction-Handling.html">Transaction Handling</a>.</p>
+<h3>DataType Definitions<a class="anchor" id="DataType-Definitions" href="#DataType-Definitions"></a></h3>
+<p>When declaring the data type of a property key using <code>dataType(Class)</code> Titan will enforce that all properties for that key have the declared type, unless that type is <code>Object.class</code>. This is an equality type check, meaning that sub-classes will not be allowed. For instance, one cannot declare the data type to be <code>Number.class</code> and use <code>Integer</code> or <code>Long</code>. For efficiency reasons, the type needs to match exactly. Hence, you <code>Object.class</code> as the data type for type flexibility. In all other cases, declare the actual data type to benefit from increased performance and type safety.</p>
 <h2>Temporary Limitations<a class="anchor" id="Temporary-Limitations" href="#Temporary-Limitations"></a></h2>
 <h3>Key Index Must Be Created Prior to Key Being Used<a class="anchor" id="Key-Index-Must-Be-Created-Prior-to-Key-Being-Used" href="#Key-Index-Must-Be-Created-Prior-to-Key-Being-Used"></a></h3>
 <p>To index vertices by key, the respective key index must be created before the key is first used in a vertex property. Read more about creating <a class="internal present" href="Blueprints-Interface.html">vertex indexes</a>.</p>
@@ -89,6 +89,8 @@ Mousetrap.bind(['e'], function( e ) {
 <h2>Beware<a class="anchor" id="Beware" href="#Beware"></a></h2>
 <h3>Custom Class Datatype<a class="anchor" id="Custom-Class-Datatype" href="#Custom-Class-Datatype"></a></h3>
 <p>Titan supports arbitrary objects as attribute values on properties. However, when using a custom class as data type it is important to either configure a custom serializer or ensure that the default serializer can successfully handle these objects. Please read <a class="internal present" href="Datatype-and-Attribute-Serializer-Configuration.html">Datatype and Attribute Serializer Configuration</a> for more information.</p>
+<h3>Global Graph Operations<a class="anchor" id="Global-Graph-Operations" href="#Global-Graph-Operations"></a></h3>
+<p>Since version 0.2.1, Titan supports global graph operations for all storage backends. However, beware that such operations will likely cause <code>OutOfMemoryException</code> for large graphs since all vertices and/or edges can be loaded into memory by iterating through them.  Use <a href="http://thinkaurelius.github.com/faunus/">Faunus</a> to implement global graph operations on large, distributed Titan graphs that do not fit into memory.</p>
 <h3>Snappy 1.4 does not work with Java 1.7<a class="anchor" id="Snappy-1.4-does-not-work-with-Java-1.7" href="#Snappy-1.4-does-not-work-with-Java-1.7"></a></h3>
 <p>Cassandra 1.2.x makes use of Snappy 1.4. Titan will not be able to connect to Cassandra if the server is running Java 1.7 and Cassandra 1.2.x (with Snappy 1.4). Be sure to remove the Snappy 1.4 jar in the <code>cassandra/lib</code> directory and replace with a Snappy 1.5 jar version (<a href="http://code.google.com/p/snappy-java/downloads/list">available here</a>).</p>
     </div>
@@ -97,7 +99,7 @@ Mousetrap.bind(['e'], function( e ) {
 
 </div>
 <div id="footer">
-  <p id="last-edit">Last edited by <b>okram</b>, 2013-03-09 15:08:11</p>
+  <p id="last-edit">Last edited by <b>mbroecheler</b>, 2013-03-22 02:14:46</p>
   <p>
     
   </p>

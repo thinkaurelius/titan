@@ -71,7 +71,7 @@ Mousetrap.bind(['e'], function( e ) {
 <p>To build Titan you need <a href="http://git-scm.com/">git</a> and <a href="http://maven.apache.org/">Maven</a>.</p>
 <ol><li>Clone the <a href="https://github.com/thinkaurelius/titan">Titan repository from GitHub</a> to a local directory.</li>
 	<li>In that directory, execute <code>mvn clean install</code>. This will build Titan and run the internal test suite. The internal test suite has no external dependencies. Note, that running all test cases requires a significant amount of time. To skip the tests when building Titan, execute <code>mvn clean install -DskipTests</code></li>
-	<li>For comprehensive test coverage, execute <code>mvn clean test -P comprehensive</code>. This will run additional test covering communication to external storage backends, performance tests and concurrency tests. The comprehensive test suite uses Cassandra and HBase as external databases and requires that Cassandra and HBase are installed. Moreover, HBase must be manually started before and manually stopped after executing the command. The assumption of an externally-started HBase instance will likely be removed as development on the Titan HBase adapter continues. Please refer to the <a href="Using-Cassandra">Cassandra</a> and <a href="Using-HBase">HBase</a> wiki pages for more information. Note, that running the comprehensive test suite requires a significant amount of of time (&gt; 1 hour).</li>
+	<li>For comprehensive test coverage, execute <code>mvn clean test -P comprehensive</code>. This will run additional test covering communication to external storage backends, performance tests and concurrency tests. The comprehensive test suite uses Cassandra and HBase as external databases and requires that Cassandra and HBase are installed. Note, that running the comprehensive test suite requires a significant amount of of time (&gt; 1 hour).</li>
 </ol><h2>Depending on Titan Snapshots<a class="anchor" id="Depending-on-Titan-Snapshots" href="#Depending-on-Titan-Snapshots"></a></h2>
 <p>For developing against the most current version of Titan, depend on Titan snapshot releases. Note, that these releases are development releases and therefore unstable and likely to change. Unless one is interested in the most recent development status of Titan, we recommend to use the stable Titan release instead.</p>
 <div class="highlight"><pre><span class="nt">&lt;dependency&gt;</span>
@@ -104,7 +104,7 @@ Make sure to use the maven-assembly-plugin when building or depending on Titan. 
 
 </div>
 <div id="footer">
-  <p id="last-edit">Last edited by <b>mbroecheler</b>, 2012-09-14 15:40:46</p>
+  <p id="last-edit">Last edited by <b>mbroecheler</b>, 2013-03-22 02:16:43</p>
   <p>
     
   </p>

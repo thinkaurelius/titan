@@ -71,16 +71,16 @@ Mousetrap.bind(['e'], function( e ) {
 <div class="highlight"><pre><span class="n">TitanGraph</span> <span class="n">g</span> <span class="o">=</span> <span class="n">TitanFactory</span><span class="o">.</span><span class="na">open</span><span class="o">(</span><span class="s">"/tmp/titan"</span><span class="o">);</span>
 <span class="n">Vertex</span> <span class="n">juno</span> <span class="o">=</span> <span class="n">g</span><span class="o">.</span><span class="na">addVertex</span><span class="o">(</span><span class="kc">null</span><span class="o">);</span> <span class="c1">//Automatically opens a new transaction</span>
 <span class="n">juno</span><span class="o">.</span><span class="na">setProperty</span><span class="o">(</span><span class="s">"name"</span><span class="o">,</span> <span class="s">"juno"</span><span class="o">);</span>
-<span class="n">g</span><span class="o">.</span><span class="na">stopTransaction</span><span class="o">(</span><span class="n">Conclusion</span><span class="o">.</span><span class="na">SUCCESS</span><span class="o">);</span> <span class="c1">//Commits transaction</span>
+<span class="n">g</span><span class="o">.</span><span class="na">commit</span><span class="o">();</span> <span class="c1">//Commits transaction</span>
 </pre></div>
-<p>In this example, a local Titan graph database is opened. Adding the vertex “juno” is the first operation (in this thread) which automatically opens a new transaction. All subsequent operations occur in the context of that same transaction until the transaction is explicitly stopped or the graph database <code>shutdown()</code> which stops all currently running transactions successfully.</p>
+<p>In this example, a local Titan graph database is opened. Adding the vertex “juno” is the first operation (in this thread) which automatically opens a new transaction. All subsequent operations occur in the context of that same transaction until the transaction is explicitly stopped or the graph database <code>shutdown()</code> which commits all currently running transactions.</p>
 <h2>Transactional Scope<a class="anchor" id="Transactional-Scope" href="#Transactional-Scope"></a></h2>
 <p>All graph elements (vertices, edges, and types) are only available in the transactional scope in which they were originally created. After a transaction is stopped, all its associated elements become unavailable and can no longer be accessed. For example, after creating the vertex “juno” and stopping the transaction in the code snippet above, the “juno” vertex becomes unavailable and accessing it would result in an exception. The transactional scope is strictly enforced to avoid accessing “stale” elements. To illustrate this point, assume a multi-user environment for the code example above. After stopping the transaction, all (potentially) held locks on the “juno” vertex are released and another transaction running in a different thread (or on another machine) might mutate the vertex. The vertex reference “juno” would thus be stale and further access to the vertex could lead to inconsistencies.<br />
 To re-active the “juno” vertex we need to refresh it in the currently running transaction as shown in the following example:</p>
 <div class="highlight"><pre><span class="n">TitanGraph</span> <span class="n">g</span> <span class="o">=</span> <span class="n">TitanFactory</span><span class="o">.</span><span class="na">open</span><span class="o">(</span><span class="s">"/tmp/titan"</span><span class="o">);</span>
 <span class="n">Vertex</span> <span class="n">juno</span> <span class="o">=</span> <span class="n">g</span><span class="o">.</span><span class="na">addVertex</span><span class="o">(</span><span class="kc">null</span><span class="o">);</span> <span class="c1">//Automatically opens a new transaction</span>
 <span class="n">juno</span><span class="o">.</span><span class="na">setProperty</span><span class="o">(</span><span class="s">"name"</span><span class="o">,</span> <span class="s">"juno"</span><span class="o">);</span>
-<span class="n">g</span><span class="o">.</span><span class="na">stopTransaction</span><span class="o">(</span><span class="n">Conclusion</span><span class="o">.</span><span class="na">SUCCESS</span><span class="o">);</span> <span class="c1">//Commits transaction</span>
+<span class="n">g</span><span class="o">.</span><span class="na">commit</span><span class="o">();</span> <span class="c1">//Commits transaction</span>
 <span class="n">Vertex</span> <span class="n">jupiter</span> <span class="o">=</span> <span class="n">g</span><span class="o">.</span><span class="na">addVertex</span><span class="o">(</span><span class="kc">null</span><span class="o">);</span> <span class="c1">//Automatically opens another transaction</span>
 <span class="n">jupiter</span><span class="o">.</span><span class="na">setProperty</span><span class="o">(</span><span class="s">"name"</span><span class="o">,</span> <span class="s">"jupiter"</span><span class="o">);</span>
 <span class="n">juno</span> <span class="o">=</span> <span class="n">g</span><span class="o">.</span><span class="na">getVertex</span><span class="o">(</span><span class="n">juno</span><span class="o">);</span>
@@ -93,7 +93,7 @@ To re-active the “juno” vertex we need to refresh it in the currently runnin
         <span class="k">throw</span> <span class="k">new</span> <span class="nf">IllegalArgumentException</span><span class="o">(</span><span class="s">"Username already taken: "</span> <span class="o">+</span> <span class="n">name</span><span class="o">);</span>
     <span class="n">Vertex</span> <span class="n">user</span> <span class="o">=</span> <span class="n">g</span><span class="o">.</span><span class="na">addVertex</span><span class="o">(</span><span class="kc">null</span><span class="o">);</span>
     <span class="n">user</span><span class="o">.</span><span class="na">setProperty</span><span class="o">(</span><span class="s">"name"</span><span class="o">,</span> <span class="n">name</span><span class="o">);</span>
-    <span class="n">g</span><span class="o">.</span><span class="na">stopTransaction</span><span class="o">(</span><span class="n">Conclusion</span><span class="o">.</span><span class="na">SUCCESS</span><span class="o">);</span>
+    <span class="n">g</span><span class="o">.</span><span class="na">commit</span><span class="o">();</span>
 <span class="o">}</span> <span class="k">catch</span> <span class="o">(</span><span class="n">TitanException</span> <span class="n">e</span><span class="o">)</span> <span class="o">{</span>
     <span class="c1">//Recover, retry, or return error message</span>
 <span class="o">}</span>
@@ -103,7 +103,7 @@ To re-active the “juno” vertex we need to refresh it in the currently runnin
 <p>Potentially temporary failures are those related to resource unavailability and IO hickups (e.g. network timeouts). Titan automatically tries to recover from temporary failures by retrying to persist the transactional state after some delay. The number of retry attempts and the retry delay can be configured through the <a class="internal present" href="Graph-Configuration.html">Titan graph configuration</a>.</p>
 <p>Permanent failures can be caused by complete connection loss, hardware failure or lock contention. To understand the cause of lock contention, consider the signup example above and suppose a user tries to signup with username “juno”. That username may still be available at the beginning of the transaction but by the time the transaction is committed, another user might have concurrently registered with “juno” as well and that transaction holds the lock on the username therefore causing the other transaction to fail. It some cases one can recover from a lock contention failure by re-running the entire transaction.</p>
 <h2>Gotcha<a class="anchor" id="Gotcha" href="#Gotcha"></a></h2>
-<p>Transactions are started automatically with the first operation executed against the graph. One does <span class="caps">NOT</span> have to start a transaction manually. The method <code>startTransaction</code> is used to start <a class="internal present" href="Multi-Threaded-Transactions.html">multi threaded transactions</a> only.</p>
+<p>Transactions are started automatically with the first operation executed against the graph. One does <span class="caps">NOT</span> have to start a transaction manually. The method <code>newTransaction</code> is used to start <a class="internal present" href="Multi-Threaded-Transactions.html">multi threaded transactions</a> only.</p>
 <h2>Next Steps<a class="anchor" id="Next-Steps" href="#Next-Steps"></a></h2>
 <ul><li>Read more about <a href="https://github.com/tinkerpop/blueprints/wiki/Graph-Transactions">Blueprints Transactions</a></li>
 	<li>Learn how to speed up transactions with <a class="internal present" href="Multi-Threaded-Transactions.html">multiple threads</a></li>
@@ -114,7 +114,7 @@ To re-active the “juno” vertex we need to refresh it in the currently runnin
 
 </div>
 <div id="footer">
-  <p id="last-edit">Last edited by <b>mbroecheler</b>, 2013-01-25 21:20:16</p>
+  <p id="last-edit">Last edited by <b>mbroecheler</b>, 2013-03-22 02:09:38</p>
   <p>
     
   </p>

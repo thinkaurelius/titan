@@ -70,7 +70,38 @@ Mousetrap.bind(['e'], function( e ) {
       <p>Titan: Distributed Graph Database<br /><a href="http://thinkaurelius.github.com/titan/">http://thinkaurelius.github.com/titan/</a></p>
 <p><img src="https://raw.github.com/thinkaurelius/titan/master/doc/images/titan-globe.png" width="100px" /></p>
 <h2>Titan 0.y.z<a class="anchor" id="Titan-0.y.z" href="#Titan-0.y.z"></a></h2>
-<h3>Version 0.2.0 (December 24, 2012)<a class="anchor" id="Version-0.2.0-(December-24,-2012)" href="#Version-0.2.0-(December-24,-2012)"></a></h3>
+<h3>Version 0.2.1 (March 22, 2013)<a class="anchor" id="Version-0.2.1-(March-22,-2013)" href="#Version-0.2.1-(March-22,-2013)"></a></h3>
+<div class="highlight"><pre><span class="nt">&lt;dependency&gt;</span>
+   <span class="nt">&lt;groupId&gt;</span>com.thinkaurelius.titan<span class="nt">&lt;/groupId&gt;</span>
+   <span class="nt">&lt;artifactId&gt;</span>titan-core<span class="nt">&lt;/artifactId&gt;</span>
+   <span class="nt">&lt;version&gt;</span>0.2.1<span class="nt">&lt;/version&gt;</span>
+<span class="nt">&lt;/dependency&gt;</span>
+</pre></div><br /><strong>Tested Compatibility:</strong>
+<ul><li>Cassandra 1.2.0</li>
+	<li>HBase 0.94</li>
+	<li>BerkeleyJE 5.0.58</li>
+</ul><p><strong>Features:</strong></p>
+<ul><li>Refactored <span class="caps">POM</span> into multi-module project</li>
+	<li>Support for global vertex (g.V) and edge (g.E) iteration for cassandra and hbase backends</li>
+	<li>Compatible with Cassandra 1.2.0 for all three storage adapters: embedded, thrift, astyanax</li>
+	<li>Improved HBase adapter:
+	<ul><li>Automatic Master launch for testing</li>
+		<li>Refactored batch mutation and reading</li>
+		<li>Optimized HBase operations</li>
+	</ul></li>
+	<li>Updated to Blueprints 2.3.0</li>
+	<li>Better integration with Rexster Rexpro</li>
+	<li>Automatic directory creation for local storage backends</li>
+	<li>Internal Titan version handling and compatibility checks</li>
+	<li>Added additional performance tests</li>
+</ul><p><strong>Bugfixes:</strong></p>
+<ul><li>Resolved issues around Java 1.7</li>
+	<li>Shutdown error in astyanax adapter</li>
+	<li>Made thrift frame and message size configurable for cassandra adapters</li>
+	<li>see issue tracker for a full list</li>
+</ul><p><strong>Special Thanks to:</strong></p>
+<ul><li>Pavel Yaskevich (<a href="https://github.com/xedin">xedin</a>)</li>
+</ul><h3>Version 0.2.0 (December 24, 2012)<a class="anchor" id="Version-0.2.0-(December-24,-2012)" href="#Version-0.2.0-(December-24,-2012)"></a></h3>
 <div class="highlight"><pre><span class="nt">&lt;dependency&gt;</span>
    <span class="nt">&lt;groupId&gt;</span>com.thinkaurelius.titan<span class="nt">&lt;/groupId&gt;</span>
    <span class="nt">&lt;artifactId&gt;</span>titan<span class="nt">&lt;/artifactId&gt;</span>
@@ -126,7 +157,7 @@ Mousetrap.bind(['e'], function( e ) {
 
 </div>
 <div id="footer">
-  <p id="last-edit">Last edited by <b>okram</b>, 2013-03-06 14:32:13</p>
+  <p id="last-edit">Last edited by <b>mbroecheler</b>, 2013-03-22 04:30:17</p>
   <p>
     
   </p>

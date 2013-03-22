@@ -87,7 +87,7 @@ g = TitanFactory.open(conf)
   ids.add(u.id);
   ids.add(v.id);
   if(it % 1000 == 0) 
-    g.stopTransaction(SUCCESS)
+    g.commit()
 }
 </pre></div>
 <h2>Computing the In-Degree Distribution of the Graph<a class="anchor" id="Computing-the-In-Degree-Distribution-of-the-Graph" href="#Computing-the-In-Degree-Distribution-of-the-Graph"></a></h2>
@@ -104,7 +104,7 @@ indegree.sort{a,b -&gt; b.value &lt;=&gt; a.value}
 
 </div>
 <div id="footer">
-  <p id="last-edit">Last edited by <b>vadasg</b>, 2013-03-19 15:28:02</p>
+  <p id="last-edit">Last edited by <b>mbroecheler</b>, 2013-03-22 02:17:25</p>
   <p>
     
   </p>
