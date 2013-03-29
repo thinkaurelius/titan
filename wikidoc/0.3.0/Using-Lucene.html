@@ -21,7 +21,7 @@
   <script type="text/javascript" src="../../public/css/editor/gollum.editor.js"></script>
 
 
-  <title>Acknowledgements</title>
+  <title>Using Lucene</title>
 </head>
 <body>
 
@@ -34,7 +34,7 @@ Mousetrap.bind(['e'], function( e ) {
 </script>
 <div id="wiki-wrapper" class="page">
 <div id="head"><h3><a href="Home.html">Aurelius Titan 0.3.0</a></h3>
-  <h1>Acknowledgements</h1>
+  <h1>Using Lucene</h1>
   <ul class="actions">
     <li class="minibutton">
       <div id="searchbar">
@@ -57,9 +57,9 @@ Mousetrap.bind(['e'], function( e ) {
       <a href="#" id="minibutton-new-page">New</a></li>
     <li class="minibutton" class="jaws">
       <a href="#" id="minibutton-rename-page">Rename</a></li>
-    <li class="minibutton"><a href="/edit/Acknowledgements"
+    <li class="minibutton"><a href="/edit/Using-Lucene"
        class="action-edit-page">Edit</a></li>
-    <li class="minibutton"><a href="/history/Acknowledgements"
+    <li class="minibutton"><a href="/history/Using-Lucene"
        class="action-page-history">History</a></li>
   </ul>
 </div>
@@ -67,26 +67,38 @@ Mousetrap.bind(['e'], function( e ) {
 <div class="wrap">
   <div id="wiki-body" class="gollum-textile-content">
     <div id="template">
-      <p><img src="https://github.com/thinkaurelius/titan/raw/master/doc/images/titan-logo.png" width="400px" /></p>
-<p>Titan is an ongoing effort by various developers, contributors, and organizations. Along with this explicit list of contributors, please also refer to the special thanks for individual contributions to each release in the <a class="internal present" href="Release-Notes.html">release notes</a>. Titan would not be possible without the excellent open source products that compose Titan. Please see a list of these projects in the Titan <a href="https://github.com/thinkaurelius/titan/blob/master/pom.xml">pom.xml</a>.</p>
-<h2>People<a class="anchor" id="People" href="#People"></a></h2>
-<ol><li><a href="http://matthiasb.com/">Matthias Broecheler</a>: Lead developer and theorist.</li>
-	<li><a href="https://github.com/dalaro">Dan LaRocque</a>: Lead developer with special focus on Titan’s storage backend adapters and deployment in cloud environments.</li>
-	<li><a href="http://markorodriguez.com">Marko A. Rodriguez</a>: TinkerPop support, testing, and documentation.</li>
-	<li><a href="https://github.com/xedin">Pavel Yaskevich</a>: Developer with major contributions to Titan’s Cassandra and HBase backend adapters.</li>
-	<li><a href="http://stephen.genoprime.com/">Stephen Mallette</a>: TinkerPop support, testing, and documentation.</li>
-	<li><a href="http://www.ketrinayim.com/">Ketrina Yim</a>: Created the Titan logo.</li>
-</ol><h2>Organizations<a class="anchor" id="Organizations" href="#Organizations"></a></h2>
-<ol><li><a href="http://thinkaurelius.com">Aurelius</a>: Provides development team and maintains the Titan codebase.</li>
-	<li><a href="http://www.pearson.com/">Pearson</a>: Use case development, customer feedback, and early adopter.</li>
-</ol>
+      <p><span class="float-right"><span><img src="https://raw.github.com/thinkaurelius/titan/master/doc/images/titan-lucene.png" width="175px" /></span></span></p>
+<blockquote>
+<p>Apache Lucene is a high-performance, full-featured text search engine library written entirely in Java. It is a technology suitable for nearly any application that requires full-text search, especially cross-platform. Apache Lucene is an open source project available for free download. — <a href="http://lucene.apache.org/">Apache Lucene Homepage</a></p>
+</blockquote>
+<p>Titan supports <a href="http://lucene.apache.org/">Lucene</a> as a single-machine, embedded index backend.</p>
+<p><br /><br /><br /><br /><br /></p>
+<h2>Feature Support<a class="anchor" id="Feature-Support" href="#Feature-Support"></a></h2>
+<h3>Full-Text<a class="anchor" id="Full-Text" href="#Full-Text"></a></h3>
+<p>Supports the <code>Text.CONTAINS</code> condition to search for text properties that contain a given word.</p>
+<h3>Geo<a class="anchor" id="Geo" href="#Geo"></a></h3>
+<p>Supports the <code>Geo.WITHIN</code> condition to search for points that fall within a given geographic shape. Only supports points for indexing and circles and boxes for querying.</p>
+<h3>Numeric Range<a class="anchor" id="Numeric-Range" href="#Numeric-Range"></a></h3>
+<p>Supports all numeric comparisons in <code>Compare</code>.</p>
+<h2>Configuration Options<a class="anchor" id="Configuration-Options" href="#Configuration-Options"></a></h2>
+<table><tr><th>Option </th>
+		<th>Description </th>
+		<th>Value </th>
+		<th>Default </th>
+		<th>Modifiable </th>
+	</tr><tr><td> directory </td>
+		<td> Directory to store Lucene data. </td>
+		<td> string </td>
+		<td> – </td>
+		<td> yes </td>
+	</tr></table>
     </div>
   </div>
   </div>
 
 </div>
 <div id="footer">
-  <p id="last-edit">Last edited by <b>mbroecheler</b>, 2013-03-22 02:37:35</p>
+  <p id="last-edit">Last edited by <b>mbroecheler</b>, 2013-03-29 06:42:08</p>
   <p>
     
   </p>
