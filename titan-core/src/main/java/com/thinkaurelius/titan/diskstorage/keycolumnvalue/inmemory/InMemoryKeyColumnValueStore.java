@@ -209,7 +209,7 @@ public class InMemoryKeyColumnValueStore implements KeyColumnValueStore {
     private Lock getLock(ByteBuffer key, StoreTransaction txh) {
         if (txh.getConsistencyLevel()==ConsistencyLevel.KEY_CONSISTENT) {
             ByteBuffer dupKey = key.duplicate();
-            if (!keyLocks.contains(dupKey)) {
+            if (!keyLocks.containsKey(dupKey)) {
                 keyLocks.putIfAbsent(dupKey,new ReentrantLock());
             }
             return keyLocks.get(dupKey);
