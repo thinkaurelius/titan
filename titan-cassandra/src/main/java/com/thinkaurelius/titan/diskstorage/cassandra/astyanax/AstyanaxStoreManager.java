@@ -350,6 +350,7 @@ public class AstyanaxStoreManager extends AbstractCassandraStoreManager {
         			.setRetryBackoffStrategy(new FixedRetryBackoffStrategy(1000, 5000)) // TODO configuration
         			.setSocketTimeout(connectionTimeout)
         			.setConnectTimeout(connectionTimeout)
+                    .setInitConnsPerHost(0)
         			.setSeeds(StringUtils.join(hostnames,","));
         
         if (0 < maxConnections) {
