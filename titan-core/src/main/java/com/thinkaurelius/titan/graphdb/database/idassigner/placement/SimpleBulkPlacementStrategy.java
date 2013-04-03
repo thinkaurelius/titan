@@ -1,8 +1,16 @@
 package com.thinkaurelius.titan.graphdb.database.idassigner.placement;
 
+import cern.colt.map.OpenIntIntHashMap;
+import com.carrotsearch.hppc.IntIntMap;
+import com.carrotsearch.hppc.IntIntOpenHashMap;
+import com.carrotsearch.hppc.cursors.IntCursor;
 import com.google.common.base.Preconditions;
+import com.thinkaurelius.titan.core.TitanVertex;
+import com.thinkaurelius.titan.graphdb.idmanagement.IDManager;
 import com.thinkaurelius.titan.graphdb.internal.InternalElement;
 import com.thinkaurelius.titan.graphdb.internal.InternalVertex;
+import com.tinkerpop.blueprints.Direction;
+import com.tinkerpop.blueprints.Vertex;
 import org.apache.commons.configuration.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,19 +32,22 @@ public class SimpleBulkPlacementStrategy implements IDPlacementStrategy {
 
     private final Random random = new Random();
 
+    private final IDManager idManager;
     private final int[] currentPartitions;
     private int lowerPartitionID = -1;
     private int partitionWidth = -1;
     private int idCeiling = -1;
 //    private IntSet exhaustedPartitions = new IntHashSet(); NOT THREAD SAFE!!
 
-    public SimpleBulkPlacementStrategy(int concurrentPartitions) {
+    public SimpleBulkPlacementStrategy(int concurrentPartitions, IDManager idManager) {
         Preconditions.checkArgument(concurrentPartitions > 0);
+        Preconditions.checkNotNull(idManager);
         currentPartitions = new int[concurrentPartitions];
+        this.idManager=idManager;
     }
 
-    public SimpleBulkPlacementStrategy(Configuration config) {
-        this(config.getInt(CONCURRENT_PARTITIONS_KEY, CONCURRENT_PARTITIONS_DEFAULT));
+    public SimpleBulkPlacementStrategy(Configuration config, IDManager idManager) {
+        this(config.getInt(CONCURRENT_PARTITIONS_KEY, CONCURRENT_PARTITIONS_DEFAULT),idManager);
     }
 
     private final int nextPartitionID() {
@@ -56,7 +67,35 @@ public class SimpleBulkPlacementStrategy implements IDPlacementStrategy {
 
     @Override
     public void getPartitions(Map<InternalVertex, PartitionAssignment> vertices) {
-        int partitionID = nextPartitionID();
+        IntIntMap partitionCounts = new IntIntOpenHashMap();
+        for (InternalVertex v : vertices.keySet()) {
+            Preconditions.checkArgument(v.isNew());
+            for (Vertex ngh : v.getVertices(Direction.BOTH)) {
+                if (!((TitanVertex)ngh).isNew()) {
+                    long partitionid = idManager.getPartitionID(((TitanVertex)ngh).getID());
+                    Preconditions.checkArgument(partitionid>=0 && partitionid<Integer.MAX_VALUE);
+                    partitionCounts.put((int)partitionid,partitionCounts.get((int)partitionid)+1);
+                }
+            }
+        }
+
+        int partitionID=-1;
+        if (partitionCounts.isEmpty()) {
+            partitionID = nextPartitionID();
+        } else {
+            //Pick highest counting one
+            int maxCount=0;
+            for (IntCursor ic : partitionCounts.keys()) {
+                int p = ic.value;
+                int c = partitionCounts.get(p);
+                if (c>maxCount) {
+                    partitionID=p;
+                    maxCount=c;
+                }
+            }
+            log.debug("Highest scoring partition {} of {} partitions",partitionID,partitionCounts.size());
+        }
+        Preconditions.checkArgument(partitionID>=0);
         for (Map.Entry<InternalVertex, PartitionAssignment> entry : vertices.entrySet()) {
             entry.setValue(new SimplePartitionAssignment(partitionID));
         }

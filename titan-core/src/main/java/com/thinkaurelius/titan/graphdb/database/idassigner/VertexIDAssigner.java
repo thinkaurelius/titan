@@ -66,17 +66,18 @@ public class VertexIDAssigner {
             //Use a placement strategy that balances partitions
             partitionBits = DEFAULT_PARTITION_BITS;
             hasLocalPartitions = idAuthFeatures.hasLocalKeyPartition();
-            placementStrategy = new SimpleBulkPlacementStrategy(config);
+            idManager = new IDManager(partitionBits, groupBits);
+            placementStrategy = new SimpleBulkPlacementStrategy(config,idManager);
         } else {
             if (idAuthFeatures.isKeyOrdered() && idAuthFeatures.isDistributed())
                 log.warn("ID Partitioning is disabled which will likely cause uneven data distribution");
             //Use the default placement strategy
             partitionBits = 0;
             hasLocalPartitions = false;
+            idManager = new IDManager(partitionBits, groupBits);
             placementStrategy = new DefaultPlacementStrategy(0);
         }
         log.info("Partition IDs? [{}], Local Partitions? [{}]",partitionIDs,hasLocalPartitions);
-        idManager = new IDManager(partitionBits, groupBits);
         Preconditions.checkArgument(idManager.getMaxPartitionID() < Integer.MAX_VALUE);
         this.maxPartitionID = (int) idManager.getMaxPartitionID();
 
