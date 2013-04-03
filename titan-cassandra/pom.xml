@@ -11,7 +11,7 @@
     <name>Titan-Cassandra: Distributed Graph Database</name>
     <url>http://thinkaurelius.github.com/titan/</url>
     <properties>
-        <astyanax.version>1.56.34</astyanax.version>
+        <astyanax.version>1.56.35-SNAPSHOT</astyanax.version>
     </properties>
     <!-- Libraries -->
     <dependencies>
