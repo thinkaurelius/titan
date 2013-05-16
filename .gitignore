@@ -9,3 +9,6 @@ target/
 titan-hbase/logs
 titan-hbase/src/test/titan-hbase-test-data/*
 titan-hbase/src/test/titan-zookeeper-test/*
+.classpath
+.project
+*.prefs
