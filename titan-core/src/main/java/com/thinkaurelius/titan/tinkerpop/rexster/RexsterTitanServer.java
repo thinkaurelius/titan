@@ -81,6 +81,7 @@ public class RexsterTitanServer {
         this.rexsterConfig.addProperty("http-reporter-enabled", reporterConfig.isHttpReporterEnabled());
         this.rexsterConfig.addProperty("http-reporter-duration", reporterConfig.getDurationTimeUnitConversion());
         this.rexsterConfig.addProperty("http-reporter-convert", reporterConfig.getRateTimeUnitConversion());
+        reporterConfig.enable();
     }
 
     public void startDaemon() {
