@@ -6,6 +6,8 @@ import com.thinkaurelius.titan.core.TitanGraph;
 import com.tinkerpop.rexster.Tokens;
 import com.tinkerpop.rexster.protocol.EngineController;
 import com.tinkerpop.rexster.server.*;
+import com.tinkerpop.rexster.server.metrics.ReporterConfig;
+
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.HierarchicalConfiguration;
 import org.apache.commons.configuration.PropertiesConfiguration;
@@ -38,7 +40,7 @@ public class RexsterTitanServer {
     public static final int SHUTDOWN_PORT_VALUE = RexsterSettings.DEFAULT_SHUTDOWN_PORT;
 
     private final Configuration titanConfig;
-    private final Configuration rexsterConfig;
+    private final XMLConfiguration rexsterConfig;
 
     private RexProRexsterServer rexProServer = null;
     private HttpRexsterServer httpServer = null;
@@ -74,6 +76,11 @@ public class RexsterTitanServer {
         final RexsterApplication ra = new TitanRexsterApplication(DEFAULT_GRAPH_NAME, graph, extensionConfigurations);
         startRexProServer(ra);
         startHttpServer(ra);
+
+        final ReporterConfig reporterConfig = ReporterConfig.load(this.rexsterConfig.configurationsAt(Tokens.REXSTER_REPORTER_PATH), ra.getMetricRegistry());
+        this.rexsterConfig.addProperty("http-reporter-enabled", reporterConfig.isHttpReporterEnabled());
+        this.rexsterConfig.addProperty("http-reporter-duration", reporterConfig.getDurationTimeUnitConversion());
+        this.rexsterConfig.addProperty("http-reporter-convert", reporterConfig.getRateTimeUnitConversion());
     }
 
     public void startDaemon() {
