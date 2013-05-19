@@ -21,7 +21,6 @@ import com.tinkerpop.blueprints.Edge;
 import com.tinkerpop.blueprints.GraphQuery;
 import com.tinkerpop.blueprints.Vertex;
 
-import org.apache.commons.lang.NotImplementedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -84,10 +83,10 @@ public class TitanGraphQueryBuilder implements TitanGraphQuery, QueryOptimizer<S
         return this;
     }
 
-	@Override
-	public <T extends Comparable<T>> GraphQuery has(String arg0, Compare arg1, T arg2) {
-		throw new NotImplementedException();
-	}
+    @Override
+    public <T extends Comparable<T>> GraphQuery has(String s, Compare compare, T t) {
+    	return has(s,Cmp.convert(compare),t);
+    }
 
 
     @Override

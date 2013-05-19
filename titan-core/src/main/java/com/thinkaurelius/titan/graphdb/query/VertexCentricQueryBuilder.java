@@ -18,8 +18,6 @@ import com.tinkerpop.blueprints.VertexQuery;
 
 import javax.annotation.Nullable;
 
-import org.apache.commons.lang.NotImplementedException;
-
 import java.util.*;
 
 public class VertexCentricQueryBuilder implements TitanVertexQuery {
@@ -220,15 +218,15 @@ public class VertexCentricQueryBuilder implements TitanVertexQuery {
         return addConstraint(key,Cmp.convert(compare),value);
     }
 
+    @Override
+    public <T extends Comparable<T>> VertexQuery has(String key, Compare compare, T value) {
+    	return addConstraint(key,Cmp.convert(compare),value);
+    }
+
     public <T extends Comparable<T>> VertexCentricQueryBuilder has(TitanKey key, T value, Compare compare) {
         return has(key.getName(),value,compare);
     }
-
-	@Override
-	public <T extends Comparable<T>> VertexQuery has(String arg0, Compare arg1, T arg2) {
-		throw new NotImplementedException();
-	}
-
+    
     @Override
     public VertexCentricQueryBuilder types(TitanType... type) {
         for (TitanType t : type) type(t);
