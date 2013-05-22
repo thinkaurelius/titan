@@ -18,7 +18,9 @@ import com.thinkaurelius.titan.graphdb.relations.AttributeUtil;
 import com.thinkaurelius.titan.graphdb.transaction.StandardTitanTx;
 import com.thinkaurelius.titan.util.stats.ObjectAccumulator;
 import com.tinkerpop.blueprints.Edge;
+import com.tinkerpop.blueprints.GraphQuery;
 import com.tinkerpop.blueprints.Vertex;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -79,6 +81,11 @@ public class TitanGraphQueryBuilder implements TitanGraphQuery, QueryOptimizer<S
             conditions.add(new KeyAtom<TitanKey>(key,relation,condition));
         }
         return this;
+    }
+
+    @Override
+    public <T extends Comparable<T>> GraphQuery has(String s, Compare compare, T t) {
+    	return has(s,Cmp.convert(compare),t);
     }
 
 

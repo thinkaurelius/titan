@@ -18,7 +18,10 @@ public class TitanSpecificBlueprintsTestSuite extends TestSuite {
         TransactionalGraph graph = (TransactionalGraph) graphTest.generateGraph();
         Vertex a = graph.addVertex(null);
         Vertex b = graph.addVertex(null);
-        Edge e = graph.addEdge(null, a, b, convertId(graph, "friend"));
+        Assert.fail("ZK failed test due to the line of code below: "+
+        	"The method convertId(TransactionalGraph, String) "+
+        	"is undefined for the type TitanSpecificBlueprintsTestSuite");
+        //ZK Edge e = graph.addEdge(null, a, b, convertId(graph, "friend"));
         graph.commit();
 
         a = graph.getVertex(a);
