@@ -14,6 +14,13 @@ public interface Query<Q extends Query> {
     public boolean hasLimit();
 
     public int getLimit();
+    
+    /**
+     * The number of initial results to discard.
+     * 
+     * @return A nonnegative count of skipped initial results
+     */
+    public int getSkip();
 
     public boolean isInvalid();
 

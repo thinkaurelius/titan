@@ -117,6 +117,12 @@ public class SliceQuery {
                 && sliceEnd.compareTo(oth.sliceEnd)>=0;
     }
 
+    /**
+     * Returns {@link ByteBufferUtil#nextBiggerBuffer(StaticBuffer)}.
+     * 
+     * @param point The buffer to bytewise-increment by one
+     * @return An incremented copy of {@code point}
+     */
     public static final StaticBuffer pointRange(StaticBuffer point) {
         return ByteBufferUtil.nextBiggerBuffer(point);
     }

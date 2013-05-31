@@ -260,14 +260,28 @@ public class IndexSerializer {
         Preconditions.checkArgument(key.hasIndex(index,query.getType().getElementType()),
                 "Cannot retrieve for given property key - it does not have an index [%s]",key.getName());
 
+        // StaticBuffer-encoded version of key#getID (i.e. the property ID)
         StaticBuffer column = getUniqueIndexColumn(key);
-        KeySliceQuery sq = new KeySliceQuery(getIndexKey(value),column, SliceQuery.pointRange(column),query.getLimit(),((InternalType)key).isStatic(Direction.IN));
+
+        // Slice for index hits. The key is our match literal. The column range
+        // allows any column starting with our property's type ID. The values
+        // will be vertex IDs or relation IDs for which property=literal.
+        KeySliceQuery sq = new KeySliceQuery(
+                getIndexKey(value), // key
+                column, // lower bound
+                SliceQuery.pointRange(column), // upper bound 
+                query.getSkip() + query.getLimit(), // max # of results
+                ((InternalType)key).isStatic(Direction.IN)); // whether the results are eligible for caching
+        
+        // Read buffers containing raw index hits into r
         List<Entry> r;
         if (query.getType()== StandardElementQuery.Type.VERTEX) {
             r = tx.vertexIndexQuery(sq);
         } else {
             r = tx.edgeIndexQuery(sq);
         }
+        
+        // Convert bytes to result objects
         List<Object> results = new ArrayList<Object>(r.size());
         for (Entry entry : r) {
             ReadBuffer entryValue = entry.getReadValue();

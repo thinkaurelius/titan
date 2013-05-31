@@ -35,8 +35,9 @@ public class StandardElementQuery implements Query<StandardElementQuery> {
     private final Type type;
     private final String index;
     private final int limit;
+    private final int skip;
 
-    public StandardElementQuery(Type type, KeyCondition<TitanKey> condition, int limit, String index) {
+    public StandardElementQuery(Type type, KeyCondition<TitanKey> condition, int limit, int skip, String index) {
         Preconditions.checkNotNull(condition);
         Preconditions.checkNotNull(type);
         Preconditions.checkArgument(limit>=0);
@@ -44,6 +45,11 @@ public class StandardElementQuery implements Query<StandardElementQuery> {
         this.type=type;
         this.index = index;
         this.limit=limit;
+        this.skip=skip;
+    }
+
+    public StandardElementQuery(Type type, KeyCondition<TitanKey> condition, int limit, String index) {
+        this(type, condition, limit, /* don't skip any results by default */ 0, index);
     }
 
     public StandardElementQuery(StandardElementQuery query, String index) {
@@ -52,6 +58,7 @@ public class StandardElementQuery implements Query<StandardElementQuery> {
         this.condition=query.condition;
         this.type=query.type;
         this.limit=query.limit;
+        this.skip=query.skip;
         this.index=index;
     }
 
@@ -102,6 +109,11 @@ public class StandardElementQuery implements Query<StandardElementQuery> {
     @Override
     public int getLimit() {
         return limit;
+    }
+    
+    @Override
+    public int getSkip() {
+        return skip;
     }
 
     @Override

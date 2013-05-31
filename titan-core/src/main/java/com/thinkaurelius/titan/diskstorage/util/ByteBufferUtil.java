@@ -75,6 +75,20 @@ public class ByteBufferUtil {
         return next;
     }
 
+    /**
+     * Returns a new StaticBuffer which immediately succeeds {@code buffer} in
+     * unsigned bytewise comparison if the MSB is at index zero. If the initial
+     * byte in the returned buffer would be zero, then this method throws
+     * IllegalArgumentException instead of returning.
+     * <p>
+     * This is intuitively similar to treating {@code buffer} as a fixed-width
+     * unsigned integer with MSB at index zero, adding one, and throwing
+     * IllegalArgumentException in case of overflow.
+     * 
+     * @param buffer
+     *            The buffer to increment
+     * @return An incremented buffer of the same length as {@code buffer}
+     */
     public static final StaticBuffer nextBiggerBuffer(StaticBuffer buffer) {
         int len = buffer.length();
         byte[] next = new byte[len];

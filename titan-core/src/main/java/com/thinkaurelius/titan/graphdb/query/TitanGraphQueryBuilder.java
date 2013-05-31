@@ -39,6 +39,7 @@ public class TitanGraphQueryBuilder implements TitanGraphQuery, QueryOptimizer<S
     private final StandardTitanTx tx;
     private List<KeyAtom<TitanKey>> conditions;
     private int limit = Query.NO_LIMIT;
+    private int skip = 0; // Skip nothing by default
 
     public TitanGraphQueryBuilder(StandardTitanTx tx) {
         Preconditions.checkNotNull(tx);
@@ -99,7 +100,7 @@ public class TitanGraphQueryBuilder implements TitanGraphQuery, QueryOptimizer<S
 
     private StandardElementQuery constructQuery(StandardElementQuery.Type elementType) {
         Preconditions.checkNotNull(elementType);
-        return new StandardElementQuery(elementType,KeyAnd.of(conditions.toArray(new KeyAtom[conditions.size()])),limit,null);
+        return new StandardElementQuery(elementType,KeyAnd.of(conditions.toArray(new KeyAtom[conditions.size()])),limit,skip,null);
     }
 
     @Override
@@ -161,7 +162,8 @@ public class TitanGraphQueryBuilder implements TitanGraphQuery, QueryOptimizer<S
     }
 
     @Override
-    public GraphQuery limit(long arg0, long arg1) {
+    public GraphQuery limit(long skip, long take) {
+        // TODO log a warning during execution if an ordering is not also specified?
         log.warn("limit(skip, take) is unimplemented and has no effect"); // TODO implement
         return this;
     }
