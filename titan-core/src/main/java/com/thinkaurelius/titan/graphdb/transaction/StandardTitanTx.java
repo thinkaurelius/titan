@@ -727,7 +727,7 @@ public class StandardTitanTx extends TitanBlueprintsTransaction {
                         return query.matches(element);
                     }
                 });
-            } else {
+            } else { // Query has an index
                 String index = query.getIndex();
                 log.debug("Answering query [{}] with index {}",query,index);
                 //Filter out everything not covered by the index
@@ -735,34 +735,46 @@ public class StandardTitanTx extends TitanBlueprintsTransaction {
                 //ASSUMPTION: query is an AND of KeyAtom
                 Preconditions.checkArgument(condition instanceof KeyAnd);
                 Preconditions.checkArgument(condition.hasChildren());
-                List<KeyCondition<TitanKey>> newConds = Lists.newArrayList();
 
+                /*
+                 * Build a list of query conditions satisfiable with the index.
+                 * Any query conditions not satisfiable with the index will be
+                 * excluded from the list newConds. Excluded conditions will be
+                 * applied in-memory to the results of index querying using
+                 * Iterators#filter().
+                 */
+                List<KeyCondition<TitanKey>> newConds = Lists.newArrayList();
                 boolean needsFilter = false;
+                
                 for (KeyCondition<TitanKey> c : condition.getChildren()) {
                     KeyAtom<TitanKey> atom = (KeyAtom<TitanKey>)c;
                     if (getGraph().getIndexInformation(index).supports(atom.getKey().getDataType(),atom.getRelation()) &&
                             atom.getKey().hasIndex(index,query.getType().getElementType()) && atom.getCondition()!=null) {
-                        newConds.add(atom);
+                        newConds.add(atom); // this atom is covered by the index
                     } else {
                         log.debug("Filtered out atom [{}] from query [{}] because it is not indexed or not covered by the index");
-                        needsFilter = true;
+                        needsFilter = true; // this atom wasn't covered by the index
                     }
                 }
                 Preconditions.checkArgument(!newConds.isEmpty(),"Invalid index assignment [%s] to query [%s]",index, query);
                 final StandardElementQuery indexQuery;
                 if (needsFilter) {
                     Preconditions.checkArgument(!newConds.isEmpty(),"Query has been assigned an index [%s] in error: %s",query.getIndex(),query);
+                    // Generate a new indexQuery with only the KeyAtoms covered by the index
                     indexQuery = new StandardElementQuery(query.getType(),KeyAnd.of(newConds.toArray(new KeyAtom[newConds.size()])),query.getLimit(),index);
                 } else {
                     indexQuery = query;
                 }
                 try {
+                    // Get index hits from cache or retrieve them from storage in case of a cache miss
                     iter = Iterators.transform(indexCache.get(indexQuery,new Callable<List<Object>>() {
                         @Override
                         public List<Object> call() throws Exception {
+                            // Cache miss -- retrieve index hits from storage
                             return graph.elementQuery(indexQuery,txHandle);
                         }
                     }).iterator(),new Function<Object, TitanElement>() {
+                        // Convert vertex IDs Longs and RelationIdentifiers into TitanVertex/TitanElement
                         @Nullable
                         @Override
                         public TitanElement apply(@Nullable Object id) {
@@ -772,14 +784,30 @@ public class StandardTitanTx extends TitanBlueprintsTransaction {
                             else throw new IllegalArgumentException("Unexpected id type: " + id);
                         }
                     });
+                    // iter now contains TitanElements representing index hits
                 } catch (Exception e) {
                     throw new TitanException("Could not call index",e);
                 }
+
+                // Cull deleted/removed elements from iter, applying a filter
+                // for non-index-satisfiable KeyAtoms as necessary
                 if (needsFilter) {
                     iter = Iterators.filter(iter,new Predicate<TitanElement>() {
                         @Override
                         public boolean apply(@Nullable TitanElement element) {
+                            
+                            /*
+                             * Note that we call query.matches(element).
+                             * This checks every condition in the query,
+                             * not just KeyAtoms uncovered by the index.
+                             * This means we perform a redundant check
+                             * on any KeyAtoms covered by the index.
+                             * We could eliminate this redundant checking
+                             * by constructing a new query object containing
+                             * only KeyAtoms uncovered by the index.
+                             */
                             return element!=null && !element.isRemoved() && !isDeleted(query,element) && query.matches(element);
+                            
                         }
                     });
                 } else {

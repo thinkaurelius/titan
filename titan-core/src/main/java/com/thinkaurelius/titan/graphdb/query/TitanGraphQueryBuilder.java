@@ -129,7 +129,10 @@ public class TitanGraphQueryBuilder implements TitanGraphQuery, QueryOptimizer<S
     @Override
     public List<StandardElementQuery> optimize(StandardElementQuery query) {
         if (query.isInvalid()) return ImmutableList.of();
-        //Find most suitable index
+        /*
+         * Find most suitable index. A "most suitable" index is one which covers
+         * the largest number of KeyAtoms in query.
+         */
         ObjectAccumulator<String> opt = new ObjectAccumulator<String>(5);
         KeyCondition<TitanKey> condition = query.getCondition();
         if (condition.hasChildren()) {
