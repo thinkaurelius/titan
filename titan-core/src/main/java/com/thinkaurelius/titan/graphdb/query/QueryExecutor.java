@@ -41,6 +41,9 @@ public interface QueryExecutor<Q extends Query<Q>,R> {
      * transaction which haven't yet been committed to a storage backend. To
      * find in-memory elements that match {@code query}, see
      * {@link #hasNew(Query)} and {@link #getNew(Query)}.
+     * <p>
+     * This method might also have to return its results in sorted order. I'm
+     * not sure whether that's required or not.
      * 
      * @param query
      *            The query to run against storage

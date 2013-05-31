@@ -52,6 +52,13 @@ public class QueryProcessor<Q extends Query<Q>,R> implements Iterable<R> {
         Iterator<R> iter = null;
         if (query.isSorted()) {
 
+            /*
+             * When optimal.size() == 1 && !executor.hasNew(query), it seems
+             * that we assume that executor.execute(optimal.get(0)) returns
+             * results already sorted.
+             * 
+             * TODO check this assumption in executor implementations and document it in the interface
+             */
             for (int i=optimal.size()-1;i>=0;i--) {
                 if (iter==null) iter = executor.execute(optimal.get(i));
                 else iter = new MergeSortIterator<R>(executor.execute(optimal.get(i)),iter,query.getSortOrder(),query.hasUniqueResults());
@@ -135,6 +142,7 @@ public class QueryProcessor<Q extends Query<Q>,R> implements Iterable<R> {
             count = 0;
             this.current=null;
             this.next = nextInternal();
+            // TODO fast-forward over query.getSkip() elements
         }
 
         @Override
@@ -168,6 +176,18 @@ public class QueryProcessor<Q extends Query<Q>,R> implements Iterable<R> {
     }
 
 
+    /**
+     * Iterate in sorted order over the combined elements of two existing sorted
+     * iterators. If {@code filterDuplicates} is false, then "combined elements"
+     * is like the sorted concatenation of both input iterators. If
+     * {@code filterDuplicates} is true, then "combined elements" is like the
+     * sorted list formed from the union of the elements in both input
+     * iterators.
+     * 
+     * @param <R>
+     *            The iterator element type. Both input iterators must be of the
+     *            same type and their elements should be mutually comparable.
+     */
     private static final class MergeSortIterator<R> implements Iterator<R> {
 
 
@@ -199,6 +219,11 @@ public class QueryProcessor<Q extends Query<Q>,R> implements Iterable<R> {
             return next!=null;
         }
 
+        /**
+         * If the next elements on both input iterators are equal, then take and
+         * return the element from {@code first}. Otherwise, take and return the
+         * smaller element.
+         */
         @Override
         public R next() {
             if (!hasNext()) throw new NoSuchElementException();

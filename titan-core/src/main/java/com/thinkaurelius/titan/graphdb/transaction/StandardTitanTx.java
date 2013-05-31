@@ -761,7 +761,7 @@ public class StandardTitanTx extends TitanBlueprintsTransaction {
                 if (needsFilter) {
                     Preconditions.checkArgument(!newConds.isEmpty(),"Query has been assigned an index [%s] in error: %s",query.getIndex(),query);
                     // Generate a new indexQuery with only the KeyAtoms covered by the index
-                    indexQuery = new StandardElementQuery(query.getType(),KeyAnd.of(newConds.toArray(new KeyAtom[newConds.size()])),query.getLimit(),index);
+                    indexQuery = new StandardElementQuery(query.getType(),KeyAnd.of(newConds.toArray(new KeyAtom[newConds.size()])),query.getLimit(),query.getSkip(),index);
                 } else {
                     indexQuery = query;
                 }
