@@ -33,6 +33,7 @@ public class VertexCentricQuery implements Query<VertexCentricQuery> {
     private final KeyAnd<TitanType> constraints;
     private final boolean includeHidden;
     private final int limit;
+    private final int skip;
     private final RelationType returnType;
 
     public VertexCentricQuery(InternalVertex vertex, Direction dir, TitanType[] types, TypeGroup group,
@@ -50,6 +51,7 @@ public class VertexCentricQuery implements Query<VertexCentricQuery> {
         this.constraints = constraints;
         this.includeHidden = includeHidden;
         this.limit = limit;
+        this.skip = 0;
         this.returnType=returnType;
     }
 
@@ -61,6 +63,7 @@ public class VertexCentricQuery implements Query<VertexCentricQuery> {
         this.constraints = other.constraints;
         this.includeHidden = other.includeHidden;
         this.limit = newLimit;
+        this.skip = other.skip;
         this.returnType=other.returnType;
     }
 
@@ -72,6 +75,7 @@ public class VertexCentricQuery implements Query<VertexCentricQuery> {
         constraints= KeyAnd.of();
         this.includeHidden=true;
         this.limit=0;
+        this.skip=0;
         this.returnType= RelationType.RELATION;
     }
 
@@ -139,6 +143,11 @@ public class VertexCentricQuery implements Query<VertexCentricQuery> {
     @Override
     public int getLimit() {
         return limit;
+    }
+    
+    @Override
+    public int getSkip() {
+        return skip;
     }
 
     @Override

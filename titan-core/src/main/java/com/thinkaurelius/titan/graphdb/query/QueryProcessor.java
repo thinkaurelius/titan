@@ -129,6 +129,7 @@ public class QueryProcessor<Q extends Query<Q>,R> implements Iterable<R> {
 
         private final Iterator<R> iter;
         private final int limit;
+        private final int skip;
 
         private R current;
         private R next;
@@ -139,10 +140,14 @@ public class QueryProcessor<Q extends Query<Q>,R> implements Iterable<R> {
             this.iter=getUnwrappedIterator();
             if (query.hasLimit()) limit = query.getLimit();
             else limit = Query.NO_LIMIT;
+            this.skip = query.getSkip();
             count = 0;
             this.current=null;
             this.next = nextInternal();
-            // TODO fast-forward over query.getSkip() elements
+            // Discard elements if requested
+            for (int i = 0; i < this.skip && hasNext(); i++) {
+                next();
+            }
         }
 
         @Override
@@ -183,6 +188,8 @@ public class QueryProcessor<Q extends Query<Q>,R> implements Iterable<R> {
      * {@code filterDuplicates} is true, then "combined elements" is like the
      * sorted list formed from the union of the elements in both input
      * iterators.
+     * <p>
+     * <b>Both input iterators must be sorted.</b>
      * 
      * @param <R>
      *            The iterator element type. Both input iterators must be of the

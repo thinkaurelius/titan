@@ -1,9 +1,12 @@
 package com.thinkaurelius.titan.graphdb.query.keycondition;
 
 import com.google.common.base.Preconditions;
+
 import org.apache.commons.lang.builder.HashCodeBuilder;
 
 import java.util.Arrays;
+import java.util.LinkedList;
+import java.util.List;
 
 /**
  * @author Matthias Broecheler (me@matthiasb.com)

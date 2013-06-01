@@ -13,6 +13,8 @@ import com.thinkaurelius.titan.core.attribute.Interval;
 import com.thinkaurelius.titan.graphdb.query.keycondition.KeyAnd;
 import com.thinkaurelius.titan.graphdb.query.keycondition.KeyAtom;
 import com.thinkaurelius.titan.graphdb.query.keycondition.KeyCondition;
+import com.thinkaurelius.titan.graphdb.query.keycondition.KeyNot;
+import com.thinkaurelius.titan.graphdb.query.keycondition.KeyOr;
 import com.thinkaurelius.titan.graphdb.query.keycondition.Relation;
 import com.thinkaurelius.titan.graphdb.relations.AttributeUtil;
 import com.thinkaurelius.titan.graphdb.transaction.StandardTitanTx;
@@ -34,10 +36,10 @@ public class TitanGraphQueryBuilder implements TitanGraphQuery, QueryOptimizer<S
     private static final Logger log = LoggerFactory.getLogger(TitanGraphQueryBuilder.class);
 
 
-    private static final List<KeyAtom<TitanKey>> INVALID = ImmutableList.of();
+    private static final List<KeyCondition<TitanKey>> INVALID = ImmutableList.of();
 
     private final StandardTitanTx tx;
-    private List<KeyAtom<TitanKey>> conditions;
+    private List<? super KeyCondition<TitanKey>> conditions;
     private int limit = Query.NO_LIMIT;
     private int skip = 0; // Skip nothing by default
 
@@ -100,7 +102,7 @@ public class TitanGraphQueryBuilder implements TitanGraphQuery, QueryOptimizer<S
 
     private StandardElementQuery constructQuery(StandardElementQuery.Type elementType) {
         Preconditions.checkNotNull(elementType);
-        return new StandardElementQuery(elementType,KeyAnd.of(conditions.toArray(new KeyAtom[conditions.size()])),limit,skip,null);
+        return new StandardElementQuery(elementType,KeyAnd.of(conditions.toArray(new KeyCondition[conditions.size()])),limit,skip,null);
     }
 
     @Override
@@ -138,11 +140,18 @@ public class TitanGraphQueryBuilder implements TitanGraphQuery, QueryOptimizer<S
         if (condition.hasChildren()) {
             Preconditions.checkArgument(condition instanceof KeyAnd);
             for (KeyCondition<TitanKey> c : condition.getChildren()) {
-                KeyAtom<TitanKey> atom = (KeyAtom<TitanKey>)c;
-                if (atom.getCondition()==null) continue; //Cannot answer those with index
-                for (String index : atom.getKey().getIndexes(query.getType().getElementType())) {
-                    if (tx.getGraph().getIndexInformation(index).supports(atom.getKey().getDataType(),atom.getRelation()))
-                        opt.incBy(index,1);
+                // TODO look for KeyAtoms or completely-covered KeyOrs
+                if (c instanceof KeyAtom) {
+                    KeyAtom<TitanKey> atom = (KeyAtom<TitanKey>)c;
+                    if (atom.getCondition()==null) continue; //Cannot answer those with index
+                    for (String index : atom.getKey().getIndexes(query.getType().getElementType())) {
+                        if (tx.getGraph().getIndexInformation(index).supports(atom.getKey().getDataType(),atom.getRelation()))
+                            opt.incBy(index,1);
+                    }
+                } else if (c instanceof KeyOr) {
+                    // TODO
+                } else if (c instanceof KeyNot) {
+                    // TODO
                 }
             }
         }
@@ -153,21 +162,89 @@ public class TitanGraphQueryBuilder implements TitanGraphQuery, QueryOptimizer<S
     }
 
     @Override
-    public GraphQuery has(String key, Object... values) {
-        log.warn("has(key, values) is unimplemented and has no effect"); // TODO implement
-        return this;
+    public GraphQuery has(String keyName, Object... values) {
+        if (null == values || 0 == values.length) {
+            // Match any element for which keyName is set, regardless of the literal value
+            return has(keyName, Cmp.NOT_EQUAL, (Object)null);
+        } else {
+            return has(keyName, Cmp.EQUAL, values);
+        }
     }
 
     @Override
-    public GraphQuery hasNot(String key, Object... values) {
-        log.warn("hasNot(key, values) is unimplemented and has no effect"); // TODO implement
-        return this;
+    public GraphQuery hasNot(String keyName, Object... values) {
+        if (null == values || 0 == values.length) {
+            Preconditions.checkNotNull(keyName);
+            // Match any element for which keyName is unset/null
+            TitanType type = tx.getType(keyName);
+            if (type==null || !(type instanceof TitanKey)) {
+                if (tx.getConfiguration().getAutoEdgeTypeMaker().ignoreUndefinedQueryTypes()) {
+                    /*
+                     * This matches every element in the graph because if the
+                     * type does not exist, then it's impossible for any element
+                     * to have a value for that element. We don't have to add a
+                     * condition.
+                     */
+                    return this;
+                } else {
+                    throw new IllegalArgumentException("Unknown or invalid property key: " + keyName);
+                }
+            }
+            // The key actually exists
+            TitanKey key = (TitanKey)type;
+            conditions.add(KeyNot.of(KeyAtom.of(key, Cmp.NOT_EQUAL, null)));
+            return this;
+            // Doesn't work because it prunes elements without the key
+//            return has(keyName, Cmp.EQUAL, (Object)null);
+        } else {
+            return has(keyName, Cmp.NOT_EQUAL, values);
+        }
     }
 
     @Override
     public GraphQuery limit(long skip, long take) {
         // TODO log a warning during execution if an ordering is not also specified?
-        log.warn("limit(skip, take) is unimplemented and has no effect"); // TODO implement
+        Preconditions.checkArgument(0 <= skip);
+        Preconditions.checkArgument(Integer.MAX_VALUE >= skip);
+        Preconditions.checkArgument(0 <= take);
+        Preconditions.checkArgument(Integer.MAX_VALUE >= take);
+        this.skip = (int)skip;
+        this.limit = (int)take + this.skip;
+        return this;
+    }
+    
+    private GraphQuery has(String keyName, Relation rel, Object... values) {
+        Preconditions.checkNotNull(keyName);
+        Preconditions.checkNotNull(rel);
+        Preconditions.checkArgument(Cmp.EQUAL.equals(rel) || Cmp.NOT_EQUAL.equals(rel));
+        TitanType type = tx.getType(keyName);
+        if (type==null || !(type instanceof TitanKey)) {
+            if (tx.getConfiguration().getAutoEdgeTypeMaker().ignoreUndefinedQueryTypes()) {
+                conditions = INVALID;
+                return this;
+            } else {
+                throw new IllegalArgumentException("Unknown or invalid property key: " + keyName);
+            }
+        }
+        
+        TitanKey key = (TitanKey)type;
+        
+        if (null == values || 0 == values.length) {
+            // Wildcard: key must be present but can assume any value
+            return has(keyName, rel, (Object)null);
+        } else {
+            KeyAtom[] atoms = new KeyAtom[values.length];
+            int i = 0;
+            for (Object o : values) {
+                Preconditions.checkNotNull(o);
+                o = AttributeUtil.verifyAttributeQuery((TitanKey)type, o);
+                Preconditions.checkArgument(rel.isValidCondition(o), "Invalid condition: %s", o);
+                Preconditions.checkArgument(rel.isValidDataType(key.getDataType())," Invalid data type for condition: %s", key.getDataType());
+                atoms[i++] = new KeyAtom<TitanKey>(key, rel, o);
+            }
+            conditions.add((KeyCondition<TitanKey>)KeyOr.of(atoms));
+        }
+        
         return this;
     }
 }

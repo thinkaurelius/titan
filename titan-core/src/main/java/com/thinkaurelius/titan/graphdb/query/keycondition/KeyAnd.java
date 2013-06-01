@@ -4,6 +4,8 @@ import com.google.common.base.Preconditions;
 import org.apache.commons.lang.builder.HashCodeBuilder;
 
 import java.util.Arrays;
+import java.util.LinkedList;
+import java.util.List;
 
 /**
  * @author Matthias Broecheler (me@matthiasb.com)
@@ -86,5 +88,4 @@ public class KeyAnd<K> implements KeyCondition<K> {
     public static final<K> KeyAnd<K> of(KeyCondition<K>... elements) {
         return new KeyAnd<K>(elements);
     }
-
 }

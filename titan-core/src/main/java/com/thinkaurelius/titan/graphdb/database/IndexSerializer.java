@@ -191,57 +191,8 @@ public class IndexSerializer {
         Preconditions.checkArgument(query.hasIndex());
         String index = query.getIndex();
         Preconditions.checkArgument(indexes.containsKey(index),"Index unknown or unconfigured: %s",index);
-        List<Object> results = null;
         if (index.equals(Titan.Token.STANDARD_INDEX)) {
-            if (query.getCondition() instanceof KeyAtom) {
-                results = processSingleCondition(query, (KeyAtom<TitanKey>)query.getCondition(), index, tx);
-            } else if (query.getCondition() instanceof KeyAnd) {
-                /*
-                 * Iterate over the KeyAtoms in the collection
-                 * query.getCondition().getChildren(), taking the intersection
-                 * of current results with cumulative results on each iteration.
-                 */
-                Set<Object> cumulativeResults = null;
-                for (KeyCondition<TitanKey> k : query.getCondition().getChildren()) {
-                    KeyAtom<TitanKey> curCondition = (KeyAtom<TitanKey>)k;
-                    // This could be optimized: it is inefficient in terms of comparisons, space, and garbage
-                    List<Object> r = processSingleCondition(query, curCondition, index, tx);
-                    if (cumulativeResults == null) {
-                        cumulativeResults = Sets.newHashSet(r);
-                    } else {
-                        Set<Object> curResultSet = ImmutableSet.builder().addAll(r).build();
-                        Iterator<Object> iter = cumulativeResults.iterator();
-                        while (iter.hasNext()) {
-                            Object o = iter.next();
-                            if (!curResultSet.contains(o)) {
-                                iter.remove();
-                            }
-                        }
-                    }
-                }
-                results = ImmutableList.builder().addAll(cumulativeResults).build();
-            } else if (query.getCondition() instanceof KeyOr) {
-                /*
-                 * Iterate over the KeyAtoms in the collection
-                 * query.getCondition().getChildren(), adding each iteration's
-                 * results to a cumulative result set (i.e. iterative union).
-                 * 
-                 * We don't use Guava's Sets#union() method because the Javadoc
-                 * for that method contains a warning to avoid exactly this sort
-                 * of iterative invocation pattern, claiming that it can result
-                 * in cubic performance due to Guava's implementation of union.
-                 */
-
-                // This could be optimized: it is inefficient in terms of comparisons, space, and garbage
-                Set<Object> cumulativeResults = Sets.newHashSet();
-                for (KeyCondition<TitanKey> k : query.getCondition().getChildren()) {
-                    KeyAtom<TitanKey> curCondition = (KeyAtom<TitanKey>)k;
-                    cumulativeResults.addAll(processSingleCondition(query, curCondition, index, tx));
-                }
-                results = ImmutableList.builder().addAll(cumulativeResults).build();
-            }
-            
-            return results;
+            return queryIndexForKeyCondition(query, query.getCondition(), index, tx);
         } else {
             verifyQuery(query.getCondition(),index,query.getType().getElementType());
             KeyCondition<String> condition = convert(query.getCondition());
@@ -253,7 +204,65 @@ public class IndexSerializer {
         }
     }
     
-    private List<Object> processSingleCondition(StandardElementQuery query, KeyAtom<TitanKey> cond, String index, BackendTransaction tx) {
+    private List<Object> queryIndexForKeyCondition(StandardElementQuery query, KeyCondition<TitanKey> cond, String index, BackendTransaction tx) {
+        List<Object> results;
+        
+        if (cond instanceof KeyAtom) {
+            results = queryIndexForKeyAtom(query, (KeyAtom<TitanKey>)cond, index, tx);
+        } else if (cond instanceof KeyAnd) {
+            /*
+             * Iterate over the KeyAtoms in the collection
+             * cond.getChildren(), taking the intersection
+             * of current results with cumulative results on each iteration.
+             * 
+             * TODO should cumulativeResults be sorted?
+             */
+            Set<Object> cumulativeResults = null;
+            for (KeyCondition<TitanKey> kc : cond.getChildren()) {
+                List<Object> r = queryIndexForKeyCondition(query, kc, index, tx);
+                // This could be optimized: it is inefficient in terms of comparisons, space, and garbage
+                if (cumulativeResults == null) {
+                    cumulativeResults = Sets.newHashSet(r);
+                } else {
+                    Set<Object> curResultSet = ImmutableSet.builder().addAll(r).build();
+                    Iterator<Object> iter = cumulativeResults.iterator();
+                    while (iter.hasNext()) {
+                        Object o = iter.next();
+                        if (!curResultSet.contains(o)) {
+                            iter.remove();
+                        }
+                    }
+                }
+            }
+            results = ImmutableList.builder().addAll(cumulativeResults).build();
+        } else if (cond instanceof KeyOr) {
+            /*
+             * Iterate over the KeyAtoms in the collection
+             * cond.getChildren(), adding each iteration's
+             * results to a cumulative result set (i.e. iterative union).
+             * 
+             * We don't use Guava's Sets#union() method because the Javadoc
+             * for that method contains a warning to avoid exactly this sort
+             * of iterative invocation pattern, claiming that it can result
+             * in cubic performance due to Guava's implementation of union.
+             * 
+             * TODO should cumulativeResults be sorted?
+             */
+
+            // This could be optimized: it is inefficient in terms of comparisons, space, and garbage
+            Set<Object> cumulativeResults = Sets.newHashSet();
+            for (KeyCondition<TitanKey> kc : cond.getChildren()) {
+                cumulativeResults.addAll(queryIndexForKeyCondition(query, kc, index, tx));
+            }
+            results = ImmutableList.builder().addAll(cumulativeResults).build();
+        } else {
+            throw new IllegalArgumentException("Standard index implementation only supports KeyAtom, KeyAnd, and KeyOr: can't process condition " + cond);
+        }
+        
+        return results;
+    }
+    
+    private List<Object> queryIndexForKeyAtom(StandardElementQuery query, KeyAtom<TitanKey> cond, String index, BackendTransaction tx) {
         Preconditions.checkArgument(cond.getRelation()==Cmp.EQUAL,"Only equality relations are supported by standard index [%s]",cond);
         TitanKey key = cond.getKey();
         Object value = cond.getCondition();
