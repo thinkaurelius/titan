@@ -1009,8 +1009,8 @@ public abstract class TitanGraphTest extends TitanGraphTestCommon {
         }
         assertEquals(10, v.query().labels("connect").direction(OUT).interval("time", 3, 31).count());
         assertEquals(33, v.query().labels("connect").direction(OUT).count());
-        assertEquals(33, v.query().labels("connect").has("undefined", null).direction(OUT).count());
-        assertEquals(0, v.query().labels("connect").direction(OUT).has("time", null).count());
+        assertEquals(33, v.query().labels("connect").direction(OUT).has("undefined", (Object)null).count());
+        assertEquals(0,  v.query().labels("connect").direction(OUT).has("time", (Object)null).count());
         assertEquals(10, v.query().labels("connect").direction(OUT).interval("time", 3, 31).vertexIds().size());
         assertEquals(10, Iterables.size(v.query().labels("connect").direction(OUT).interval("time", 3, 31).vertices()));
         assertEquals(1, v.query().has("time", 1).count());
@@ -1045,7 +1045,7 @@ public abstract class TitanGraphTest extends TitanGraphTestCommon {
         assertEquals(0, v.query().labels("follows").has("time", 10, Query.Compare.LESS_THAN).count());
 
 
-        assertEquals(0, v.query().labels("connect").direction(OUT).has("time", null).count());
+        assertEquals(0, v.query().labels("connect").direction(OUT).has("time", (Object)null).count());
         assertEquals(10, v.query().labels("connect").direction(OUT).interval("time", 3, 31).count());
         assertEquals(10, v.query().labels("connect").direction(OUT).interval("time", 3, 31).vertexIds().size());
         assertEquals(10, Iterables.size(v.query().labels("connect").direction(OUT).interval("time", 3, 31).vertices()));
