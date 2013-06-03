@@ -3,6 +3,7 @@ package com.thinkaurelius.titan.graphdb;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Iterators;
 import com.thinkaurelius.titan.core.*;
 import com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfiguration;
 import com.thinkaurelius.titan.graphdb.internal.InternalType;
@@ -316,6 +317,36 @@ public abstract class TitanGraphTest extends TitanGraphTestCommon {
             tx=null;
         }
         newTx();
+    }
+    
+    @Test
+    public void testUncommittedPropertyRemovalAndQuery() {
+        final String prop = "foo";
+        final String val  = "bar";
+        
+        // Setup initial graph conditions
+        tx.makeType().name(prop).dataType(String.class).unique(Direction.OUT).makePropertyKey();
+        clopen();
+        Vertex v1 = graph.addVertex(null);
+        v1.setProperty(prop, val);
+        
+        // Commit
+        clopen();
+        
+        // Verify that our graph conditions held across the commit unchanged
+        v1 = graph.getVertex(v1);
+        assertNotNull(v1);
+        assertEquals(val, v1.getProperty(prop));
+        assertEquals(1, Iterators.size(graph.query().has(prop, val).vertices().iterator()));
+        
+        // Remove property
+        v1.removeProperty(prop);
+        
+        // Check removal with both a graph query and a property retrieval
+        assertNull(v1.getProperty(prop));
+        assertEquals(0, Iterators.size(graph.query().has(prop, val).vertices().iterator()));
+        
+        graph.commit();
     }
 
     @Test
