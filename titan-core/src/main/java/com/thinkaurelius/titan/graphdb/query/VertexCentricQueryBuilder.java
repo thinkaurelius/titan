@@ -291,7 +291,7 @@ public class VertexCentricQueryBuilder implements TitanVertexQuery {
     @Override
     public VertexQuery has(String key, Object... values) {
         log.warn("has(key, values...) is unimplemented and has no effect"); // TODO implement
-        throw new IllegalArgumentException();
+//        throw new IllegalArgumentException();
         return this;
     }
 
