@@ -176,8 +176,8 @@ public class TitanGraphQueryBuilder implements TitanGraphQuery, QueryOptimizer<S
         if (null == values || 0 == values.length) {
             Preconditions.checkNotNull(keyName);
             // Match any element for which keyName is unset/null
-            TitanType type = tx.getType(keyName);
-            if (type==null || !(type instanceof TitanKey)) {
+            TitanKey key = getKeyByName(keyName);
+            if (null == key) {
                 if (tx.getConfiguration().getAutoEdgeTypeMaker().ignoreUndefinedQueryTypes()) {
                     /*
                      * This matches every element in the graph because if the
@@ -190,12 +190,9 @@ public class TitanGraphQueryBuilder implements TitanGraphQuery, QueryOptimizer<S
                     throw new IllegalArgumentException("Unknown or invalid property key: " + keyName);
                 }
             }
-            // The key actually exists
-            TitanKey key = (TitanKey)type;
+            Preconditions.checkNotNull(key);
             conditions.add(KeyAtom.of(key, Cmp.EQUAL, null));
             return this;
-            // Doesn't work because it prunes elements without the key
-//            return has(keyName, Cmp.EQUAL, (Object)null);
         } else {
             return has(keyName, Cmp.NOT_EQUAL, values);
         }
@@ -217,8 +214,8 @@ public class TitanGraphQueryBuilder implements TitanGraphQuery, QueryOptimizer<S
         Preconditions.checkNotNull(keyName);
         Preconditions.checkNotNull(rel);
         Preconditions.checkArgument(Cmp.EQUAL.equals(rel) || Cmp.NOT_EQUAL.equals(rel));
-        TitanType type = tx.getType(keyName);
-        if (type==null || !(type instanceof TitanKey)) {
+        TitanKey key = getKeyByName(keyName);
+        if (null == key) {
             if (tx.getConfiguration().getAutoEdgeTypeMaker().ignoreUndefinedQueryTypes()) {
                 conditions = INVALID;
                 return this;
@@ -227,17 +224,17 @@ public class TitanGraphQueryBuilder implements TitanGraphQuery, QueryOptimizer<S
             }
         }
         
-        TitanKey key = (TitanKey)type;
+        Preconditions.checkNotNull(key);
         
         if (null == values || 0 == values.length) {
             // Wildcard: key must be present but can assume any value
-            return has(keyName, rel, (Object)null);
+            return has(key, rel, (Object)null);
         } else {
             KeyAtom[] atoms = new KeyAtom[values.length];
             int i = 0;
             for (Object o : values) {
                 Preconditions.checkNotNull(o);
-                o = AttributeUtil.verifyAttributeQuery((TitanKey)type, o);
+                o = AttributeUtil.verifyAttributeQuery(key, o);
                 Preconditions.checkArgument(rel.isValidCondition(o), "Invalid condition: %s", o);
                 Preconditions.checkArgument(rel.isValidDataType(key.getDataType())," Invalid data type for condition: %s", key.getDataType());
                 atoms[i++] = new KeyAtom<TitanKey>(key, rel, o);
@@ -246,5 +243,22 @@ public class TitanGraphQueryBuilder implements TitanGraphQuery, QueryOptimizer<S
         }
         
         return this;
+    }
+    
+    /**
+     * return the titankey object representing {@code keyname} if it already
+     * exists. otherwise, return null.
+     * 
+     * @param keyname
+     *            name of the key to retrieve
+     * @return titan key object for {@code keyname} string or null if none
+     *         exists
+     */
+    private TitanKey getKeyByName(String keyName) {
+        TitanType type = tx.getType(keyName);
+        if (null != type && type instanceof TitanKey) {
+            return (TitanKey)type;
+        }
+        return null;
     }
 }
