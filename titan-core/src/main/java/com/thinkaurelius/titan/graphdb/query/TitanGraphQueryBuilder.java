@@ -192,7 +192,7 @@ public class TitanGraphQueryBuilder implements TitanGraphQuery, QueryOptimizer<S
             }
             // The key actually exists
             TitanKey key = (TitanKey)type;
-            conditions.add(KeyNot.of(KeyAtom.of(key, Cmp.NOT_EQUAL, null)));
+            conditions.add(KeyAtom.of(key, Cmp.EQUAL, null));
             return this;
             // Doesn't work because it prunes elements without the key
 //            return has(keyName, Cmp.EQUAL, (Object)null);
