@@ -662,12 +662,29 @@ public class StandardTitanTx extends TitanBlueprintsTransaction {
                         }
                     }
                 }
+
+                /*
+                 * Find vertices with in-memory modifications that might match
+                 * the query. The vertices iterator must contain at least the
+                 * full set of results with in-memory modifications, but it
+                 * might also be a superset of the results. We'll filter out
+                 * non-matching vertices later in this method.
+                 */
                 Iterator<TitanVertex> vertices;
                 if (standardIndexKey==null) {
                     /*
                      * No KeyAtoms in the top-level KeyAnd used an index. We
                      * have to iterate over all relations added and/or deleted
                      * by this transaction to check for in-memory query matches.
+                     *
+                     * The implementation of execute(...) ignores all vertices
+                     * for which InternalVertex#hasAddedRelations() or
+                     * InternalVertex#hasRemovedRelations() returns true. See
+                     * execute(...)'s invocation of isDeleted(...).
+                     * 
+                     * Because execute(...) can't return vertices with in-memory
+                     * incident modified relations, we have to iterate over all
+                     * of these and check them for query matches.
                      */
                     
                     Set<TitanVertex> vertexSet = Sets.newHashSet();
@@ -679,8 +696,7 @@ public class StandardTitanTx extends TitanBlueprintsTransaction {
                     })) {
                         vertexSet.add(((TitanProperty)r).getVertex());
                     }
-                    
-                    // I don't understand why we're checking deletedRelations
+
                     for (TitanRelation r : deletedRelations.values()) {
                         if (keys.contains(r.getType())) {
                             TitanVertex v = ((TitanProperty)r).getVertex();
@@ -689,12 +705,17 @@ public class StandardTitanTx extends TitanBlueprintsTransaction {
                     }
                     vertices=vertexSet.iterator();
                 } else {
-                    /*
+                    /* This is an optimization.
+                     * 
                      * At least one KeyAtom in the top-level KeyAnd used an
-                     * index. The hits from this KeyAtom's index fetch are
-                     * therefore a (possibly improper) superset of the overall
-                     * query results.  Retrieve this superset and screen it
-                     * by calling query.matches(...) on each vertex later.
+                     * index.  Because this KeyAtom is part of the top-level
+                     * KeyAnd (i.e. set intersection) defining the query, its
+                     * associated vertices form a possibly improper superset
+                     * of the set of vertices matching the complete query.
+                     * 
+                     * Here, we retrieve new vertexindex entries associated
+                     * with the KeyAtom we found in the top-level KeyAnd for
+                     * the query.
                      */
                     vertices = Iterators.transform(newVertexIndexEntries.get(standardIndexKey.getCondition(),standardIndexKey.getKey()).iterator(),new Function<TitanProperty, TitanVertex>() {
                         @Nullable
@@ -705,7 +726,7 @@ public class StandardTitanTx extends TitanBlueprintsTransaction {
                     });
                 }
 
-
+                // Remove non-matching vertices from candidiate iterator and return
                 return (Iterator)Iterators.filter(vertices,new Predicate<TitanVertex>() {
                     @Override
                     public boolean apply(@Nullable TitanVertex vertex) {
@@ -832,6 +853,16 @@ public class StandardTitanTx extends TitanBlueprintsTransaction {
                              * We could eliminate this redundant checking
                              * by constructing a new query object containing
                              * only KeyAtoms uncovered by the index.
+                             * 
+                             * Note that isDeleted() returns 
+                             * !query.matches(element) for any vertices with
+                             * modified relations (added or removed
+                             * relations) in memory. Therefore this method
+                             * can never return vertices that match the query
+                             * that have any in-memory property changes,
+                             * even if the property changes are irrelevant
+                             * for the query in question. Such vertices are
+                             * handled in getNew(...).
                              */
                             return element!=null && !element.isRemoved() && !isDeleted(query,element) && query.matches(element);
                             
