@@ -567,6 +567,7 @@ public class StandardTitanTx extends TitanBlueprintsTransaction {
 
         @Override
         public Iterator<TitanRelation> execute(final VertexCentricQuery query) {
+            // If the vertex exists only in memory, then we can't possibly have edges for it in storage
             if (query.getVertex().isNew()) return Iterators.emptyIterator();
 
             final EdgeSerializer edgeSerializer = graph.getEdgeSerializer();
@@ -678,6 +679,8 @@ public class StandardTitanTx extends TitanBlueprintsTransaction {
                     })) {
                         vertexSet.add(((TitanProperty)r).getVertex());
                     }
+                    
+                    // I don't understand why we're checking deletedRelations
                     for (TitanRelation r : deletedRelations.values()) {
                         if (keys.contains(r.getType())) {
                             TitanVertex v = ((TitanProperty)r).getVertex();
@@ -690,12 +693,9 @@ public class StandardTitanTx extends TitanBlueprintsTransaction {
                      * At least one KeyAtom in the top-level KeyAnd used an
                      * index. The hits from this KeyAtom's index fetch are
                      * therefore a (possibly improper) superset of the overall
-                     * query results. We can therefore just consider new entries
-                     * added to this index in memory by our enclosing
-                     * transaction and ignore the other KeyConditions in the
-                     * top-level KeyAnd.
+                     * query results.  Retrieve this superset and screen it
+                     * by calling query.matches(...) on each vertex later.
                      */
-                    
                     vertices = Iterators.transform(newVertexIndexEntries.get(standardIndexKey.getCondition(),standardIndexKey.getKey()).iterator(),new Function<TitanProperty, TitanVertex>() {
                         @Nullable
                         @Override
