@@ -78,6 +78,7 @@
         <module>titan-lucene</module>
         <module>titan-hbase</module>
         <module>titan-all</module>
+        <module>titan-accumulo</module>
     </modules>
     <build>
         <directory>${basedir}/target</directory>
