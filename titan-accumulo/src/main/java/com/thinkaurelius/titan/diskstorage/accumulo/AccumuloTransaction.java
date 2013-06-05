@@ -1,4 +1,4 @@
-package com.thinkaurelius.titan.diskstorage.hbase;
+package com.thinkaurelius.titan.diskstorage.accumulo;
 
 import com.thinkaurelius.titan.diskstorage.common.AbstractStoreTransaction;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.ConsistencyLevel;
@@ -11,9 +11,9 @@ import com.thinkaurelius.titan.diskstorage.keycolumnvalue.ConsistencyLevel;
  *
  * @author Dan LaRocque <dalaro@hopcount.org>
  */
-public class HBaseTransaction extends AbstractStoreTransaction {
+public class AccumuloTransaction extends AbstractStoreTransaction {
 
-    public HBaseTransaction(ConsistencyLevel level) {
+    public AccumuloTransaction(ConsistencyLevel level) {
         super(ConsistencyLevel.KEY_CONSISTENT);
     }
 }
