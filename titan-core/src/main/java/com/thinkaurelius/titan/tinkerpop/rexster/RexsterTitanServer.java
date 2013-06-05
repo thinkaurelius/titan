@@ -13,8 +13,7 @@ import org.apache.commons.configuration.XMLConfiguration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Iterator;
-import java.util.List;
+import java.util.*;
 
 /**
  * Standalone Titan database with fronting Rexster server.
@@ -66,7 +65,13 @@ public class RexsterTitanServer {
     }
 
     public void start() {
-        EngineController.configure(-1, this.rexsterConfig.getString("script-engine-init", null));
+
+        // get available engines, use gremlin-groovy if no engine is specified.
+        final String[] engines = this.rexsterConfig.getString("script-engines").trim().split(",");
+        final Set engineSet = new HashSet<String>(Arrays.asList(engines));
+        if(engineSet.isEmpty()) engineSet.add("gremlin-groovy");
+
+        EngineController.configure(-1, this.rexsterConfig.getString("script-engine-init", null), engineSet);
         graph = TitanFactory.open(titanConfig);
 
         final List<HierarchicalConfiguration> extensionConfigurations = ((XMLConfiguration) rexsterConfig).configurationsAt(Tokens.REXSTER_GRAPH_EXTENSIONS_PATH);
