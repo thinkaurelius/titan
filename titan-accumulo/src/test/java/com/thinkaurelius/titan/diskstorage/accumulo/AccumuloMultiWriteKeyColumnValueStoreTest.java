@@ -1,7 +1,6 @@
 package com.thinkaurelius.titan.diskstorage.accumulo;
 
 import com.thinkaurelius.titan.AccumuloStorageSetup;
-import com.thinkaurelius.titan.diskstorage.MultiWriteKeyColumnValueStoreTest;
 import com.thinkaurelius.titan.diskstorage.StorageException;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.KeyColumnValueStoreManager;
 import org.apache.commons.configuration.Configuration;
