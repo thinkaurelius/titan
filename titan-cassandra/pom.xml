@@ -43,8 +43,8 @@
             <groupId>net.java.dev.jna</groupId>
             <artifactId>jna</artifactId>
             <version>3.2.7</version>
-	    <optional>true</optional>
-	</dependency>
+            <optional>true</optional>
+        </dependency>
         <!-- 
             Temporary hack to work around the outdated 12.0 Guava pom.xml
             dependency in Cassandra 1.2.2.  Cassandra 1.2.2 actually
@@ -52,7 +52,7 @@
             and runtime NoClassDefFoundErrors looking for the class
             com/google/common/util/concurrent/RateLimiter.
         -->
-         <dependency>
+        <dependency>
             <groupId>org.apache.cassandra</groupId>
             <artifactId>cassandra-all</artifactId>
             <version>1.2.2</version>
@@ -107,12 +107,12 @@
                                 <exclude>**/*Suite.java</exclude>
                             </excludes>
                             <!-- Forking per class is required for the
-                        Internal and External Cassandra tests
-                        to run in the same suite.  Otherwise,
-                        when an Internal runs before an External,
-                        the Internal Cassandra daemon will hold
-                        all its ports open and the External
-                        Cassandra daemon will fail to bind them.  -->
+                            Internal and External Cassandra tests
+                            to run in the same suite.  Otherwise,
+                            when an Internal runs before an External,
+                            the Internal Cassandra daemon will hold
+                            all its ports open and the External
+                            Cassandra daemon will fail to bind them.  -->
                             <forkMode>always</forkMode>
                         </configuration>
                     </plugin>
@@ -148,6 +148,14 @@
                     </excludes>
                     <forkMode>always</forkMode>
                 </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-report-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jxr-plugin</artifactId>
             </plugin>
             <plugin>
                 <artifactId>maven-resources-plugin</artifactId>

@@ -8,10 +8,10 @@ import com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfiguration;
 import com.tinkerpop.blueprints.Graph;
 
 import java.io.IOException;
+
 /**
  * @author Matthias Broecheler (me@matthiasb.com)
  */
-
 public class AccumuloBlueprintsTest extends TitanBlueprintsTest {
 
     @Override
@@ -36,8 +36,8 @@ public class AccumuloBlueprintsTest extends TitanBlueprintsTest {
     @Override
     public void cleanUp() throws StorageException {
         AccumuloStoreManager s = new AccumuloStoreManager(AccumuloStorageSetup
-                                                        .getAccumuloGraphConfiguration()
-                                                                .subset(GraphDatabaseConfiguration.STORAGE_NAMESPACE));
+                .getAccumuloGraphConfiguration()
+                .subset(GraphDatabaseConfiguration.STORAGE_NAMESPACE));
         s.clearStorage();
     }
 

@@ -29,6 +29,7 @@ import org.apache.accumulo.core.client.TableExistsException;
 import org.apache.accumulo.core.client.TableNotFoundException;
 import org.apache.accumulo.core.client.ZooKeeperInstance;
 import org.apache.accumulo.core.client.admin.TableOperations;
+import org.apache.accumulo.core.client.mock.MockAccumulo;
 import org.apache.accumulo.core.client.mock.MockInstance;
 import org.apache.accumulo.core.data.Mutation;
 import org.apache.accumulo.core.data.Range;
@@ -45,39 +46,49 @@ import org.apache.hadoop.io.Text;
 public class AccumuloStoreManager extends DistributedStoreManager implements KeyColumnValueStoreManager {
 
     private static final Logger logger = LoggerFactory.getLogger(AccumuloStoreManager.class);
+    // Configuration namespace
+    public static final String ACCUMULO_CONFIGURATION_NAMESPACE = "accumulo-config";
+    // Default deleter, scanner, writer parameters 
     private static final Authorizations DEFAULT_AUTHORIZATIONS = new Authorizations();
     private static final Long DEFAULT_MAX_MEMORY = 50 * 1024 * 1024l;
     private static final Long DEFAULT_MAX_LATENCY = 2 * 60 * 1000l;
     private static final Long DEFAULT_TIMEOUT = Long.MAX_VALUE;
     private static final Integer DEFAULT_MAX_QUERY_THREADS = 3;
     private static final Integer DEFAULT_MAX_WRITE_THREADS = 3;
+    // Configuration keys
+    public static final String ACCUMULO_INTSANCE_KEY = "instance";
+    public static final String ACCUMULO_ZOOKEEPERS_KEY = "zookeepers";
+    public static final String ACCUMULO_USER_KEY = "username";
+    public static final String ACCUMULO_PASSWORD_KEY = "password";
     public static final String TABLE_NAME_KEY = "tablename";
+    // Configuration defaults
     public static final String TABLE_NAME_DEFAULT = "titan";
     public static final int PORT_DEFAULT = 9160;
-    public static final String ACCUMULO_CONFIGURATION_NAMESPACE = "accumulo-config";
-    public static final ImmutableMap<String, String> ACCUMULO_CONFIGURATION;
-
-    static {
-        ACCUMULO_CONFIGURATION = new ImmutableMap.Builder<String, String>()
-                .put(GraphDatabaseConfiguration.HOSTNAME_KEY, "accumulo.zookeeper.quorum")
-                .put(GraphDatabaseConfiguration.PORT_KEY, "accumulo.zookeeper.property.clientPort")
-                .build();
-    }
+    // Instance variables
     private final String tableName;
-    private final ConcurrentMap<String, AccumuloKeyColumnValueStore> openStores;
+    private final String instanceName;
+    private final String zooKeepers;
+    private final String username;
+    private final String password;
     private final Instance instance;
     private final Connector connector;
+    private final ConcurrentMap<String, AccumuloKeyColumnValueStore> openStores;
     private final StoreFeatures features;
 
     public AccumuloStoreManager(Configuration config) throws StorageException {
         super(config, PORT_DEFAULT);
 
-        this.tableName = config.getString(TABLE_NAME_KEY, TABLE_NAME_DEFAULT);
+        tableName = config.getString(TABLE_NAME_KEY, TABLE_NAME_DEFAULT);
 
-        openStores = new ConcurrentHashMap<String, AccumuloKeyColumnValueStore>();
+        // Accumulo specific keys
+        Configuration accumuloConfig = config.subset(ACCUMULO_CONFIGURATION_NAMESPACE);
+        instanceName = accumuloConfig.getString(ACCUMULO_INTSANCE_KEY);
+        zooKeepers = accumuloConfig.getString(ACCUMULO_ZOOKEEPERS_KEY);
+
+        username = accumuloConfig.getString(ACCUMULO_USER_KEY);
+        password = accumuloConfig.getString(ACCUMULO_PASSWORD_KEY);
 
         instance = new ZooKeeperInstance("EtCloud", "localhost");
-        // instance = new MockInstance("EtCloud");
         try {
             connector = instance.getConnector("root", "bobross".getBytes());
         } catch (AccumuloException ex) {
@@ -88,7 +99,8 @@ public class AccumuloStoreManager extends DistributedStoreManager implements Key
             throw new PermanentStorageException(ex.getMessage(), ex);
         }
 
-        // TODO: allowing publicly mutate fields is bad, should be fixed
+        openStores = new ConcurrentHashMap<String, AccumuloKeyColumnValueStore>();
+
         features = new StoreFeatures();
         features.supportsScan = true;
         features.supportsBatchMutation = true;
@@ -319,17 +331,19 @@ public class AccumuloStoreManager extends DistributedStoreManager implements Key
     @Override
     public void setConfigurationProperty(final String key, final String value) throws StorageException {
         ensureTableExists(tableName);
+        /*
 
-        TableOperations operations = connector.tableOperations();
-        try {
-            operations.setProperty(tableName, key, value);
-        } catch (AccumuloException ex) {
-            logger.error(ex.getMessage(), ex);
-            throw new PermanentStorageException(ex);
-        } catch (AccumuloSecurityException ex) {
-            logger.error(ex.getMessage(), ex);
-            throw new PermanentStorageException(ex);
-        }
+         TableOperations operations = connector.tableOperations();
+         try {
+         operations.setProperty(tableName, key, value);
+         } catch (AccumuloException ex) {
+         logger.error(ex.getMessage(), ex);
+         throw new PermanentStorageException(ex);
+         } catch (AccumuloSecurityException ex) {
+         logger.error(ex.getMessage(), ex);
+         throw new PermanentStorageException(ex);
+         }
+         */
     }
 
     private static void waitUntil(long until) {
