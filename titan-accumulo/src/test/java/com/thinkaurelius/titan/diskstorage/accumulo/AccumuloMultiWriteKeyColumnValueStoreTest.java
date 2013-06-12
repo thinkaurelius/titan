@@ -3,10 +3,10 @@ package com.thinkaurelius.titan.diskstorage.accumulo;
 import com.thinkaurelius.titan.AccumuloStorageSetup;
 import com.thinkaurelius.titan.diskstorage.StorageException;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.KeyColumnValueStoreManager;
-import org.apache.commons.configuration.Configuration;
 import org.junit.BeforeClass;
 
 import java.io.IOException;
+import org.apache.commons.configuration.Configuration;
 
 public class AccumuloMultiWriteKeyColumnValueStoreTest extends MultiWriteKeyColumnValueStoreTest {
 
@@ -17,11 +17,7 @@ public class AccumuloMultiWriteKeyColumnValueStoreTest extends MultiWriteKeyColu
 
     @Override
     public KeyColumnValueStoreManager openStorageManager() throws StorageException {
-        return new AccumuloStoreManager(getConfig());
-    }
-
-    private Configuration getConfig() {
-        Configuration c = AccumuloStorageSetup.getAccumuloStorageConfiguration();
-        return c;
+        Configuration sc = AccumuloStorageSetup.getAccumuloStorageConfiguration();
+        return new AccumuloStoreManager(sc);
     }
 }

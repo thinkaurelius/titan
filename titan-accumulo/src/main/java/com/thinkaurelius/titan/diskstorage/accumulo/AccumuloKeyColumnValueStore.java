@@ -56,10 +56,9 @@ public class AccumuloKeyColumnValueStore implements KeyColumnValueStore {
     private static final Logger logger = LoggerFactory.getLogger(AccumuloKeyColumnValueStore.class);
     private static final Authorizations DEFAULT_AUTHORIZATIONS = new Authorizations();
     private static final Long DEFAULT_MAX_MEMORY = 50 * 1024 * 1024l;
-    private static final Long DEFAULT_MAX_LATENCY = 2 * 60 * 1000l;
-    private static final Long DEFAULT_TIMEOUT = Long.MAX_VALUE;
-    private static final Integer DEFAULT_MAX_QUERY_THREADS = 3;
-    private static final Integer DEFAULT_MAX_WRITE_THREADS = 3;
+    private static final Long DEFAULT_MAX_LATENCY = 100l;
+    private static final Integer DEFAULT_MAX_QUERY_THREADS = 10;
+    private static final Integer DEFAULT_MAX_WRITE_THREADS = 10;
     private final Connector connector;
     private final String tableName;
     private final String columnFamily;

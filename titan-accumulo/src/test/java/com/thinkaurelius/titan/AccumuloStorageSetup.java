@@ -39,6 +39,7 @@ public class AccumuloStorageSetup {
         }
 
         Runtime.getRuntime().addShutdownHook(new Thread() {
+            @Override
             public void run() {
                 System.out.println("All done. Shutting done Accumulo.");
 
@@ -52,23 +53,30 @@ public class AccumuloStorageSetup {
     }
 
     public static Configuration getAccumuloStorageConfiguration() {
-        BaseConfiguration config = new BaseConfiguration();
-        config.addProperty(GraphDatabaseConfiguration.STORAGE_BACKEND_KEY,
-                "com.thinkaurelius.titan.diskstorage.accumulo.AccumuloStoreManager");
-        return config;
+        return getAccumuloGraphConfiguration()
+                .subset(GraphDatabaseConfiguration.STORAGE_NAMESPACE);
     }
 
     public static Configuration getAccumuloGraphConfiguration() {
-        Configuration config = new BaseConfiguration();
+        BaseConfiguration config = new BaseConfiguration();
+
         Configuration storageConfig = config.subset(GraphDatabaseConfiguration.STORAGE_NAMESPACE);
 
         storageConfig.addProperty(GraphDatabaseConfiguration.STORAGE_BACKEND_KEY,
                 "com.thinkaurelius.titan.diskstorage.accumulo.AccumuloStoreManager");
+        /*
+        storageConfig.addProperty(GraphDatabaseConfiguration.WRITE_ATTEMPTS_KEY, 10);
+        storageConfig.addProperty(GraphDatabaseConfiguration.READ_ATTEMPTS_KEY, 6);
+        storageConfig.addProperty(GraphDatabaseConfiguration.STORAGE_ATTEMPT_WAITTIME_KEY, 500);
+        storageConfig.addProperty(GraphDatabaseConfiguration.LOCK_RETRY_COUNT, 6);
+        */
+        storageConfig.addProperty(GraphDatabaseConfiguration.LOCK_WAIT_MS, 1000);
+
 
         Configuration accumuloConfig = storageConfig.subset(AccumuloStoreManager.ACCUMULO_CONFIGURATION_NAMESPACE);
 
         accumuloConfig.addProperty(AccumuloStoreManager.ACCUMULO_INTSANCE_KEY, "EtCloud");
-        accumuloConfig.addProperty(AccumuloStoreManager.ACCUMULO_ZOOKEEPERS_KEY, "localhost");
+        accumuloConfig.addProperty(GraphDatabaseConfiguration.HOSTNAME_KEY, "localhost");
 
         accumuloConfig.addProperty(AccumuloStoreManager.ACCUMULO_USER_KEY, "root");
         accumuloConfig.addProperty(AccumuloStoreManager.ACCUMULO_PASSWORD_KEY, "bobross");

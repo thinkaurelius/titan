@@ -1,6 +1,5 @@
 package com.thinkaurelius.titan.diskstorage.accumulo;
 
-import com.google.common.collect.ImmutableMap;
 import com.thinkaurelius.titan.diskstorage.PermanentStorageException;
 import com.thinkaurelius.titan.diskstorage.StaticBuffer;
 import com.thinkaurelius.titan.diskstorage.StorageException;
@@ -29,8 +28,6 @@ import org.apache.accumulo.core.client.TableExistsException;
 import org.apache.accumulo.core.client.TableNotFoundException;
 import org.apache.accumulo.core.client.ZooKeeperInstance;
 import org.apache.accumulo.core.client.admin.TableOperations;
-import org.apache.accumulo.core.client.mock.MockAccumulo;
-import org.apache.accumulo.core.client.mock.MockInstance;
 import org.apache.accumulo.core.data.Mutation;
 import org.apache.accumulo.core.data.Range;
 import org.apache.accumulo.core.data.Value;
@@ -51,13 +48,11 @@ public class AccumuloStoreManager extends DistributedStoreManager implements Key
     // Default deleter, scanner, writer parameters 
     private static final Authorizations DEFAULT_AUTHORIZATIONS = new Authorizations();
     private static final Long DEFAULT_MAX_MEMORY = 50 * 1024 * 1024l;
-    private static final Long DEFAULT_MAX_LATENCY = 2 * 60 * 1000l;
-    private static final Long DEFAULT_TIMEOUT = Long.MAX_VALUE;
-    private static final Integer DEFAULT_MAX_QUERY_THREADS = 3;
-    private static final Integer DEFAULT_MAX_WRITE_THREADS = 3;
+    private static final Long DEFAULT_MAX_LATENCY = 100l;
+    private static final Integer DEFAULT_MAX_QUERY_THREADS = 10;
+    private static final Integer DEFAULT_MAX_WRITE_THREADS = 10;
     // Configuration keys
     public static final String ACCUMULO_INTSANCE_KEY = "instance";
-    public static final String ACCUMULO_ZOOKEEPERS_KEY = "zookeepers";
     public static final String ACCUMULO_USER_KEY = "username";
     public static final String ACCUMULO_PASSWORD_KEY = "password";
     public static final String TABLE_NAME_KEY = "tablename";
@@ -83,14 +78,15 @@ public class AccumuloStoreManager extends DistributedStoreManager implements Key
         // Accumulo specific keys
         Configuration accumuloConfig = config.subset(ACCUMULO_CONFIGURATION_NAMESPACE);
         instanceName = accumuloConfig.getString(ACCUMULO_INTSANCE_KEY);
-        zooKeepers = accumuloConfig.getString(ACCUMULO_ZOOKEEPERS_KEY);
+        zooKeepers = accumuloConfig.getString(GraphDatabaseConfiguration.HOSTNAME_KEY,
+                GraphDatabaseConfiguration.HOSTNAME_DEFAULT);
 
         username = accumuloConfig.getString(ACCUMULO_USER_KEY);
         password = accumuloConfig.getString(ACCUMULO_PASSWORD_KEY);
 
-        instance = new ZooKeeperInstance("EtCloud", "localhost");
+        instance = new ZooKeeperInstance(instanceName, zooKeepers);
         try {
-            connector = instance.getConnector("root", "bobross".getBytes());
+            connector = instance.getConnector(username, password.getBytes());
         } catch (AccumuloException ex) {
             logger.error(ex.getMessage(), ex);
             throw new PermanentStorageException(ex.getMessage(), ex);
@@ -305,10 +301,20 @@ public class AccumuloStoreManager extends DistributedStoreManager implements Key
             throw new PermanentStorageException(ex);
         }
     }
+    
+    private ConcurrentMap<String, String> properties;
 
     @Override
     public String getConfigurationProperty(final String key) throws StorageException {
         ensureTableExists(tableName);
+        
+        if (properties == null) {
+            properties = new ConcurrentHashMap<String, String>();
+        }
+        
+        return properties.get(key);
+        
+        /*
 
         TableOperations operations = connector.tableOperations();
         try {
@@ -326,11 +332,14 @@ public class AccumuloStoreManager extends DistributedStoreManager implements Key
             logger.error(ex.getMessage(), ex);
             throw new PermanentStorageException(ex);
         }
+        */
     }
 
     @Override
     public void setConfigurationProperty(final String key, final String value) throws StorageException {
         ensureTableExists(tableName);
+        
+        properties.put(key, value);
         /*
 
          TableOperations operations = connector.tableOperations();
