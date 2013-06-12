@@ -64,14 +64,6 @@ public class AccumuloStorageSetup {
 
         storageConfig.addProperty(GraphDatabaseConfiguration.STORAGE_BACKEND_KEY,
                 "com.thinkaurelius.titan.diskstorage.accumulo.AccumuloStoreManager");
-        /*
-        storageConfig.addProperty(GraphDatabaseConfiguration.WRITE_ATTEMPTS_KEY, 10);
-        storageConfig.addProperty(GraphDatabaseConfiguration.READ_ATTEMPTS_KEY, 6);
-        storageConfig.addProperty(GraphDatabaseConfiguration.STORAGE_ATTEMPT_WAITTIME_KEY, 500);
-        storageConfig.addProperty(GraphDatabaseConfiguration.LOCK_RETRY_COUNT, 6);
-        */
-        storageConfig.addProperty(GraphDatabaseConfiguration.LOCK_WAIT_MS, 1000);
-
 
         Configuration accumuloConfig = storageConfig.subset(AccumuloStoreManager.ACCUMULO_CONFIGURATION_NAMESPACE);
 
