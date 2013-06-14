@@ -73,13 +73,13 @@ public class AccumuloStoreManager extends DistributedStoreManager implements Key
     public AccumuloStoreManager(Configuration config) throws StorageException {
         super(config, PORT_DEFAULT);
 
+        zooKeepers = config.getString(GraphDatabaseConfiguration.HOSTNAME_KEY,
+                GraphDatabaseConfiguration.HOSTNAME_DEFAULT);
         tableName = config.getString(TABLE_NAME_KEY, TABLE_NAME_DEFAULT);
 
         // Accumulo specific keys
         Configuration accumuloConfig = config.subset(ACCUMULO_CONFIGURATION_NAMESPACE);
         instanceName = accumuloConfig.getString(ACCUMULO_INTSANCE_KEY);
-        zooKeepers = accumuloConfig.getString(GraphDatabaseConfiguration.HOSTNAME_KEY,
-                GraphDatabaseConfiguration.HOSTNAME_DEFAULT);
 
         username = accumuloConfig.getString(ACCUMULO_USER_KEY);
         password = accumuloConfig.getString(ACCUMULO_PASSWORD_KEY);
@@ -301,44 +301,43 @@ public class AccumuloStoreManager extends DistributedStoreManager implements Key
             throw new PermanentStorageException(ex);
         }
     }
-    
     private ConcurrentMap<String, String> properties;
 
     @Override
     public String getConfigurationProperty(final String key) throws StorageException {
         ensureTableExists(tableName);
-        
+
         if (properties == null) {
             properties = new ConcurrentHashMap<String, String>();
         }
-        
+
         return properties.get(key);
-        
+
         /*
 
-        TableOperations operations = connector.tableOperations();
-        try {
-            Iterable<Map.Entry<String, String>> propIterator = operations.getProperties(tableName);
+         TableOperations operations = connector.tableOperations();
+         try {
+         Iterable<Map.Entry<String, String>> propIterator = operations.getProperties(tableName);
 
-            Map<String, String> properties = new HashMap<String, String>();
-            for (Map.Entry<String, String> entry : propIterator) {
-                properties.put(entry.getKey(), entry.getValue());
-            }
-            return properties.get(key);
-        } catch (AccumuloException ex) {
-            logger.error(ex.getMessage(), ex);
-            throw new PermanentStorageException(ex);
-        } catch (TableNotFoundException ex) {
-            logger.error(ex.getMessage(), ex);
-            throw new PermanentStorageException(ex);
-        }
-        */
+         Map<String, String> properties = new HashMap<String, String>();
+         for (Map.Entry<String, String> entry : propIterator) {
+         properties.put(entry.getKey(), entry.getValue());
+         }
+         return properties.get(key);
+         } catch (AccumuloException ex) {
+         logger.error(ex.getMessage(), ex);
+         throw new PermanentStorageException(ex);
+         } catch (TableNotFoundException ex) {
+         logger.error(ex.getMessage(), ex);
+         throw new PermanentStorageException(ex);
+         }
+         */
     }
 
     @Override
     public void setConfigurationProperty(final String key, final String value) throws StorageException {
         ensureTableExists(tableName);
-        
+
         properties.put(key, value);
         /*
 

@@ -64,13 +64,13 @@ public class AccumuloStorageSetup {
 
         storageConfig.addProperty(GraphDatabaseConfiguration.STORAGE_BACKEND_KEY,
                 "com.thinkaurelius.titan.diskstorage.accumulo.AccumuloStoreManager");
+        storageConfig.addProperty(GraphDatabaseConfiguration.HOSTNAME_KEY, "localhost");
 
         Configuration accumuloConfig = storageConfig.subset(AccumuloStoreManager.ACCUMULO_CONFIGURATION_NAMESPACE);
 
         accumuloConfig.addProperty(AccumuloStoreManager.ACCUMULO_INTSANCE_KEY, "EtCloud");
-        accumuloConfig.addProperty(GraphDatabaseConfiguration.HOSTNAME_KEY, "localhost");
-
-        accumuloConfig.addProperty(AccumuloStoreManager.ACCUMULO_USER_KEY, "root");
+        
+      accumuloConfig.addProperty(AccumuloStoreManager.ACCUMULO_USER_KEY, "root");
         accumuloConfig.addProperty(AccumuloStoreManager.ACCUMULO_PASSWORD_KEY, "bobross");
 
         return config;
