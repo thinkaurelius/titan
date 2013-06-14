@@ -30,7 +30,6 @@ import org.apache.accumulo.core.data.Mutation;
 import org.apache.accumulo.core.data.Range;
 import org.apache.accumulo.core.data.Value;
 import org.apache.accumulo.core.iterators.FirstEntryInRowIterator;
-import org.apache.accumulo.core.iterators.user.RegExFilter;
 import org.apache.accumulo.core.security.Authorizations;
 import org.apache.hadoop.io.Text;
 
@@ -78,14 +77,14 @@ public class AccumuloKeyColumnValueStore implements KeyColumnValueStore {
 
     @Override
     public boolean containsKey(StaticBuffer key, StoreTransaction txh) throws StorageException {
-        Scanner scanner;       
+        Scanner scanner;
         try {
             scanner = connector.createScanner(tableName, DEFAULT_AUTHORIZATIONS);
         } catch (TableNotFoundException ex) {
             logger.error("Should never throw this exception!", ex);
             throw new PermanentStorageException(ex);
         }
-        
+
         byte[] keyBytes = key.as(StaticBuffer.ARRAY_FACTORY);
         scanner.setRange(new Range(new Text(keyBytes)));
         scanner.fetchColumnFamily(new Text(columnFamilyBytes));
@@ -104,14 +103,31 @@ public class AccumuloKeyColumnValueStore implements KeyColumnValueStore {
         }
 
         byte[] keyBytes = query.getKey().as(StaticBuffer.ARRAY_FACTORY);
-        scanner.setRange(new Range(new Text(keyBytes)));
-
-        IteratorSetting columnfamilyIterator = new IteratorSetting(10, "cfIter", RegExFilter.class);
-        RegExFilter.setRegexs(columnfamilyIterator, null, columnFamily, null, null, true);
-        scanner.addScanIterator(columnfamilyIterator);
+        Text keyText = new Text(keyBytes);
+        Text cfText = new Text(columnFamilyBytes);
 
         byte[] startBytes = query.getSliceStart().as(StaticBuffer.ARRAY_FACTORY);
         byte[] endBytes = query.getSliceEnd().as(StaticBuffer.ARRAY_FACTORY);
+
+        Key startKey;
+        Key endKey;
+
+        if (startBytes.length > 0) {
+            startKey = new Key(keyText, cfText, new Text(startBytes));
+        } else {
+            startKey = new Key(keyText, cfText);
+        }
+
+        if (endBytes.length > 0) {
+            endKey = new Key(keyText, cfText, new Text(endBytes));
+        } else {
+            endKey = new Key(keyText, cfText);
+        }
+
+        scanner.setRange(new Range(startKey, true, endKey, false));
+        if (query.getLimit() < scanner.getBatchSize()) {
+            scanner.setBatchSize(query.getLimit());
+        }
 
         int count = 0;
         List<Entry> entries = new ArrayList<Entry>();
@@ -119,13 +135,11 @@ public class AccumuloKeyColumnValueStore implements KeyColumnValueStore {
             byte[] cqBytes = entry.getKey().getColumnQualifier().getBytes();
 
             if (count < query.getLimit()) {
-                if (startBytes.length == 0 || Bytes.compare(startBytes, cqBytes) <= 0) {
-                    if (endBytes.length == 0 || Bytes.compare(cqBytes, endBytes) < 0) {
-                        entries.add(StaticBufferEntry.of(new StaticArrayBuffer(cqBytes),
-                                new StaticArrayBuffer(entry.getValue().get())));
-                        count++;
-                    }
-                }
+                entries.add(StaticBufferEntry.of(new StaticArrayBuffer(cqBytes),
+                        new StaticArrayBuffer(entry.getValue().get())));
+                count++;
+            } else {
+                break;
             }
         }
 
@@ -251,12 +265,10 @@ public class AccumuloKeyColumnValueStore implements KeyColumnValueStore {
         }
 
         scanner.setRanges(Collections.singletonList(new Range()));
+        
+        scanner.fetchColumnFamily(new Text(columnFamily));
 
-        IteratorSetting columnfamilyIterator = new IteratorSetting(10, "cfIter", RegExFilter.class);
-        RegExFilter.setRegexs(columnfamilyIterator, null, this.columnFamily, null, null, true);
-        scanner.addScanIterator(columnfamilyIterator);
-
-        IteratorSetting firstKeyOnlyIterator = new IteratorSetting(20, "keyIter", FirstEntryInRowIterator.class);
+        IteratorSetting firstKeyOnlyIterator = new IteratorSetting(10, "keyIter", FirstEntryInRowIterator.class);
         scanner.addScanIterator(firstKeyOnlyIterator);
 
         return new RecordIterator<StaticBuffer>() {
