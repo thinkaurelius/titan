@@ -28,7 +28,27 @@
         </dependency>
         <dependency>
             <groupId>com.thinkaurelius.titan</groupId>
+            <artifactId>titan-accumulo</artifactId>
+            <version>${titan.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.accumulo</groupId>
+            <artifactId>accumulo-core</artifactId>
+            <version>1.4.3</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.thrift</groupId>
+            <artifactId>libthrift</artifactId>
+            <version>0.6.1</version>
+        </dependency>
+        <dependency>
+            <groupId>com.thinkaurelius.titan</groupId>
             <artifactId>titan-es</artifactId>
+            <version>${titan.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.thinkaurelius.titan</groupId>
+            <artifactId>titan-lucene</artifactId>
             <version>${titan.version}</version>
         </dependency>
     </dependencies>
