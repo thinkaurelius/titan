@@ -4,7 +4,6 @@ import com.thinkaurelius.titan.AccumuloStorageSetup;
 import com.thinkaurelius.titan.diskstorage.LockKeyColumnValueStoreTest;
 import com.thinkaurelius.titan.diskstorage.StorageException;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.KeyColumnValueStoreManager;
-import org.apache.commons.configuration.Configuration;
 import org.junit.BeforeClass;
 
 import java.io.IOException;
@@ -17,7 +16,6 @@ public class AccumuloLockKeyColumnValueStoreTest extends LockKeyColumnValueStore
 
     @Override
     public KeyColumnValueStoreManager openStorageManager(int idx) throws StorageException {
-        Configuration sc = AccumuloStorageSetup.getAccumuloStorageConfiguration();
-        return new AccumuloStoreManager(sc);
+        return AccumuloStorageSetup.getAccumuloStoreManager();
     }
 }

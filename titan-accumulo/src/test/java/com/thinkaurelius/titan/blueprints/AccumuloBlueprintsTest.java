@@ -35,9 +35,7 @@ public class AccumuloBlueprintsTest extends TitanBlueprintsTest {
 
     @Override
     public void cleanUp() throws StorageException {
-        AccumuloStoreManager s = new AccumuloStoreManager(AccumuloStorageSetup
-                .getAccumuloGraphConfiguration()
-                .subset(GraphDatabaseConfiguration.STORAGE_NAMESPACE));
+        AccumuloStoreManager s = AccumuloStorageSetup.getAccumuloStoreManager();
         s.clearStorage();
     }
 

@@ -84,7 +84,7 @@ public class AccumuloStoreManager extends DistributedStoreManager implements Key
         username = accumuloConfig.getString(ACCUMULO_USER_KEY);
         password = accumuloConfig.getString(ACCUMULO_PASSWORD_KEY);
 
-        instance = new ZooKeeperInstance(instanceName, zooKeepers);
+        instance = createInstance(instanceName, zooKeepers);
         try {
             connector = instance.getConnector(username, password.getBytes());
         } catch (AccumuloException ex) {
@@ -106,6 +106,10 @@ public class AccumuloStoreManager extends DistributedStoreManager implements Key
         features.isKeyOrdered = false;
         features.isDistributed = true;
         features.hasLocalKeyPartition = false;
+    }
+    
+    protected Instance createInstance(String instanceName, String zooKeepers) {
+        return new ZooKeeperInstance(instanceName, zooKeepers);    
     }
 
     @Override
