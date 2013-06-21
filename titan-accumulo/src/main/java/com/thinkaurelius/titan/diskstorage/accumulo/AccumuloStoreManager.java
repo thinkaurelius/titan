@@ -1,8 +1,10 @@
 package com.thinkaurelius.titan.diskstorage.accumulo;
 
+import com.thinkaurelius.titan.diskstorage.accumulo.util.MutablePair;
 import com.thinkaurelius.titan.diskstorage.PermanentStorageException;
 import com.thinkaurelius.titan.diskstorage.StaticBuffer;
 import com.thinkaurelius.titan.diskstorage.StorageException;
+import com.thinkaurelius.titan.diskstorage.accumulo.util.AccumuloStorageConfiguration;
 import com.thinkaurelius.titan.diskstorage.common.DistributedStoreManager;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.ConsistencyLevel;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.Entry;
@@ -12,6 +14,7 @@ import com.thinkaurelius.titan.diskstorage.keycolumnvalue.KeyColumnValueStoreMan
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.StoreFeatures;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.StoreTransaction;
 import com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfiguration;
+import java.io.File;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.util.*;
@@ -69,6 +72,7 @@ public class AccumuloStoreManager extends DistributedStoreManager implements Key
     private final Connector connector;
     private final ConcurrentMap<String, AccumuloKeyColumnValueStore> openStores;
     private final StoreFeatures features;
+    private final AccumuloStorageConfiguration storageConfig;
 
     public AccumuloStoreManager(Configuration config) throws StorageException {
         super(config, PORT_DEFAULT);
@@ -106,6 +110,8 @@ public class AccumuloStoreManager extends DistributedStoreManager implements Key
         features.isKeyOrdered = false;
         features.isDistributed = true;
         features.hasLocalKeyPartition = false;
+        
+        storageConfig = new AccumuloStorageConfiguration(connector, tableName);
     }
     
     protected Instance createInstance(String instanceName, String zooKeepers) {
@@ -308,54 +314,13 @@ public class AccumuloStoreManager extends DistributedStoreManager implements Key
     private ConcurrentMap<String, String> properties;
 
     @Override
-    public String getConfigurationProperty(final String key) throws StorageException {
-        ensureTableExists(tableName);
-
-        if (properties == null) {
-            properties = new ConcurrentHashMap<String, String>();
-        }
-
-        return properties.get(key);
-
-        /*
-
-         TableOperations operations = connector.tableOperations();
-         try {
-         Iterable<Map.Entry<String, String>> propIterator = operations.getProperties(tableName);
-
-         Map<String, String> properties = new HashMap<String, String>();
-         for (Map.Entry<String, String> entry : propIterator) {
-         properties.put(entry.getKey(), entry.getValue());
-         }
-         return properties.get(key);
-         } catch (AccumuloException ex) {
-         logger.error(ex.getMessage(), ex);
-         throw new PermanentStorageException(ex);
-         } catch (TableNotFoundException ex) {
-         logger.error(ex.getMessage(), ex);
-         throw new PermanentStorageException(ex);
-         }
-         */
+    public String getConfigurationProperty(String key) throws StorageException {
+        return storageConfig.getConfigurationProperty(key);
     }
 
     @Override
-    public void setConfigurationProperty(final String key, final String value) throws StorageException {
-        ensureTableExists(tableName);
-
-        properties.put(key, value);
-        /*
-
-         TableOperations operations = connector.tableOperations();
-         try {
-         operations.setProperty(tableName, key, value);
-         } catch (AccumuloException ex) {
-         logger.error(ex.getMessage(), ex);
-         throw new PermanentStorageException(ex);
-         } catch (AccumuloSecurityException ex) {
-         logger.error(ex.getMessage(), ex);
-         throw new PermanentStorageException(ex);
-         }
-         */
+    public void setConfigurationProperty(String key, String value) throws StorageException {
+        storageConfig.setConfigurationProperty(key,value);
     }
 
     private static void waitUntil(long until) {

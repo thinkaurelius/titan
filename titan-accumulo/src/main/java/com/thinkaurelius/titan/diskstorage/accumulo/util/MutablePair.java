@@ -2,7 +2,7 @@
  * To change this template, choose Tools | Templates
  * and open the template in the editor.
  */
-package com.thinkaurelius.titan.diskstorage.accumulo;
+package com.thinkaurelius.titan.diskstorage.accumulo.util;
 
 /**
  * A generic class for pairs.
