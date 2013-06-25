@@ -53,7 +53,28 @@ public enum Text implements Relation {
             return condition!=null && condition instanceof String;
         }
 
-    };
+    },
+	
+	/**
+	 * Whether the text matches the given regular expression
+	 */
+	REGEXP {
+	
+	    @Override
+        public boolean satisfiesCondition(Object value, Object condition) {
+            Preconditions.checkArgument(condition instanceof String);
+            if (value==null) return false;
+            if (!(value instanceof String)) log.debug("Value not a string: " + value);
+            return value.toString().startsWith((String)condition);
+        }
+
+        @Override
+        public boolean isValidCondition(Object condition) {
+			if (condition==null) return false;
+            else if (condition instanceof String && StringUtils.isNotBlank((String)condition)) return true;
+            else return false;
+        }
+	};
 
     private static final Logger log = LoggerFactory.getLogger(Text.class);
 
