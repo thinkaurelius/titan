@@ -12,8 +12,19 @@ import com.tinkerpop.blueprints.Vertex;
 import com.tinkerpop.blueprints.util.ElementHelper;
 import org.apache.commons.configuration.BaseConfiguration;
 import org.apache.commons.configuration.Configuration;
-import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.CommandLineParser;
+import org.apache.commons.cli.HelpFormatter;
+import org.apache.commons.cli.Option;
+import org.apache.commons.cli.OptionBuilder;
+import org.apache.commons.cli.Options;
+import org.apache.commons.cli.ParseException;
+import org.apache.commons.cli.PosixParser;
+import org.slf4j.LoggerFactory;
 
 /**
  * Example Graph factory that creates a {@link TitanGraph} based on roman
@@ -23,27 +34,30 @@ import java.io.IOException;
  */
 public class GraphOfTheGodsFactory {
 
-    public static final String INDEX_NAME = "search";
+    private static final org.slf4j.Logger logger = LoggerFactory.getLogger(GraphOfTheGodsFactory.class);
+    private static final String ZOOKEEPERS_DEFAULT = "localhost";
+    private static final String USERNAME_DEFAULT = "root";
+    private String instance;
+    private String zooKeepers;
+    private String username;
+    private String password;
 
-    public static void main(String[] args) throws IOException {
-        TitanGraph graph;
-
-        System.out.println("Creating graph ... ");
-        graph = open(args[0]);
-        System.out.println("Loading graph ... ");
-        load(graph);
-        System.out.println("Done!");
-    }
-    
-    public static TitanGraph create(final String directory) {
-        TitanGraph graph;
-        
-        graph = open(directory);
-        load(graph);
-        return graph;
+    public TitanGraph create() {
+        return create(instance, zooKeepers, username, password);
     }
 
-    public static TitanGraph open(final String directory) {
+    public static TitanGraph create(final String instance, final String zooKeepers,
+            final String username, final String password) {
+
+        return load(define(open(instance, zooKeepers, username, password)));
+    }
+
+    public TitanGraph open() {
+        return open(instance, zooKeepers, username, password);
+    }
+
+    public static TitanGraph open(final String instance, final String zooKeepers,
+            final String username, final String password) {
         BaseConfiguration config = new BaseConfiguration();
         Configuration storage = config.subset(GraphDatabaseConfiguration.STORAGE_NAMESPACE);
         // configuring local backend
@@ -53,34 +67,26 @@ public class GraphOfTheGodsFactory {
 
         Configuration accumulo = storage.subset(AccumuloStoreManager.ACCUMULO_CONFIGURATION_NAMESPACE);
 
-        accumulo.addProperty(AccumuloStoreManager.ACCUMULO_INTSANCE_KEY, "EtCloud");
+        accumulo.addProperty(AccumuloStoreManager.ACCUMULO_INTSANCE_KEY, instance);
         accumulo.addProperty(GraphDatabaseConfiguration.HOSTNAME_KEY, "localhost");
 
-        accumulo.addProperty(AccumuloStoreManager.ACCUMULO_USER_KEY, "root");
-        accumulo.addProperty(AccumuloStoreManager.ACCUMULO_PASSWORD_KEY, "bobross");
-        // configuring elastic search index
-        Configuration index = storage.subset(GraphDatabaseConfiguration.INDEX_NAMESPACE).subset(INDEX_NAME);
-        index.setProperty(GraphDatabaseConfiguration.INDEX_BACKEND_KEY, "lucene");
-        /*
-        index.setProperty("local-mode", true);
-        index.setProperty("client-only", false);
-        */
-        index.setProperty(GraphDatabaseConfiguration.STORAGE_DIRECTORY_KEY, directory + File.separator + "lucene");
+        accumulo.addProperty(AccumuloStoreManager.ACCUMULO_USER_KEY, username);
+        accumulo.addProperty(AccumuloStoreManager.ACCUMULO_PASSWORD_KEY, password);
 
         TitanGraph graph = TitanFactory.open(config);
 
         return graph;
     }
 
-    public static void load(final TitanGraph graph) {
-
+    public static TitanGraph define(final TitanGraph graph) {
+        // Define types
         graph.makeType().name("name").dataType(String.class).indexed(Vertex.class).unique(Direction.BOTH).makePropertyKey();
-        graph.makeType().name("age").dataType(Integer.class).indexed(INDEX_NAME, Vertex.class).unique(Direction.OUT).makePropertyKey();
+        graph.makeType().name("age").dataType(Integer.class).indexed(Vertex.class).unique(Direction.OUT).makePropertyKey();
         graph.makeType().name("type").dataType(String.class).unique(Direction.OUT).makePropertyKey();
 
         final TitanKey time = graph.makeType().name("time").dataType(Integer.class).unique(Direction.OUT).makePropertyKey();
-        final TitanKey reason = graph.makeType().name("reason").dataType(String.class).indexed(INDEX_NAME, Edge.class).unique(Direction.OUT).makePropertyKey();
-        graph.makeType().name("place").dataType(Geoshape.class).indexed(INDEX_NAME, Edge.class).unique(Direction.OUT).makePropertyKey();
+        final TitanKey reason = graph.makeType().name("reason").dataType(String.class).indexed(Edge.class).unique(Direction.OUT).makePropertyKey();
+        graph.makeType().name("place").dataType(Geoshape.class).indexed(Edge.class).unique(Direction.OUT).makePropertyKey();
 
         graph.makeType().name("father").unique(Direction.OUT).makeEdgeLabel();
         graph.makeType().name("mother").unique(Direction.OUT).makeEdgeLabel();
@@ -91,8 +97,12 @@ public class GraphOfTheGodsFactory {
 
         graph.commit();
 
-        // vertices
+        return graph;
+    }
 
+    public static TitanGraph load(final TitanGraph graph) {
+
+        // vertices
         Vertex saturn = graph.addVertex(null);
         saturn.setProperty("name", "saturn");
         saturn.setProperty("age", 10000);
@@ -132,7 +142,6 @@ public class GraphOfTheGodsFactory {
         ElementHelper.setProperties(tartarus, "name", "tartarus", "type", "location");
 
         // edges
-
         jupiter.addEdge("father", saturn);
         jupiter.addEdge("lives", sky).setProperty("reason", "loves fresh breezes");
         jupiter.addEdge("brother", neptune);
@@ -155,7 +164,93 @@ public class GraphOfTheGodsFactory {
 
         cerberus.addEdge("lives", tartarus);
 
-        // commit the transaction to disk
         graph.commit();
+
+        return graph;
+    }
+
+    private static Collection<Option> getOptions() {
+        Option instanceOpt = OptionBuilder
+                .isRequired()
+                .hasArg()
+                .withArgName("name")
+                .withDescription("Accumulo instance")
+                .create("instance");
+
+        Option zooKeepersOpt = OptionBuilder
+                .hasArg()
+                .withArgName("quorum")
+                .withDescription("Zookeeper quorum")
+                .create("zooKeepers");
+
+        Option userOpt = OptionBuilder
+                .hasArg()
+                .withArgName("name")
+                .withDescription("Accumulo user")
+                .create("user");
+
+        Option passwordOpt = OptionBuilder
+                .isRequired()
+                .hasArg()
+                .withArgName("password")
+                .withDescription("Accumulo password")
+                .create("password");
+
+        List<Option> options = new ArrayList<Option>();
+        
+        options.add(instanceOpt);
+        options.add(zooKeepersOpt);
+        options.add(userOpt);
+        options.add(passwordOpt);
+
+        return options;
+    }
+    
+    private void printHelp(Options options) {
+        HelpFormatter formatter = new HelpFormatter();
+        formatter.printHelp("GraphOfTheGodsFactory", options);
+    }
+
+    private void parseArgs(String[] args) {
+        Options options = null;
+        try {        
+            CommandLineParser parser = new PosixParser();
+            options = new Options();
+            options.addOption("help", false, "display this help");
+            
+            CommandLine line = parser.parse(options, args, true);
+            for (Option option : getOptions()) {
+                options.addOption(option);
+            }
+            
+            if (line.hasOption("help")) {
+                printHelp(options);
+                System.exit(0);
+            }
+            
+            line = parser.parse(options, args);
+      
+            instance = line.getOptionValue("instance");
+            zooKeepers = line.getOptionValue("zooKeepers", ZOOKEEPERS_DEFAULT);
+            username = line.getOptionValue("user", USERNAME_DEFAULT);
+            password = line.getOptionValue("password");
+        } catch (ParseException ex) {
+            System.out.println(ex.getMessage());
+            printHelp(options);
+            System.exit(1);
+        }
+    }
+
+    public static void main(String[] args) throws IOException {
+        GraphOfTheGodsFactory gotgf = new GraphOfTheGodsFactory();
+
+        gotgf.parseArgs(args);
+
+        TitanGraph graph;
+        System.out.println("Creating graph ... ");
+        graph = define(gotgf.open());
+        System.out.println("Loading graph ... ");
+        load(graph);
+        System.out.println("Done!");
     }
 }
