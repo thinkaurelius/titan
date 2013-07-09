@@ -68,7 +68,6 @@ public class GraphOfTheGodsFactory {
         Configuration accumulo = storage.subset(AccumuloStoreManager.ACCUMULO_CONFIGURATION_NAMESPACE);
 
         accumulo.addProperty(AccumuloStoreManager.ACCUMULO_INTSANCE_KEY, instance);
-        accumulo.addProperty(GraphDatabaseConfiguration.HOSTNAME_KEY, "localhost");
 
         accumulo.addProperty(AccumuloStoreManager.ACCUMULO_USER_KEY, username);
         accumulo.addProperty(AccumuloStoreManager.ACCUMULO_PASSWORD_KEY, password);
