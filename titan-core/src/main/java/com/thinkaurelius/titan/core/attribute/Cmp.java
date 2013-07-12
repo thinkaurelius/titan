@@ -240,5 +240,24 @@ public enum Cmp implements Relation {
             default: throw new IllegalArgumentException("Unexpected comparator: " + comp);
         }
     }
+    
+
+    /**
+     * Convert Blueprint's comparison operators to Titan's
+     *
+     * @param comp Blueprint's comparison operator
+     * @return
+     */
+    public static final Cmp convert(com.tinkerpop.blueprints.Compare comp) {
+        switch(comp) {
+            case EQUAL: return EQUAL;
+            case NOT_EQUAL: return NOT_EQUAL;
+            case GREATER_THAN: return GREATER_THAN;
+            case GREATER_THAN_EQUAL: return GREATER_THAN_EQUAL;
+            case LESS_THAN: return LESS_THAN;
+            case LESS_THAN_EQUAL: return LESS_THAN_EQUAL;
+            default: throw new IllegalArgumentException("Unexpected comparator: " + comp);
+        }
+    }
 
 }
