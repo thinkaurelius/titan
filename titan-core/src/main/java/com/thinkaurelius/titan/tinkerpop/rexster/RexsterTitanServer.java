@@ -62,7 +62,7 @@ public class RexsterTitanServer {
         log.info("Extension Config: "+extensionConfigurations.toString());
         final RexsterApplication ra = new TitanRexsterApplication(DEFAULT_GRAPH_NAME, graph, extensionConfigurations);
 
-        final ReporterConfig reporterConfig = ReporterConfig.load(rexsterConfig.configurationsAt(Tokens.REXSTER_REPORTER_PATH), ra.getMetricRegistry());
+        final ReporterConfig reporterConfig = new ReporterConfig(new RexsterProperties(rexsterConfig), ra.getMetricRegistry());
         this.rexsterConfig.addProperty("http-reporter-enabled", reporterConfig.isHttpReporterEnabled());
         this.rexsterConfig.addProperty("http-reporter-duration", reporterConfig.getDurationTimeUnitConversion());
         this.rexsterConfig.addProperty("http-reporter-convert", reporterConfig.getRateTimeUnitConversion());
