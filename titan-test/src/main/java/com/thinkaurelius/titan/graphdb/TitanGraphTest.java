@@ -1105,7 +1105,7 @@ public abstract class TitanGraphTest extends TitanGraphTestCommon {
 
         v = (TitanVertex) tx.getVertices("name", "v0").iterator().next();
         assertNotNull(v);
-        assertEquals(2, v.query().has("weight", 1.5).interval("time", 10, 30).limit(2).vertexIds()); //ZK .size());
+        assertEquals(2, v.query().has("weight", 1.5).interval("time", 10, 30).limit(2).vertexIds().size());
         assertEquals(5, v.query().has("weight", 1.5).interval("time", 10, 30).vertexIds().size());
 
         newTx();

@@ -6,6 +6,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.thinkaurelius.titan.core.*;
 import com.thinkaurelius.titan.core.attribute.Cmp;
+import com.thinkaurelius.titan.core.attribute.Interval;
 import com.thinkaurelius.titan.core.attribute.Text;
 import com.thinkaurelius.titan.graphdb.internal.InternalVertex;
 import com.thinkaurelius.titan.graphdb.query.keycondition.KeyAnd;
@@ -218,11 +219,21 @@ public class VertexCentricQueryBuilder implements TitanVertexQuery {
 
     @Override
     public <T extends Comparable<T>> VertexCentricQueryBuilder interval(TitanKey key, T start, T end) {
-        return interval(key.getName(),start,end);
+        return intervalInner(key.getName(),start,end);
+    }
+
+    @Override
+    public <T extends Comparable<?>> VertexQuery interval(String key, T startValue, T endValue) {
+        addConstraint(key,Cmp.GREATER_THAN_EQUAL,startValue);
+        return addConstraint(key,Cmp.LESS_THAN,endValue);
     }
 
     @Override
     public <T extends Comparable<T>> VertexCentricQueryBuilder interval(String key, T start, T end) {
+        return intervalInner(key,start,end);
+    }
+
+    private <T extends Comparable<T>> VertexCentricQueryBuilder intervalInner(String key, T start, T end) {
         addConstraint(key,Cmp.GREATER_THAN_EQUAL,start);
         return addConstraint(key,Cmp.LESS_THAN,end);
     }
@@ -252,25 +263,25 @@ public class VertexCentricQueryBuilder implements TitanVertexQuery {
 
     /*@Override
     public VertexQuery has(String key, Object value) {
-    	addConstraint(key, Cmp.EQUAL, value);
+        addConstraint(key, Cmp.EQUAL, value);
         return this;
     }*/
 
     @Override
     public VertexQuery hasNot(String key, Object value) {
-    	addConstraint(key, Cmp.NOT_EQUAL, value);
+        addConstraint(key, Cmp.NOT_EQUAL, value);
         return this;
     }
 
-	@Override
-	public VertexQuery has(String key, Predicate predicate, Object value) {
-		if ( predicate instanceof com.tinkerpop.blueprints.Compare ) {
+    @Override
+    public VertexQuery has(String key, Predicate predicate, Object value) {
+        if ( predicate instanceof com.tinkerpop.blueprints.Compare ) {
             addConstraint(key, Cmp.convert((com.tinkerpop.blueprints.Compare)predicate), value);
             return this;
         }
         
         throw new NotImplementedException("Unknown predicate: "+predicate);
-	}
+    }
 
     @Override
     public VertexCentricQueryBuilder types(TitanType... type) {
@@ -326,11 +337,11 @@ public class VertexCentricQueryBuilder implements TitanVertexQuery {
         return this;
     }
 
-	@Override
-	public VertexQuery limit(int limit) {
+    @Override
+    public VertexQuery limit(int limit) {
         Preconditions.checkArgument(limit>=0,"Limit must be non-negative [%s]",limit);
         this.limit = limit;
         return this;
-	}
-	
+    }
+    
 }

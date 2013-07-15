@@ -146,9 +146,13 @@ public class TitanGraphQueryBuilder implements TitanGraphQuery, QueryOptimizer<S
         throw new NotImplementedException("Unknown predicate: "+predicate);
     }
 
-    @Override
     public <T extends Comparable<T>> TitanGraphQuery interval(String s, T t, T t2) {
         return has(s,Cmp.INTERVAL,new Interval<T>(t,t2));
+    }
+
+    @Override
+    public <T extends Comparable<?>> GraphQuery interval(String key, T startValue, T endValue) {
+        return has(key,Cmp.INTERVAL,new Interval(startValue,endValue));
     }
 
     private StandardElementQuery constructQuery(StandardElementQuery.Type elementType) {
