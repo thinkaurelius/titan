@@ -10,6 +10,7 @@ import com.thinkaurelius.titan.core.TitanKey;
 import com.thinkaurelius.titan.core.TitanType;
 import com.thinkaurelius.titan.core.attribute.Cmp;
 import com.thinkaurelius.titan.core.attribute.Interval;
+import com.thinkaurelius.titan.core.attribute.Text;
 import com.thinkaurelius.titan.graphdb.query.keycondition.KeyAnd;
 import com.thinkaurelius.titan.graphdb.query.keycondition.KeyAtom;
 import com.thinkaurelius.titan.graphdb.query.keycondition.KeyCondition;
@@ -135,7 +136,7 @@ public class TitanGraphQueryBuilder implements TitanGraphQuery, QueryOptimizer<S
             Contains cont = (Contains)predicate;
             
             if ( cont == Contains.IN ) {
-                has(key, (com.tinkerpop.blueprints.Compare)predicate, value);
+                has(key, Text.CONTAINS, value);
                 return this;
             }
 
