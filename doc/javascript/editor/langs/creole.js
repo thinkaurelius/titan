@@ -22,7 +22,7 @@ var Creole = {
                             },
                             
   'function-hr'     :       {
-                              append: "\n\n----\n\n";
+                              append: "\n\n----\n\n"
                             },
   
   'function-ul'     :       { 

@@ -10,6 +10,7 @@ import com.thinkaurelius.titan.core.TitanKey;
 import com.thinkaurelius.titan.core.TitanType;
 import com.thinkaurelius.titan.core.attribute.Cmp;
 import com.thinkaurelius.titan.core.attribute.Interval;
+import com.thinkaurelius.titan.core.attribute.Text;
 import com.thinkaurelius.titan.graphdb.query.keycondition.KeyAnd;
 import com.thinkaurelius.titan.graphdb.query.keycondition.KeyAtom;
 import com.thinkaurelius.titan.graphdb.query.keycondition.KeyCondition;
@@ -19,9 +20,13 @@ import com.thinkaurelius.titan.graphdb.query.keycondition.Relation;
 import com.thinkaurelius.titan.graphdb.relations.AttributeUtil;
 import com.thinkaurelius.titan.graphdb.transaction.StandardTitanTx;
 import com.thinkaurelius.titan.util.stats.ObjectAccumulator;
+import com.tinkerpop.blueprints.Contains;
 import com.tinkerpop.blueprints.Edge;
 import com.tinkerpop.blueprints.GraphQuery;
+import com.tinkerpop.blueprints.Predicate;
 import com.tinkerpop.blueprints.Vertex;
+
+import org.apache.commons.lang.NotImplementedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -90,14 +95,64 @@ public class TitanGraphQueryBuilder implements TitanGraphQuery, QueryOptimizer<S
         return has(s,Cmp.convert(compare),t);
     }
 
-    @Override
     public <T extends Comparable<T>> TitanGraphQuery has(String key, Compare compare, T value) {
         return has(key, compare, (Object)value);
     }
 
     @Override
+    public GraphQuery has(String key) {
+        Object o = null;
+        has(key, Cmp.NOT_EQUAL, o);
+        return this;
+    }
+
+    @Override
+    public GraphQuery hasNot(String key) {
+        Object o = null;
+        has(key, Cmp.EQUAL, o);
+        return this;
+    }
+
+    @Override
+    public GraphQuery has(String key, Object value) {
+        has(key, Cmp.EQUAL, value);
+        return this;
+    }
+
+    @Override
+    public GraphQuery hasNot(String key, Object value) {
+        has(key, Cmp.NOT_EQUAL, value);
+        return this;
+    }
+
+    @Override
+    public GraphQuery has(String key, Predicate predicate, Object value) {
+        if ( predicate instanceof com.tinkerpop.blueprints.Compare ) {
+            has(key, Cmp.convert((com.tinkerpop.blueprints.Compare)predicate), value);
+            return this;
+        }
+        
+        if ( predicate instanceof Contains ) {
+            Contains cont = (Contains)predicate;
+            
+            if ( cont == Contains.IN ) {
+                has(key, Text.CONTAINS, value);
+                return this;
+            }
+
+            throw new NotImplementedException("Unsupported 'Contains' predicate: "+cont.name());
+        }
+        
+        throw new NotImplementedException("Unknown predicate: "+predicate);
+    }
+
     public <T extends Comparable<T>> TitanGraphQuery interval(String s, T t, T t2) {
         return has(s,Cmp.INTERVAL,new Interval<T>(t,t2));
+    }
+
+    @Override
+    public <T extends Comparable<?>> GraphQuery interval(String key, T startValue, T endValue) {
+        return has(key,Cmp.INTERVAL,new Interval(startValue,endValue));
     }
 
     private StandardElementQuery constructQuery(StandardElementQuery.Type elementType) {
@@ -161,7 +216,6 @@ public class TitanGraphQueryBuilder implements TitanGraphQuery, QueryOptimizer<S
         else return ImmutableList.of(query);
     }
 
-    @Override
     public GraphQuery has(String keyName, Object... values) {
         if (null == values || 0 == values.length) {
             // Match any element for which keyName is set, regardless of the literal value
@@ -170,8 +224,7 @@ public class TitanGraphQueryBuilder implements TitanGraphQuery, QueryOptimizer<S
             return has(keyName, Cmp.EQUAL, values);
         }
     }
-
-    @Override
+    
     public GraphQuery hasNot(String keyName, Object... values) {
         if (null == values || 0 == values.length) {
             Preconditions.checkNotNull(keyName);
@@ -199,14 +252,10 @@ public class TitanGraphQueryBuilder implements TitanGraphQuery, QueryOptimizer<S
     }
 
     @Override
-    public GraphQuery limit(long skip, long take) {
+    public GraphQuery limit(int limit) {
         // TODO log a warning during execution if an ordering is not also specified?
-        Preconditions.checkArgument(0 <= skip);
-        Preconditions.checkArgument(Integer.MAX_VALUE >= skip);
-        Preconditions.checkArgument(0 <= take);
-        Preconditions.checkArgument(Integer.MAX_VALUE >= take);
-        this.skip = (int)skip;
-        this.limit = (int)take + this.skip;
+        Preconditions.checkArgument(0 <= limit);
+        this.limit = limit;
         return this;
     }
     

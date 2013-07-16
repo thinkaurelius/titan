@@ -6,18 +6,24 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.thinkaurelius.titan.core.*;
 import com.thinkaurelius.titan.core.attribute.Cmp;
+import com.thinkaurelius.titan.core.attribute.Interval;
+import com.thinkaurelius.titan.core.attribute.Text;
 import com.thinkaurelius.titan.graphdb.internal.InternalVertex;
 import com.thinkaurelius.titan.graphdb.query.keycondition.KeyAnd;
 import com.thinkaurelius.titan.graphdb.query.keycondition.KeyAtom;
 import com.thinkaurelius.titan.graphdb.query.keycondition.Relation;
 import com.thinkaurelius.titan.graphdb.relations.AttributeUtil;
+import com.tinkerpop.blueprints.Contains;
 import com.tinkerpop.blueprints.Direction;
 import com.tinkerpop.blueprints.Edge;
+import com.tinkerpop.blueprints.GraphQuery;
+import com.tinkerpop.blueprints.Predicate;
 import com.tinkerpop.blueprints.Vertex;
 import com.tinkerpop.blueprints.VertexQuery;
 
 import javax.annotation.Nullable;
 
+import org.apache.commons.lang.NotImplementedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -207,19 +213,27 @@ public class VertexCentricQueryBuilder implements TitanVertexQuery {
         return addConstraint(type,Cmp.EQUAL,value);
     }
 
-
-    @Override
     public <T extends Comparable<T>> VertexCentricQueryBuilder has(String key, Compare compare, T value) {
         return addConstraint(key,Cmp.convert(compare),value);
     }
 
     @Override
     public <T extends Comparable<T>> VertexCentricQueryBuilder interval(TitanKey key, T start, T end) {
-        return interval(key.getName(),start,end);
+        return intervalInner(key.getName(),start,end);
+    }
+
+    @Override
+    public <T extends Comparable<?>> VertexQuery interval(String key, T startValue, T endValue) {
+        addConstraint(key,Cmp.GREATER_THAN_EQUAL,startValue);
+        return addConstraint(key,Cmp.LESS_THAN,endValue);
     }
 
     @Override
     public <T extends Comparable<T>> VertexCentricQueryBuilder interval(String key, T start, T end) {
+        return intervalInner(key,start,end);
+    }
+
+    private <T extends Comparable<T>> VertexCentricQueryBuilder intervalInner(String key, T start, T end) {
         addConstraint(key,Cmp.GREATER_THAN_EQUAL,start);
         return addConstraint(key,Cmp.LESS_THAN,end);
     }
@@ -231,6 +245,42 @@ public class VertexCentricQueryBuilder implements TitanVertexQuery {
 
     public <T extends Comparable<T>> VertexCentricQueryBuilder has(TitanKey key, T value, Compare compare) {
         return has(key.getName(),value,compare);
+    }
+
+    @Override
+    public VertexQuery has(String key) {
+        Object o = null;
+        addConstraint(key, Cmp.NOT_EQUAL, o);
+        return this;
+    }
+
+    @Override
+    public VertexQuery hasNot(String key) {
+        Object o = null;
+        addConstraint(key, Cmp.EQUAL, o);
+        return this;
+    }
+
+    /*@Override
+    public VertexQuery has(String key, Object value) {
+        addConstraint(key, Cmp.EQUAL, value);
+        return this;
+    }*/
+
+    @Override
+    public VertexQuery hasNot(String key, Object value) {
+        addConstraint(key, Cmp.NOT_EQUAL, value);
+        return this;
+    }
+
+    @Override
+    public VertexQuery has(String key, Predicate predicate, Object value) {
+        if ( predicate instanceof com.tinkerpop.blueprints.Compare ) {
+            addConstraint(key, Cmp.convert((com.tinkerpop.blueprints.Compare)predicate), value);
+            return this;
+        }
+        
+        throw new NotImplementedException("Unknown predicate: "+predicate);
     }
 
     @Override
@@ -280,7 +330,6 @@ public class VertexCentricQueryBuilder implements TitanVertexQuery {
         return this;
     }
 
-    @Override
     public VertexCentricQueryBuilder limit(long limit) {
         Preconditions.checkArgument(limit>=0,"Limit must be non-negative [%s]",limit);
         Preconditions.checkArgument(limit<Integer.MAX_VALUE,"Limit is too large [%s]",limit);
@@ -289,23 +338,10 @@ public class VertexCentricQueryBuilder implements TitanVertexQuery {
     }
 
     @Override
-    public VertexQuery has(String key, Object... values) {
-        log.warn("has(key, values...) is unimplemented and has no effect"); // TODO implement
-//        throw new IllegalArgumentException();
+    public VertexQuery limit(int limit) {
+        Preconditions.checkArgument(limit>=0,"Limit must be non-negative [%s]",limit);
+        this.limit = limit;
         return this;
     }
-
-    @Override
-    public VertexQuery hasNot(String key, Object... values) {
-        log.warn("hasNot(key, values...) is unimplemented and has no effect"); // TODO implement
-//        throw new IllegalArgumentException();
-        return this;
-    }
-
-    @Override
-    public VertexQuery limit(long skip, long take) {
-        log.warn("limit(skip, take) is unimplemented and has no effect"); // TODO implement
-//        throw new IllegalArgumentException();
-        return this;
-    }
+    
 }
