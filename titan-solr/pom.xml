@@ -7,8 +7,12 @@
         <version>0.4.0-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
+
+    <properties>
+        <solr.version>4.3.1</solr.version>
+    </properties>
     <artifactId>titan-solr</artifactId>
-    <name>Titan-ElasticSearch: Distributed Indexing Support</name>
+    <name>Titan-Solr: Distributed Indexing Support</name>
     <url>http://thinkaurelius.github.com/titan/</url>
     <dependencies>
         <dependency>
@@ -25,7 +29,19 @@
         <dependency>
             <groupId>org.apache.solr</groupId>
             <artifactId>solr-solrj</artifactId>
-            <version>4.3.1</version>
+            <version>${solr.version}</version>
+        </dependency>
+        <dependency>
+            <artifactId>solr-core</artifactId>
+            <groupId>org.apache.solr</groupId>
+            <version>${solr.version}</version>
+            <type>jar</type>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>javax.servlet</groupId>
+            <artifactId>servlet-api</artifactId>
+            <version>2.5</version>
         </dependency>
     </dependencies>
     <profiles>
