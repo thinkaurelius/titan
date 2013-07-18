@@ -1,7 +1,10 @@
 package com.thinkaurelius.titan.diskstorage.solr;
 
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Sets;
 import com.thinkaurelius.titan.diskstorage.StorageException;
 import com.thinkaurelius.titan.diskstorage.TransactionHandle;
+import com.thinkaurelius.titan.diskstorage.indexing.IndexEntry;
 import com.thinkaurelius.titan.diskstorage.indexing.IndexMutation;
 import com.thinkaurelius.titan.diskstorage.indexing.IndexProvider;
 import com.thinkaurelius.titan.diskstorage.indexing.IndexQuery;
@@ -11,8 +14,10 @@ import org.apache.solr.client.solrj.SolrServer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * @author Jared Holmberg (jholmberg@bericotechnologies.com)
@@ -31,19 +36,81 @@ public class SolrSearchIndex implements IndexProvider {
         SolrServerFactory factory = new SolrServerFactory();
         try {
             solrServer = factory.buildSolrServer(config);
+
         } catch (Exception e) {
             log.error("Unable to generate a Solr Server connection.", e);
         }
     }
 
+    /**
+     * Unlike the ElasticSearch Index, which is schema free, Solr requires a schema to
+     * support searching. This means that you will need to modify the solr schema with the
+     * appropriate field definitions in order to work properly.  If you have a running instance
+     * of Solr and you modify its schema with new fields, don't forget to re-index!
+     * @param store Index store
+     * @param key New key to register
+     * @param dataType Datatype to register for the key
+     * @param tx enclosing transaction
+     * @throws StorageException
+     */
     @Override
     public void register(String store, String key, Class<?> dataType, TransactionHandle tx) throws StorageException {
-        //To change body of implemented methods use File | Settings | File Templates.
+        //Since all data types must be defined in the schema.xml, pre-registering a type does not work
+
     }
 
+    /**
+     * Mutates the index (adds and removes fields or entire documents)
+     *
+     * @param mutations Updates to the index. First map contains all the mutations for each store. The inner map contains
+     *                  all changes for each document in an {@link IndexMutation}.
+     * @param tx Enclosing transaction
+     * @throws StorageException
+     * @see IndexMutation
+     */
     @Override
     public void mutate(Map<String, Map<String, IndexMutation>> mutations, TransactionHandle tx) throws StorageException {
-        //To change body of implemented methods use File | Settings | File Templates.
+        int bulkRequests = 0;
+        try {
+            for (Map.Entry<String, Map<String, IndexMutation>> stores : mutations.entrySet()) {
+                String storeName = stores.getKey();
+                List<String> deleteIds = new ArrayList<String>();
+
+                for (Map.Entry<String, IndexMutation> entry : stores.getValue().entrySet()) {
+                    String docId = entry.getKey();
+                    IndexMutation mutation = entry.getValue();
+                    Preconditions.checkArgument(false == (mutation.isNew() && mutation.isDeleted()));
+                    Preconditions.checkArgument(false == mutation.isNew() || false == mutation.hasDeletions());
+                    Preconditions.checkArgument(false == mutation.isDeleted() || false == mutation.hasAdditions());
+
+                    //Handle any deletions
+                    if (mutation.hasDeletions()) {
+                        if (mutation.isDeleted()) {
+                            log.trace("Deleting entire document from Solr {}", docId);
+                            deleteIds.add(docId);
+                            bulkRequests++;
+                        }
+                    } else {
+                        Set<String> fieldDeletions = Sets.newHashSet(mutation.getDeletions());
+                        if (mutation.hasAdditions()) {
+                            for (IndexEntry indexEntry : mutation.getAdditions()) {
+                                fieldDeletions.remove(indexEntry.key);
+                            }
+                        }
+                        if (false == fieldDeletions.isEmpty()) {
+
+                        }
+                    }
+                }
+
+                if (deleteIds.size() > 0) {
+                    solrServer.deleteById(deleteIds);
+                }
+
+            }
+        } catch (Exception e) {
+
+        }
     }
 
     @Override
