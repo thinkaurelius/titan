@@ -3,6 +3,7 @@ package com.thinkaurelius.titan.diskstorage.solr;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Sets;
 import com.thinkaurelius.titan.diskstorage.StorageException;
+import com.thinkaurelius.titan.diskstorage.TemporaryStorageException;
 import com.thinkaurelius.titan.diskstorage.TransactionHandle;
 import com.thinkaurelius.titan.diskstorage.indexing.IndexEntry;
 import com.thinkaurelius.titan.diskstorage.indexing.IndexMutation;
@@ -11,13 +12,12 @@ import com.thinkaurelius.titan.diskstorage.indexing.IndexQuery;
 import com.thinkaurelius.titan.graphdb.query.keycondition.Relation;
 import org.apache.commons.configuration.Configuration;
 import org.apache.solr.client.solrj.SolrServer;
+import org.apache.solr.client.solrj.SolrServerException;
+import org.apache.solr.common.SolrInputDocument;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 /**
  * @author Jared Holmberg (jholmberg@bericotechnologies.com)
@@ -25,6 +25,11 @@ import java.util.Set;
 public class SolrSearchIndex implements IndexProvider {
 
     private Logger log = LoggerFactory.getLogger(SolrSearchIndex.class);
+
+    public static final String SOLR_KEY_FIELD = "solr.key.field.name";
+    public static final String SOLR_DEFAULT_KEY_FIELD = "docid";
+
+    private String keyIdField;
 
     private SolrServer solrServer;
 
@@ -40,6 +45,9 @@ public class SolrSearchIndex implements IndexProvider {
         } catch (Exception e) {
             log.error("Unable to generate a Solr Server connection.", e);
         }
+
+        keyIdField = config.getString(SOLR_KEY_FIELD, SOLR_DEFAULT_KEY_FIELD);
+        log.trace("Will use field name of {} as the identifying field for documents in Solr. This can be changed by updating the {} field in settings.", keyIdField, SOLR_KEY_FIELD);
     }
 
     /**
@@ -74,7 +82,10 @@ public class SolrSearchIndex implements IndexProvider {
         try {
             for (Map.Entry<String, Map<String, IndexMutation>> stores : mutations.entrySet()) {
                 String storeName = stores.getKey();
+
                 List<String> deleteIds = new ArrayList<String>();
+                Collection<SolrInputDocument> newDocuments = new ArrayList<SolrInputDocument>();
+                Collection<SolrInputDocument> updateDocuments = new ArrayList<SolrInputDocument>();
 
                 for (Map.Entry<String, IndexMutation> entry : stores.getValue().entrySet()) {
                     String docId = entry.getKey();
@@ -98,8 +109,45 @@ public class SolrSearchIndex implements IndexProvider {
                             }
                         }
                         if (false == fieldDeletions.isEmpty()) {
+                            Map<String, String> fieldDeletes = new HashMap<String, String>();
+                            fieldDeletes.put("set", null);
+                            SolrInputDocument doc = new SolrInputDocument();
+                            doc.addField(keyIdField, docId);
+                            StringBuilder sb = new StringBuilder();
+                            for (String fieldToDelete : fieldDeletions) {
+                                doc.addField(fieldToDelete, fieldDeletes);
+                                sb.append(sb + ",");
+                            }
+                            log.trace("Deleting individual fields [{}] for document {}", sb.toString(), docId);
+                            solrServer.add(doc);
 
                         }
+                    }
+
+                    if (mutation.hasAdditions()) {
+                        List<IndexEntry> additions = mutation.getAdditions();
+                        if (mutation.isNew()) { //Index
+                            log.trace("Adding new document {}", docId);
+                            SolrInputDocument newDoc = new SolrInputDocument();
+                            for (IndexEntry ie : additions) {
+                                newDoc.addField(ie.key, ie.value);
+                            }
+                            newDocuments.add(newDoc);
+
+                        } else { //Update
+                            boolean doUpdate = (false == mutation.hasDeletions());
+                            SolrInputDocument updateDoc = new SolrInputDocument();
+                            updateDoc.addField(keyIdField, docId);
+                            for (IndexEntry ie : additions) {
+                                Map<String, String> updateFields = new HashMap<String, String>();
+                                updateFields.put("set", ie.value.toString());
+                                updateDoc.addField(ie.key, updateFields);
+                            }
+                            if (doUpdate) {
+                                updateDocuments.add(updateDoc);
+                            }
+                        }
+
                     }
                 }
 
@@ -107,9 +155,17 @@ public class SolrSearchIndex implements IndexProvider {
                     solrServer.deleteById(deleteIds);
                 }
 
-            }
-        } catch (Exception e) {
+                if (newDocuments.size() > 0) {
+                    solrServer.add(newDocuments);
+                }
 
+                if (updateDocuments.size() > 0) {
+                    solrServer.add(updateDocuments);
+                }
+            }
+            solrServer.commit();
+        } catch (Exception e) {
+            throw storageException(e);
         }
     }
 
@@ -141,5 +197,9 @@ public class SolrSearchIndex implements IndexProvider {
     @Override
     public boolean supports(Class<?> dataType) {
         return false;  //To change body of implemented methods use File | Settings | File Templates.
+    }
+
+    private StorageException storageException(Exception solrException) {
+        return new TemporaryStorageException("Unable to complete query on Solr.", solrException);
     }
 }
