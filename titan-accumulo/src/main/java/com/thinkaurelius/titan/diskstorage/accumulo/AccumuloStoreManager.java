@@ -315,7 +315,6 @@ public class AccumuloStoreManager extends DistributedStoreManager implements Key
             throw new PermanentStorageException(ex);
         }
     }
-    private ConcurrentMap<String, String> properties;
 
     @Override
     public String getConfigurationProperty(String key) throws StorageException {
