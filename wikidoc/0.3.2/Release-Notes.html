@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+    <title>Release Notes</title>
+    <link rel="stylesheet" href="./css/screen.css" type="text/css" charset="utf-8" />
+    <link rel="stylesheet" href="./css/gollum.css" type="text/css" charset="utf-8" />
+    <link rel="stylesheet" href="./css/syntax.css" type="text/css" charset="utf-8" />
+    <script src="./javascript/jquery-1.4.2.min.js" type="text/javascript"></script>
+    <script src="./javascript/jquery.text_selection-1.0.0.min.js" type="text/javascript"></script>
+    <script src="./javascript/jquery.previewable_comment_form.js" type="text/javascript"></script>
+    <script src="./javascript/jquery.tabs.js" type="text/javascript"></script>
+    <script src="./javascript/gollum.js" type="text/javascript"></script>
+  </head>
+
+  <body>
+    <div id="main">
+      <div class="site">
+        <div id="guides">
+          <div class="guide">
+            <div class="main">
+              <div class="actions">
+                <div>
+                  <a href="./Home.html">Aurelius Titan</a>
+                </div>
+              </div>
+              <h1>Release Notes</h1>
+              <div class="content wikistyle gollum textile">
+                <p>Titan: Distributed Graph Database<br><a href="http://titan.thinkaurelius.com">http://titan.thinkaurelius.com</a></p>
+<p><img src="./images/titan-globe.png" width="100px"></p>
+<h2>Titan 0.y.z</h2>
+<h3>Version 0.3.2 (July 27, 2013)</h3>
+<div class="highlight">
+<pre><span class="nt">&lt;dependency&gt;</span>
+   <span class="nt">&lt;groupId&gt;</span>com.thinkaurelius.titan<span class="nt">&lt;/groupId&gt;</span>
+   <span class="nt">&lt;artifactId&gt;</span>titan-core<span class="nt">&lt;/artifactId&gt;</span>
+   <span class="nt">&lt;version&gt;</span>0.3.2<span class="nt">&lt;/version&gt;</span>
+<span class="nt">&lt;/dependency&gt;</span>
+</pre>
+</div>
+<br><strong>Tested Compatibility:</strong>
+<ul>
+<li>Cassandra 1.2.2</li>
+	<li>HBase 0.94.1</li>
+	<li>BerkeleyJE 5.0.73</li>
+	<li>Elasticsearch 0.90.0</li>
+	<li>Lucene 4.1.0</li>
+	<li>Java 1.6+</li>
+</ul><p><strong>Features:</strong></p>
+<ul>
+<li>Support for multiple standard index conditions in queries</li>
+</ul><p><strong>Bugfixes:</strong></p>
+<ul>
+<li>Fixed potential transaction leak when using thread-bound transactions</li>
+	<li>Let vertex.removeProperty(…) kill multivalued properties as the javadoc says</li>
+	<li>Avoided two spurious cases of “timestamp mismatch” exception</li>
+	<li>Removed unchecked cast in AbstractElement.equals(…)</li>
+	<li>Adjusted default Astyanax exponential backoff settings to avoid integer overflow against a dead peer</li>
+	<li>Fixed Astyanax config regression that caused node discovery and connection pool type to be ignored</li>
+	<li>Fixed double-checked locking on StandardVertex’s added relations</li>
+</ul><p>Check the issue tracker for a full list of fixed issues.</p>
+<h3>Version 0.3.1 (May 14, 2013)</h3>
+<div class="highlight">
+<pre><span class="nt">&lt;dependency&gt;</span>
+   <span class="nt">&lt;groupId&gt;</span>com.thinkaurelius.titan<span class="nt">&lt;/groupId&gt;</span>
+   <span class="nt">&lt;artifactId&gt;</span>titan-core<span class="nt">&lt;/artifactId&gt;</span>
+   <span class="nt">&lt;version&gt;</span>0.3.1<span class="nt">&lt;/version&gt;</span>
+<span class="nt">&lt;/dependency&gt;</span>
+</pre>
+</div>
+<br><strong>Tested Compatibility:</strong>
+<ul>
+<li>Cassandra 1.2.2</li>
+	<li>HBase 0.94.1</li>
+	<li>BerkeleyJE 5.0.73</li>
+	<li>Elasticsearch 0.90.0</li>
+	<li>Lucene 4.1.0</li>
+	<li>Java 1.6+</li>
+</ul><p><strong>Features:</strong></p>
+<ul>
+<li>Improved in-transaction index handling for equality matches</li>
+	<li>Support for Lucene 4 throughout</li>
+	<li>Storage backend compression enabled by default where applicable</li>
+	<li>Removed RexsterTitanClient since all the functionality has been rolled into RexsterClient</li>
+	<li>Automatic type-casting of most primitive types and Geoshape where possible</li>
+	<li>Refactored to using immutable data structures for storage backend communication</li>
+	<li>Re-implemented InMemory storage backend for better performance</li>
+</ul><p><strong>Bugfixes:</strong></p>
+<ul>
+<li>Launching multiple Titan servers in one cluster with RF&gt;1</li>
+	<li>Updated and improved the Astyanax adapter for Cassandra</li>
+	<li>Improved robustness of ID allocation</li>
+	<li>Vertex iteration in embedded Cassandra with BoP</li>
+	<li>Updated Titan server scripts and configuration files</li>
+	<li>Fixed issues around automatic transaction migration of vertices and edges</li>
+	<li>Fixed BerkeleyJE concurrency clean-up issue</li>
+	<li>Cleaned up and trimmed storage backend interfaces</li>
+	<li>Fixed ghost vertex issue when iterating over vertices</li>
+	<li>Fixed datatype conversion issues</li>
+</ul><p>Check the issue tracker for a full list of fixed issues.</p>
+<hr><h3>Version 0.3.0 (March 29, 2013)</h3>
+<div class="highlight">
+<pre><span class="nt">&lt;dependency&gt;</span>
+   <span class="nt">&lt;groupId&gt;</span>com.thinkaurelius.titan<span class="nt">&lt;/groupId&gt;</span>
+   <span class="nt">&lt;artifactId&gt;</span>titan-core<span class="nt">&lt;/artifactId&gt;</span>
+   <span class="nt">&lt;version&gt;</span>0.3.0<span class="nt">&lt;/version&gt;</span>
+<span class="nt">&lt;/dependency&gt;</span>
+</pre>
+</div>
+<br><strong>Tested Compatibility:</strong>
+<ul>
+<li>Cassandra 1.2.2</li>
+	<li>HBase 0.94</li>
+	<li>BerkeleyJE 5.0.73</li>
+</ul><p><strong>Features:</strong></p>
+<ul>
+<li>Geo, numeric range, and full-text indexing supporting multiple index backends</li>
+	<li>Edge Indexing</li>
+	<li>Refactoring of Titan-core for enhanced performance due to selective de-serialization</li>
+	<li>New query optimizer for vertex-centric and graph queries</li>
+	<li>Vertex centric query caching for selective queries</li>
+	<li>InMemoryGraph implementation</li>
+	<li>IdGraph support</li>
+	<li>Relaxed transactional scope requirement for vertices</li>
+	<li>Edge no longer extends Vertex</li>
+	<li>Updated to Kryo 2</li>
+</ul><p><strong>Bugfixes:</strong></p>
+<ul>
+<li>Cassandra Thrift Max-Message-Size issue</li>
+	<li>
+<span class="caps">JMX</span> settings for Titan Server</li>
+	<li>Out-unique edges</li>
+	<li>Modified state in global graph operations</li>
+	<li>see issue tracker for a full list</li>
+</ul><hr><h3>Version 0.2.1 (March 22, 2013)</h3>
+<div class="highlight">
+<pre><span class="nt">&lt;dependency&gt;</span>
+   <span class="nt">&lt;groupId&gt;</span>com.thinkaurelius.titan<span class="nt">&lt;/groupId&gt;</span>
+   <span class="nt">&lt;artifactId&gt;</span>titan-core<span class="nt">&lt;/artifactId&gt;</span>
+   <span class="nt">&lt;version&gt;</span>0.2.1<span class="nt">&lt;/version&gt;</span>
+<span class="nt">&lt;/dependency&gt;</span>
+</pre>
+</div>
+<br><strong>Tested Compatibility:</strong>
+<ul>
+<li>Cassandra 1.2.0</li>
+	<li>HBase 0.94</li>
+	<li>BerkeleyJE 5.0.58</li>
+</ul><p><strong>Features:</strong></p>
+<ul>
+<li>Refactored <span class="caps">POM</span> into multi-module project</li>
+	<li>Support for global vertex (g.V) and edge (g.E) iteration for cassandra and hbase backends</li>
+	<li>Compatible with Cassandra 1.2.0 for all three storage adapters: embedded, thrift, astyanax</li>
+	<li>Improved HBase adapter:
+	<ul>
+<li>Automatic Master launch for testing</li>
+		<li>Refactored batch mutation and reading</li>
+		<li>Optimized HBase operations</li>
+	</ul>
+</li>
+	<li>Updated to Blueprints 2.3.0</li>
+	<li>Better integration with Rexster Rexpro</li>
+	<li>Automatic directory creation for local storage backends</li>
+	<li>Internal Titan version handling and compatibility checks</li>
+	<li>Added additional performance tests</li>
+</ul><p><strong>Bugfixes:</strong></p>
+<ul>
+<li>Resolved issues around Java 1.7</li>
+	<li>Shutdown error in astyanax adapter</li>
+	<li>Made thrift frame and message size configurable for cassandra adapters</li>
+	<li>see issue tracker for a full list</li>
+</ul><p><strong>Special Thanks to:</strong></p>
+<ul>
+<li>Pavel Yaskevich (<a href="https://github.com/xedin">xedin</a>)</li>
+</ul><hr><h3>Version 0.2.0 (December 24, 2012)</h3>
+<div class="highlight">
+<pre><span class="nt">&lt;dependency&gt;</span>
+   <span class="nt">&lt;groupId&gt;</span>com.thinkaurelius.titan<span class="nt">&lt;/groupId&gt;</span>
+   <span class="nt">&lt;artifactId&gt;</span>titan<span class="nt">&lt;/artifactId&gt;</span>
+   <span class="nt">&lt;version&gt;</span>0.2.0<span class="nt">&lt;/version&gt;</span>
+<span class="nt">&lt;/dependency&gt;</span>
+</pre>
+</div>
+<br><strong>Tested Compatibility:</strong>
+<ul>
+<li>Cassandra 1.1.3 &amp; 1.1.4</li>
+	<li>HBase 0.94.1</li>
+	<li>BerkeleyDB 5.0.58</li>
+	<li>TinkerPop (Blueprints, Gremlin, Rexster) 2.2.0</li>
+</ul><ul>
+<li>This version is incompatible with the previous version of Titan. Please follow the <a class="internal present" href="./Upgrade-Instructions.html">Upgrade Instructions</a> to switch to the new version.</li>
+</ul><p><strong>Features:</strong></p>
+<ul>
+<li>Embedded Cassandra: Titan can be embedded with Cassandra, that means, Titan starts a Cassandra node in the same <span class="caps">JVM</span> and uses efficient in process communication to store and retrieve data.</li>
+	<li>
+<a class="internal present" href="./Titan-Server.html">Titan Server</a>: Titan comes with a light-weight Gremlin query server.</li>
+	<li>Streamlined configuration settings. Please review the new configuration options if you are upgrading from an older version of Titan.</li>
+	<li>Many small performance improvements throughout the code. Please review the issue tracker and the commit log for more details.</li>
+</ul><p><strong>Bugfixes:</strong></p>
+<ul>
+<li>Fixed edge sorting bug which caused edges to be returned in a random order even when a vertex centric index was defined.</li>
+	<li>Fixed id allocation bug that causes Titan to read the entire row during id allocation which can lead to id allocation failures.</li>
+	<li>Completely refactored diskstorage package for better code quality and performance.</li>
+	<li>Fixed edge caching bug for composite primary keys on edges.</li>
+	<li>Fixed a number of smaller bugs. Please review the issue tracker and the commit log for more details.</li>
+</ul><p><strong>Special Thanks to:</strong></p>
+<ul>
+<li>Zack Maril (<a href="https://github.com/zmaril">zmaril</a>)</li>
+	<li>Nicolas LaCasse (<a href="https://github.com/nlacasse">nlacasse</a>)</li>
+	<li>Vadas Gintautas (<a href="https://github.com/vadasg">vadasg</a>)</li>
+</ul><hr><h3>Version 0.1.0 (September 7, 2012)</h3>
+<div class="highlight">
+<pre><span class="nt">&lt;dependency&gt;</span>
+   <span class="nt">&lt;groupId&gt;</span>com.thinkaurelius.titan<span class="nt">&lt;/groupId&gt;</span>
+   <span class="nt">&lt;artifactId&gt;</span>titan<span class="nt">&lt;/artifactId&gt;</span>
+   <span class="nt">&lt;version&gt;</span>0.1.0<span class="nt">&lt;/version&gt;</span>
+<span class="nt">&lt;/dependency&gt;</span>
+</pre>
+</div>
+<br><strong>Tested Compatibility:</strong>
+<ul>
+<li>Cassandra 1.1.3 &amp; 1.1.4</li>
+	<li>HBase 0.94.1</li>
+	<li>BerkeleyDB 5.0.58</li>
+</ul><p><strong>Features:</strong></p>
+<ul>
+<li>The focus of the initial Titan release was on building a stable and robust graph database as well as incorporating community feature suggestions and feedback from early adopters of Titan.</li>
+</ul><p><strong>Bugfixes:</strong></p>
+<ul>
+<li>Fixed concurrency and synchronization issues</li>
+</ul><p><strong>Special Thanks to:</strong></p>
+<ul>
+<li>Danny Thomas (<a href="https://github.com/BinaryRage">BinaryRage</a>)</li>
+	<li><a href="https://github.com/jramsdale">jramsdale</a></li>
+	<li>Cristofer (<a href="https://github.com/crisweber">crisweber</a>)</li>
+	<li><a href="https://github.com/tedoc2000">tedoc2000</a></li>
+	<li>Dan Forest-Barbier (<a href="https://github.com/DPanth3r">DPanth3r</a>)</li>
+	<li><a href="https://github.com/jncorpron">jncorpron</a></li>
+	<li>Marc Abramowitz (<a href="https://github.com/msabramo">msabramo</a>)</li>
+</ul>
+              </div>
+            </div>
+          </div>
+          <div class="admin">
+            <div style="float: left;">
+              <small>Last edited by <b>Dan LaRocque</b>, 2013-07-28 06:49:42</small>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

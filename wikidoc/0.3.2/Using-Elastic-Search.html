@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+    <title>Using Elastic Search</title>
+    <link rel="stylesheet" href="./css/screen.css" type="text/css" charset="utf-8" />
+    <link rel="stylesheet" href="./css/gollum.css" type="text/css" charset="utf-8" />
+    <link rel="stylesheet" href="./css/syntax.css" type="text/css" charset="utf-8" />
+    <script src="./javascript/jquery-1.4.2.min.js" type="text/javascript"></script>
+    <script src="./javascript/jquery.text_selection-1.0.0.min.js" type="text/javascript"></script>
+    <script src="./javascript/jquery.previewable_comment_form.js" type="text/javascript"></script>
+    <script src="./javascript/jquery.tabs.js" type="text/javascript"></script>
+    <script src="./javascript/gollum.js" type="text/javascript"></script>
+  </head>
+
+  <body>
+    <div id="main">
+      <div class="site">
+        <div id="guides">
+          <div class="guide">
+            <div class="main">
+              <div class="actions">
+                <div>
+                  <a href="./Home.html">Aurelius Titan</a>
+                </div>
+              </div>
+              <h1>Using Elastic Search</h1>
+              <div class="content wikistyle gollum textile">
+                <p><span class="float-right"><span><img src="./images/titan-elasticsearch.png" width="175px"></span></span></p>
+<blockquote>
+<p>Elasticsearch is a flexible and powerful open source, distributed real-time search and analytics engine for the cloud. Elasticsearch allows you to start small, but will grow with your business. It is built to scale horizontally out of the box. As you need more capacity, just add more nodes, and let the cluster reorganize itself to take advantage of the extra hardware. Elasticsearch clusters are resilient – they will detect and remove failed nodes, and reorganize themselves to ensure that your data is safe and accessible. —  <a href="http://elasticsearch.org/">Elasticsearch Homepage</a></p>
+</blockquote>
+<p>Titan supports <a href="http://elasticsearch.org">Elasticsearch</a> as an embedded or remote index backend. In embedded mode, Elasticsearch runs in the same <span class="caps">JVM</span> as Titan and stores data on the local machine. In remote mode, Titan connects to a running Elasticsearch cluster as a client. If not in embedded mode, be sure to have the Elasticsearch running and accessible.</p>
+<h2>Elasticsearch Embedded Configuration</h2>
+<p>For single machine deployments, Elasticsearch can run embedded with Titan. In other words, Titan will start Elasticsearch internally and connect to it within the jvm.</p>
+<p>To run Elasticsearch embedded, add the following configuration options to the graph configuration file where <code>/tmp/searchindex/</code> specifies the directory where Elasticsearch should store the index data:</p>
+<div class="highlight">
+<pre><span class="na">storage.index.search.backend</span><span class="o">=</span><span class="s">elasticsearch</span>
+<span class="na">storage.index.search.directory</span><span class="o">=</span><span class="s">/tmp/searchindex</span>
+<span class="na">storage.index.search.client-only</span><span class="o">=</span><span class="s">false</span>
+<span class="na">storage.index.search.local-mode</span><span class="o">=</span><span class="s">true</span>
+</pre>
+</div>
+
+<p>Note, that Elasticsearch will not be accessible from outside of this particular Titan instance, i.e., remote connections will not be possible.</p>
+<p>In the above configuration, the index backend is named <code>search</code>. Replace <code>search</code> by a different name to change the name of the index.</p>
+<h2>Elasticsearch Remote Configuration</h2>
+<p>Titan can connect to an external Elasticsearch cluster running remote on a separate cluster of machines or locally on the same machine.</p>
+<p>To connect Titan to an external Elasticsearch cluster, add the following configuration options to the graph configuration file where <code>hostname</code> lists the IP addresses of the instances in the Elasticsearch cluster:</p>
+<div class="highlight">
+<pre><span class="na">storage.index.search.backend</span><span class="o">=</span><span class="s">elasticsearch</span>
+<span class="na">storage.index.search.hostname</span><span class="o">=</span><span class="s">100.100.101.1,100.100.101.2</span>
+<span class="na">storage.index.search.client-only</span><span class="o">=</span><span class="s">true</span>
+</pre>
+</div>
+
+<p>Make sure that the Elasticsearch cluster is running prior to starting a Titan instance attempting to connect to it. Also ensure that the machine running Titan can connect to the Elasticsearch instances over the network if the machines are physically separated. This might require setting additional configuration options which are summarized below.</p>
+<p>In the above configuration, the index backend is named <code>search</code>. Replace <code>search</code> by a different name to change the name of the index.</p>
+<h2>Feature Support</h2>
+<ul>
+<li>
+<strong>Full-Text</strong>: Supports the <code>Text.CONTAINS</code> condition to search for text properties that contain a given word.</li>
+</ul><ul>
+<li>
+<strong>Geo</strong>: Supports the <code>Geo.WITHIN</code> condition to search for points that fall within a given circle. Only supports points for indexing and circles for querying.</li>
+</ul><ul>
+<li>
+<strong>Numeric Range</strong>: Supports all numeric comparisons in <code>Compare</code>.</li>
+</ul><h2>Configuration Options</h2>
+<p>This is the full list of configuration options for Elasticsearch. Note, that each of these options needs to be prefixed with <code>storage.index.[INDEX-NAME].</code> where <code>[INDEX-NAME]</code> stands for the name of the index backend. For instance, if the index backend is named <em>search</em> then these configuration options need to be prefixed with <code>storage.index.search.</code></p>
+<table>
+<tr>
+<th>Option </th>
+		<th>Description </th>
+		<th>Value </th>
+		<th>Default </th>
+		<th>Modifiable </th>
+	</tr>
+<tr>
+<td> backend </td>
+		<td> Index backend implementation name </td>
+		<td> <em>elasticsearch</em> </td>
+		<td> – </td>
+		<td> – </td>
+	</tr>
+<tr>
+<td> hostname </td>
+		<td> Comma-separated list of IP addresses or hostnames of the instances in the Elasticsearch cluster </td>
+		<td> IPs </td>
+		<td> – </td>
+		<td> yes </td>
+	</tr>
+<tr>
+<td> index-name </td>
+		<td> Name of the index </td>
+		<td> string </td>
+		<td> titan </td>
+		<td> no </td>
+	</tr>
+<tr>
+<td> cluster-name </td>
+		<td> Name of the Elasticsearch cluster. If none is defined, the name will be ignored. </td>
+		<td> string </td>
+		<td> elasticsearch </td>
+		<td> yes </td>
+	</tr>
+<tr>
+<td> local-mode </td>
+		<td> Whether Titan should run Elasticsearch embedded </td>
+		<td> boolean </td>
+		<td> <em>false</em> </td>
+		<td> no </td>
+	</tr>
+<tr>
+<td> directory </td>
+		<td> Directory to store Elasticsearch data in. <em>Only applicable when running Elasticsearch embedded</em> </td>
+		<td> string </td>
+		<td> – </td>
+		<td> yes </td>
+	</tr>
+<tr>
+<td> config-file </td>
+		<td> Filename of the Elasticsearch yaml file used to configure this instance. <em>Only applicable when running Elasticsearch embedded</em> </td>
+		<td> boolean </td>
+		<td> <em>false</em> </td>
+		<td> no </td>
+	</tr>
+<tr>
+<td> client-only </td>
+		<td> Whether this node is a client node with no data </td>
+		<td> boolean </td>
+		<td> <em>true</em> </td>
+		<td> no </td>
+	</tr>
+</table><h2>Optimizing Elasticsearch</h2>
+<h3>Write Optimization</h3>
+<p>For <a class="internal present" href="./Bulk-Loading.html">bulk loading</a> or other write-intense applications, consider increasing Elasticsearch’s refresh interval. Refer to <a href="https://groups.google.com/d/topic/elasticsearch/yp6bTiP2JYE/discussion">this discussion</a> on how to increase the refresh interval and its impact on write performance. Note, that a higher refresh interval means that it takes a longer time for graph mutations to be available in the index.</p>
+<p>For additional suggestions on how to increase write performance in Elasticsearch with detailed instructions, please read <a href="http://blog.bugsense.com/post/35580279634/indexing-bigdata-with-elasticsearch">this blog post</a> .</p>
+<h2>Next Steps</h2>
+<ul>
+<li>Please refer to the <a href="http://elasticsearch.org">Elasticsearch homepage</a> and available documentation for more information on Elasticsearch and how to setup an Elasticsearch cluster.</li>
+	<li>Check out <a class="internal present" href="./Example-Graph-Configuration.html">example graph configurations</a> for complete configurations including the storage backend.</li>
+</ul>
+              </div>
+            </div>
+          </div>
+          <div class="admin">
+            <div style="float: left;">
+              <small>Last edited by <b>Dan LaRocque</b>, 2013-07-28 06:49:42</small>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

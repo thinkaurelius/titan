@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+    <title>Vertex Centric Indices</title>
+    <link rel="stylesheet" href="./css/screen.css" type="text/css" charset="utf-8" />
+    <link rel="stylesheet" href="./css/gollum.css" type="text/css" charset="utf-8" />
+    <link rel="stylesheet" href="./css/syntax.css" type="text/css" charset="utf-8" />
+    <script src="./javascript/jquery-1.4.2.min.js" type="text/javascript"></script>
+    <script src="./javascript/jquery.text_selection-1.0.0.min.js" type="text/javascript"></script>
+    <script src="./javascript/jquery.previewable_comment_form.js" type="text/javascript"></script>
+    <script src="./javascript/jquery.tabs.js" type="text/javascript"></script>
+    <script src="./javascript/gollum.js" type="text/javascript"></script>
+  </head>
+
+  <body>
+    <div id="main">
+      <div class="site">
+        <div id="guides">
+          <div class="guide">
+            <div class="main">
+              <div class="actions">
+                <div>
+                  <a href="./Home.html">Aurelius Titan</a>
+                </div>
+              </div>
+              <h1>Vertex Centric Indices</h1>
+              <div class="content wikistyle gollum textile">
+                <p><span class="float-left"><span><img src="./images/vertex-centric-index.png"></span></span> A vertex-centric index is specific to a vertex. Such indices are contrary to <a href="https://github.com/tinkerpop/blueprints/wiki/Graph-Indices">graph indices</a> which are global to the graph (i.e. indexing elements for fast global lookups). The purpose of vertex-centric indices is to sort and index the incident edges (and thus, adjacent vertices) of a vertex according to the incident edges’ labels and properties. Given a <a href="https://github.com/tinkerpop/blueprints/wiki/Vertex-Query">vertex query</a>, these indices are leveraged and, in doing so, linear scans of incident edges (<code>O(n)</code>) can be avoided and faster graph traversals ensue (<code>O(1)</code> or <code>O(log n)</code>). With traversals typically touching numerous vertices, the <a href="http://en.wikipedia.org/wiki/Combinatorial_explosion">combinatoric expense</a> of linear scans can bring a graph database to a halt. For more information on setting up vertex-centric indices, please see <code>primaryKey()</code> in <a class="internal present" href="./Type-Definition-Overview.html">Type Definition Overview</a>. Finally, note that vertex-centric indices overcome the infamous <a href="http://thinkaurelius.com/2012/10/25/a-solution-to-the-supernode-problem/">super node problem</a> found in many graph systems.</p>
+<h2>Real-World Benefits</h2>
+<p>Assume 4 vertices each with 1k, 10k, 100k, and 1 million incident edges. Each edge represents a person tweeting a particular tweet vertex. Moreover, each edge has a <code>long</code> timestamp property on it. The <a href="http://gremlin.tinkerpop.com">Gremlin</a> Groovy code to create the 4 vertices and their respective edge sets is provided below, where the distinction between an index or not is the declaration of a <code>primaryKey(time)</code> on an edge label.</p>
+<div class="highlight">
+<pre><span class="n">g</span> <span class="o">=</span> <span class="n">TitanFactory</span><span class="o">.</span><span class="na">open</span><span class="o">(</span><span class="n">conf</span><span class="o">)</span>
+<span class="c1">// graph schema construction</span>
+<span class="n">g</span><span class="o">.</span><span class="na">makeType</span><span class="o">().</span><span class="na">name</span><span class="o">(</span><span class="s1">'name'</span><span class="o">).</span><span class="na">unique</span><span class="o">(</span><span class="n">OUT</span><span class="o">).</span><span class="na">dataType</span><span class="o">(</span><span class="n">String</span><span class="o">.</span><span class="na">class</span><span class="o">).</span><span class="na">indexed</span><span class="o">(</span><span class="n">Vertex</span><span class="o">.</span><span class="na">class</span><span class="o">).</span><span class="na">makePropertyKey</span><span class="o">()</span>
+<span class="n">time</span> <span class="o">=</span> <span class="n">g</span><span class="o">.</span><span class="na">makeType</span><span class="o">().</span><span class="na">name</span><span class="o">(</span><span class="s1">'time'</span><span class="o">).</span><span class="na">unique</span><span class="o">(</span><span class="n">OUT</span><span class="o">).</span><span class="na">dataType</span><span class="o">(</span><span class="n">Long</span><span class="o">.</span><span class="na">class</span><span class="o">).</span><span class="na">makePropertyKey</span><span class="o">()</span>
+<span class="k">if</span><span class="o">(</span><span class="n">useVertexCentricIndices</span><span class="o">)</span>
+  <span class="n">g</span><span class="o">.</span><span class="na">makeType</span><span class="o">().</span><span class="na">name</span><span class="o">(</span><span class="s1">'tweets'</span><span class="o">).</span><span class="na">primaryKey</span><span class="o">(</span><span class="n">time</span><span class="o">).</span><span class="na">makeEdgeLabel</span><span class="o">()</span>
+<span class="k">else</span> 
+  <span class="n">g</span><span class="o">.</span><span class="na">makeType</span><span class="o">().</span><span class="na">name</span><span class="o">(</span><span class="s1">'tweets'</span><span class="o">).</span><span class="na">makeEdgeLabel</span><span class="o">()</span>
+<span class="n">g</span><span class="o">.</span><span class="na">commit</span><span class="o">()</span>
+
+<span class="c1">// graph instance construction</span>
+<span class="n">g</span><span class="o">.</span><span class="na">addVertex</span><span class="o">([</span><span class="nl">name:</span><span class="s1">'v1000'</span><span class="o">]);</span>
+<span class="n">g</span><span class="o">.</span><span class="na">addVertex</span><span class="o">([</span><span class="nl">name:</span><span class="s1">'v10000'</span><span class="o">]);</span>
+<span class="n">g</span><span class="o">.</span><span class="na">addVertex</span><span class="o">([</span><span class="nl">name:</span><span class="s1">'v100000'</span><span class="o">]);</span>
+<span class="n">g</span><span class="o">.</span><span class="na">addVertex</span><span class="o">([</span><span class="nl">name:</span><span class="s1">'v1000000'</span><span class="o">]);</span>
+
+<span class="k">for</span><span class="o">(</span><span class="n">i</span><span class="o">=</span><span class="mi">1000</span><span class="o">;</span> <span class="n">i</span><span class="o">&lt;</span><span class="mi">1000001</span><span class="o">;</span> <span class="n">i</span><span class="o">=</span><span class="n">i</span><span class="o">*</span><span class="mi">10</span><span class="o">)</span> <span class="o">{</span>
+  <span class="n">v</span> <span class="o">=</span> <span class="n">g</span><span class="o">.</span><span class="na">V</span><span class="o">(</span><span class="s1">'name'</span><span class="o">,</span><span class="s1">'v'</span> <span class="o">+</span> <span class="n">i</span><span class="o">).</span><span class="na">next</span><span class="o">();</span>
+  <span class="o">(</span><span class="mi">1</span><span class="o">..</span><span class="na">i</span><span class="o">).</span><span class="na">each</span> <span class="o">{</span>
+    <span class="n">v</span><span class="o">.</span><span class="na">addEdge</span><span class="o">(</span><span class="s1">'tweets'</span><span class="o">,</span><span class="n">g</span><span class="o">.</span><span class="na">addVertex</span><span class="o">(),[</span><span class="nl">time:</span><span class="n">it</span><span class="o">])</span>
+    <span class="k">if</span><span class="o">(</span><span class="n">it</span> <span class="o">%</span> <span class="mi">10000</span> <span class="o">==</span> <span class="mi">0</span><span class="o">)</span> <span class="n">g</span><span class="o">.</span><span class="na">commit</span><span class="o">()</span>
+  <span class="o">};</span> <span class="n">g</span><span class="o">.</span><span class="na">commit</span><span class="o">()</span>
+<span class="o">}</span>
+</pre>
+</div>
+
+<p>Next, a query for the top 10 most recently tweeted adjacent vertices is enacted, where recency is defined by the <code>long</code> timestamp on the adjoining edge. If the vertices don’t have vertex-centric indices, the query time grows by an order of magnitude to an order of magnitude increase in data size — a near perfect relationship. With vertex-centric indices, runtimes are unaffected by the growth of the data size. The micro-benchmark results below are using <a class="internal present" href="./Titan-Server.html">Titan Server</a> (Cassandra embedded) and the concluding code fragment.</p>
+<table>
+<tr>
+<th>incident edge size </th>
+		<th>no vertex-centric indices </th>
+		<th>vertex-centric indices </th>
+	</tr>
+<tr>
+<td> 1000 </td>
+		<td> 0.82 ms </td>
+		<td> 0.50 ms </td>
+	</tr>
+<tr>
+<td> 10000 </td>
+		<td> 7.06 ms </td>
+		<td> 0.52 ms </td>
+	</tr>
+<tr>
+<td> 100000 </td>
+		<td> 70.90 ms </td>
+		<td> 0.46 ms </td>
+	</tr>
+<tr>
+<td> 1000000 </td>
+		<td> 778.94 ms </td>
+		<td> 0.46 ms </td>
+	</tr>
+</table><div class="highlight">
+<pre><span class="n">totalRuns</span> <span class="o">=</span> <span class="mi">50</span>
+<span class="k">for</span><span class="o">(</span><span class="n">i</span><span class="o">=</span><span class="mi">1000</span><span class="o">;</span> <span class="n">i</span><span class="o">&lt;</span><span class="mi">1000001</span><span class="o">;</span> <span class="n">i</span><span class="o">=</span><span class="n">i</span><span class="o">*</span><span class="mi">10</span><span class="o">)</span> <span class="o">{</span>
+  <span class="n">v</span> <span class="o">=</span> <span class="n">g</span><span class="o">.</span><span class="na">V</span><span class="o">(</span><span class="s1">'name'</span><span class="o">,</span><span class="s1">'v'</span> <span class="o">+</span> <span class="n">i</span><span class="o">).</span><span class="na">next</span><span class="o">();</span>
+  <span class="n">totalTime</span> <span class="o">=</span> <span class="mi">0</span>
+  <span class="o">(</span><span class="mi">1</span><span class="o">..</span><span class="na">totalRuns</span><span class="o">).</span><span class="na">each</span> <span class="o">{</span>
+    <span class="n">t</span> <span class="o">=</span> <span class="n">System</span><span class="o">.</span><span class="na">currentTimeMillis</span><span class="o">();</span>
+    <span class="n">v</span><span class="o">.</span><span class="na">outE</span><span class="o">(</span><span class="s1">'tweets'</span><span class="o">).</span><span class="na">has</span><span class="o">(</span><span class="s1">'time'</span><span class="o">,</span><span class="n">T</span><span class="o">.</span><span class="na">gt</span><span class="o">,</span><span class="n">i</span><span class="o">-</span><span class="mi">10</span><span class="o">).</span><span class="na">inV</span><span class="o">.</span><span class="na">iterate</span><span class="o">()</span>
+    <span class="n">totalTime</span> <span class="o">+=</span> <span class="n">System</span><span class="o">.</span><span class="na">currentTimeMillis</span><span class="o">()</span> <span class="o">-</span> <span class="n">t</span><span class="o">;</span>
+  <span class="o">};</span> <span class="kc">null</span>
+  <span class="n">System</span><span class="o">.</span><span class="na">out</span><span class="o">.</span><span class="na">println</span><span class="o">(</span><span class="n">i</span> <span class="o">+</span> <span class="s1">':'</span> <span class="o">+</span> <span class="n">totalTime</span> <span class="o">/</span> <span class="n">totalRuns</span><span class="o">);</span>
+<span class="o">}</span>
+</pre>
+</div>
+
+              </div>
+            </div>
+          </div>
+          <div class="admin">
+            <div style="float: left;">
+              <small>Last edited by <b>Dan LaRocque</b>, 2013-07-28 06:49:42</small>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

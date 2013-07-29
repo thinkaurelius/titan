@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+    <title>Using Lucene</title>
+    <link rel="stylesheet" href="./css/screen.css" type="text/css" charset="utf-8" />
+    <link rel="stylesheet" href="./css/gollum.css" type="text/css" charset="utf-8" />
+    <link rel="stylesheet" href="./css/syntax.css" type="text/css" charset="utf-8" />
+    <script src="./javascript/jquery-1.4.2.min.js" type="text/javascript"></script>
+    <script src="./javascript/jquery.text_selection-1.0.0.min.js" type="text/javascript"></script>
+    <script src="./javascript/jquery.previewable_comment_form.js" type="text/javascript"></script>
+    <script src="./javascript/jquery.tabs.js" type="text/javascript"></script>
+    <script src="./javascript/gollum.js" type="text/javascript"></script>
+  </head>
+
+  <body>
+    <div id="main">
+      <div class="site">
+        <div id="guides">
+          <div class="guide">
+            <div class="main">
+              <div class="actions">
+                <div>
+                  <a href="./Home.html">Aurelius Titan</a>
+                </div>
+              </div>
+              <h1>Using Lucene</h1>
+              <div class="content wikistyle gollum textile">
+                <p><span class="float-right"><span><img src="./images/titan-lucene.png" width="175px"></span></span></p>
+<blockquote>
+<p>Apache Lucene is a high-performance, full-featured text search engine library written entirely in Java. It is a technology suitable for nearly any application that requires full-text search, especially cross-platform. Apache Lucene is an open source project available for free download. — <a href="http://lucene.apache.org/">Apache Lucene Homepage</a></p>
+</blockquote>
+<p>Titan supports <a href="http://lucene.apache.org/">Lucene</a> as a single-machine, embedded index backend. Lucene has a slightly extended feature set and performs better in small-scale applications compared to <a class="internal present" href="./Using-Elastic-Search.html">Elasticsearch</a>, but is limited to single-machine deployments.</p>
+<p><br></p>
+<h2>Elasticsearch Embedded Configuration</h2>
+<p>For single machine deployments, Lucene runs embedded with Titan. Titan starts and interfaces with Lucene internally.</p>
+<p>To run Lucene embedded, add the following configuration options to the graph configuration file where <code>/tmp/searchindex/</code> specifies the directory where Lucene should store the index data:</p>
+<div class="highlight">
+<pre><span class="na">storage.index.search.backend</span><span class="o">=</span><span class="s">lucene</span>
+<span class="na">storage.index.search.directory</span><span class="o">=</span><span class="s">/tmp/searchindex</span>
+</pre>
+</div>
+
+<p>In the above configuration, the index backend is named <code>search</code>. Replace <code>search</code> by a different name to change the name of the index.</p>
+<h2>Feature Support</h2>
+<ul>
+<li>
+<strong>Full-Text</strong>: Supports the <code>Text.CONTAINS</code> condition to search for text properties that contain a given word.</li>
+</ul><ul>
+<li>
+<strong>Geo</strong>: Supports the <code>Geo.WITHIN</code> condition to search for points that fall within a given geographic shape. Only supports points for indexing and circles and boxes for querying.</li>
+</ul><ul>
+<li>
+<strong>Numeric Range</strong>: Supports all numeric comparisons in <code>Compare</code>.</li>
+</ul><h2>Configuration Options</h2>
+<table>
+<tr>
+<th>Option </th>
+		<th>Description </th>
+		<th>Value </th>
+		<th>Default </th>
+		<th>Modifiable </th>
+	</tr>
+<tr>
+<td> backend </td>
+		<td> Index backend implementation name </td>
+		<td> <em>elasticsearch</em> </td>
+		<td> – </td>
+		<td> – </td>
+	</tr>
+<tr>
+<td> directory </td>
+		<td> Directory to store Lucene data. </td>
+		<td> string </td>
+		<td> – </td>
+		<td> yes </td>
+	</tr>
+</table><h2>Next Steps</h2>
+<ul>
+<li>Please refer to the <a href="http://lucene.apache.org/">Lucene homepage</a> and available documentation for more information on Lucene.</li>
+</ul>
+              </div>
+            </div>
+          </div>
+          <div class="admin">
+            <div style="float: left;">
+              <small>Last edited by <b>Dan LaRocque</b>, 2013-07-28 06:49:42</small>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

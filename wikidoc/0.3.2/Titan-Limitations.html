@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+    <title>Titan Limitations</title>
+    <link rel="stylesheet" href="./css/screen.css" type="text/css" charset="utf-8" />
+    <link rel="stylesheet" href="./css/gollum.css" type="text/css" charset="utf-8" />
+    <link rel="stylesheet" href="./css/syntax.css" type="text/css" charset="utf-8" />
+    <script src="./javascript/jquery-1.4.2.min.js" type="text/javascript"></script>
+    <script src="./javascript/jquery.text_selection-1.0.0.min.js" type="text/javascript"></script>
+    <script src="./javascript/jquery.previewable_comment_form.js" type="text/javascript"></script>
+    <script src="./javascript/jquery.tabs.js" type="text/javascript"></script>
+    <script src="./javascript/gollum.js" type="text/javascript"></script>
+  </head>
+
+  <body>
+    <div id="main">
+      <div class="site">
+        <div id="guides">
+          <div class="guide">
+            <div class="main">
+              <div class="actions">
+                <div>
+                  <a href="./Home.html">Aurelius Titan</a>
+                </div>
+              </div>
+              <h1>Titan Limitations</h1>
+              <div class="content wikistyle gollum textile">
+                <p><span class="float-left"><span><img src="./images/titan-head.png"></span></span> There are various limitations and “gotchas” that one should be aware of when using Titan. Some of these limitations are necessary design choices and others are issues that will be rectified as Titan development continues. Finally, the last section provides solutions to common issues.</p>
+<p><br><br><br><br></p>
+<h2>Design Limitations</h2>
+<h3>Size Limitation</h3>
+<p>Titan can store up to a quintillion edges (2^60) and half as many vertices. That limitation is imposed by Titan’s id scheme.</p>
+<h3>DataType Definitions</h3>
+<p>When declaring the data type of a property key using <code>dataType(Class)</code> Titan will enforce that all properties for that key have the declared type, unless that type is <code>Object.class</code>. This is an equality type check, meaning that sub-classes will not be allowed. For instance, one cannot declare the data type to be <code>Number.class</code> and use <code>Integer</code> or <code>Long</code>. For efficiency reasons, the type needs to match exactly. Hence, you <code>Object.class</code> as the data type for type flexibility. In all other cases, declare the actual data type to benefit from increased performance and type safety.</p>
+<h2>Temporary Limitations</h2>
+<h3>Key Index Must Be Created Prior to Key Being Used</h3>
+<p>To index vertices by key, the respective key index must be created before the key is first used in a vertex property. Read more about creating <a class="internal present" href="./Blueprints-Interface.html">vertex indexes</a>.</p>
+<h3>Unable to Drop Key Indices</h3>
+<p>Once an index has been created for a key, it can never be removed.</p>
+<h3>Types Can Not Be Changed Once Created</h3>
+<p>This pitfall constrains the graph schema. While the graph schema can be extended, previous declarations cannot be changed.</p>
+<h3>Batch Loading Speed</h3>
+<p>Titan provides a batch loading mode that can be enabled through the <a href="Graph-Configuration">configuration</a>. However, this batch mode only facilitates faster loading into the storage backend, it does not use storage backend specific batch loading techniques that prepare the data in memory for disk storage. As such, batch loading in Titan is currently slower than batch loading modes provided by single machine databases. The <a class="internal present" href="./Bulk-Loading.html">Bulk Loading</a> documentation lists ways to speed up batch loading in Titan.</p>
+<p>Another limitation related to batch loading is the failure to load millions of edges into a single vertex at once or in a short time of period. Such <em>supernode loading</em> can fail for some storage backends. This limitation also applies to dense index entries. For more information, please refer to <a href="https://github.com/thinkaurelius/titan/issues/11">the ticket</a> .</p>
+<h2>Beware</h2>
+<h3>Multiple Titan instances on one machine</h3>
+<p>Running multiple Titan instances on one machine backed by the <em>same</em> storage backend (distributed or local) requires that each of these instances has a unique configuration for <code>storage.machine-id-appendix</code>. Otherwise, these instances might overwrite each other leading to data corruption. See <a class="internal present" href="./Graph-Configuration.html">Graph Configuration</a> for more information.</p>
+<h3>Custom Class Datatype</h3>
+<p>Titan supports arbitrary objects as attribute values on properties. To use a custom class as data type in Titan, either register a custom serializer or ensure that the class has a no-argument constructor and implements the <code>equals</code> method because Titan will verify that it can successfully de-/serialize objects of that class. Please read <a class="internal present" href="./Datatype-and-Attribute-Serializer-Configuration.html">Datatype and Attribute Serializer Configuration</a> for more information.</p>
+<h3>Global Graph Operations</h3>
+<p>Since version 0.2.1, Titan supports global graph operations for all storage backends. However, beware that such operations will likely cause <code>OutOfMemoryException</code> for large graphs since all vertices and/or edges can be loaded into memory by iterating through them.  Use <a href="http://thinkaurelius.github.com/faunus/">Faunus</a> to implement global graph operations on large, distributed Titan graphs that do not fit into memory.</p>
+<h3>Transactional Scope for Edges</h3>
+<p>Edges should not be accessed outside the scope in which they were originally created or retrieved.</p>
+<h3>Locking Exceptions</h3>
+<p>When defining unique <a class="internal present" href="./Type-Definition-Overview.html">Titan types</a> with locking enabled (i.e. requesting that Titan ensures uniqueness) it is likely to encounter locking exceptions under concurrent modifications to the graph.</p>
+<blockquote>
+<p>com.thinkaurelius.titan.diskstorage.locking.PermanentLockingException: Updated state: lock acquired but value has changed since read</p>
+</blockquote>
+<p>Such exceptions are to be expected, since Titan cannot know how to recover from a transactional state where an earlier read value has been modified by another transaction since this may invalidate the state of the transaction. It most cases it is sufficient to simply re-run the transaction. If locking exceptions are very frequent, try to analyze and remove the source of congestion.</p>
+<h3>Double and Float Data Types</h3>
+<p>Titan internally represents <code>Double</code> and <code>Float</code> data types as fixed decimal numbers. Doubles are stored with up to 6 decimal digits and floats with up to 3. This representation enables range retrievals in vertex centric queries. However, it significantly limits the precision and range of doubles and floats. <br>
+Use <code>FullDouble</code> and <code>FullFloat</code> as data type to get the full precision of floating point numbers. However, note that these data types cannot be used in range-constrained vertex centric queries.</p>
+<h3>Ghost Vertices</h3>
+<p>When the same vertex is concurrently removed in one transaction and modified in another, both transactions will successfully commit on eventually consistent storage backends and the vertex will still exist with only the modified properties or edges. This is referred to as a ghost vertex. It is possible to guard against ghost vertices on eventually consistent backends using key <a class="internal present" href="./Type-Definition-Overview.html">out-uniqueness</a> but this is prohibitively expensive in most cases. A more scalable approach is to allow ghost vertices temporarily and clearing them out in regular time intervals, for instance using <a href="https://github.com/StartTheShift/titan-tools">Titan tools</a>.</p>
+<h3>Snappy 1.4 does not work with Java 1.7</h3>
+<p>Cassandra 1.2.x makes use of Snappy 1.4. Titan will not be able to connect to Cassandra if the server is running Java 1.7 and Cassandra 1.2.x (with Snappy 1.4). Be sure to remove the Snappy 1.4 jar in the <code>cassandra/lib</code> directory and replace with a Snappy 1.5 jar version (<a href="http://code.google.com/p/snappy-java/downloads/list">available here</a>).</p>
+<h2>Useful Tips</h2>
+<h3>Removing <span class="caps">JAMM</span> Warning Messages</h3>
+<p>When launching Titan with embedded Cassandra, the following warnings may be displayed:</p>
+<div class="highlight">
+<pre>958 <span class="p">[</span><span class="n">MutationStage</span><span class="p">:</span>25<span class="p">]</span> <span class="n">WARN</span>  <span class="n">org</span><span class="p">.</span><span class="n">apache</span><span class="p">.</span><span class="n">cassandra</span><span class="p">.</span><span class="n">db</span><span class="p">.</span><span class="n">Memtable</span>  <span class="o">-</span> <span class="n">MemoryMeter</span> <span class="n">uninitialized</span> <span class="p">(</span><span class="n">jamm</span> <span class="n">not</span> <span class="n">specified</span> <span class="n">as</span> <span class="n">java</span> <span class="n">agent</span><span class="p">);</span> <span class="n">assuming</span> <span class="n">liveRatio</span> <span class="n">of</span> 10<span class="p">.</span>0<span class="p">.</span>  <span class="n">Usually</span> <span class="n">this</span> <span class="n">means</span> <span class="n">cassandra</span><span class="o">-</span><span class="n">env</span><span class="p">.</span><span class="n">sh</span> <span class="n">disabled</span> <span class="n">jamm</span> <span class="n">because</span> <span class="n">you</span> <span class="n">are</span> <span class="n">using</span> <span class="n">a</span> <span class="n">buggy</span> <span class="n">JRE</span><span class="p">;</span> <span class="n">upgrade</span> <span class="n">to</span> <span class="n">the</span> <span class="n">Sun</span> <span class="n">JRE</span> <span class="n">instead</span>
+</pre>
+</div>
+
+<p>Cassandra uses a Java agent called <code>MemoryMeter</code> which allows it to measure the actual memory use of an object, including <span class="caps">JVM</span> overhead.  To use <a href="https://github.com/jbellis/jamm"><span class="caps">JAMM</span></a> (Java Agent for Memory Measurements), the path to the <span class="caps">JAMM</span> jar must be specific in the Java javaagent parameter when launching the <span class="caps">JVM</span> (e.g. <code>-javaagent:path/to/jamm.jar</code>). Rather than modifying <code>titan.sh</code> and adding the javaagent parameter, I prefer to set the <code>JAVA_OPTIONS</code> environment variable with the proper javaagent setting:</p>
+<div class="highlight">
+<pre>export JAVA_OPTIONS=-javaagent:$TITAN_HOME/lib/jamm-0.2.5.jar
+</pre>
+</div>
+
+<h3>Cassandra Connection Problem</h3>
+<p>By default, Titan uses the Astyanax library to connect to Cassandra clusters. On EC2 and Rackspace, it has been reported that Astyanax was unable to establish a connection to the cluster. In those cases, changing the backend to <code>storage.backend=cassandrathrift</code> solved the problem.</p>
+<h3>ElasticSearch OutOfMemoryException</h3>
+<p>When numerous clients are connecting to ElasticSearch, it is likely that an <code>OutOfMemoryException</code> occurs. This is not due to a memory issue, but to the OS not allowing more threads to be spawned by the user (the user running ElasticSearch). To circumvent this issue, increase the number of allowed processes to the user running ElasticSearch. For example, increase the <code>ulimit -u</code> from the default 1024 to 10024.</p>
+              </div>
+            </div>
+          </div>
+          <div class="admin">
+            <div style="float: left;">
+              <small>Last edited by <b>Dan LaRocque</b>, 2013-07-28 06:49:42</small>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+    <title>Generating Artificial Natural Graphs</title>
+    <link rel="stylesheet" href="./css/screen.css" type="text/css" charset="utf-8" />
+    <link rel="stylesheet" href="./css/gollum.css" type="text/css" charset="utf-8" />
+    <link rel="stylesheet" href="./css/syntax.css" type="text/css" charset="utf-8" />
+    <script src="./javascript/jquery-1.4.2.min.js" type="text/javascript"></script>
+    <script src="./javascript/jquery.text_selection-1.0.0.min.js" type="text/javascript"></script>
+    <script src="./javascript/jquery.previewable_comment_form.js" type="text/javascript"></script>
+    <script src="./javascript/jquery.tabs.js" type="text/javascript"></script>
+    <script src="./javascript/gollum.js" type="text/javascript"></script>
+  </head>
+
+  <body>
+    <div id="main">
+      <div class="site">
+        <div id="guides">
+          <div class="guide">
+            <div class="main">
+              <div class="actions">
+                <div>
+                  <a href="./Home.html">Aurelius Titan</a>
+                </div>
+              </div>
+              <h1>Generating Artificial Natural Graphs</h1>
+              <div class="content wikistyle gollum textile">
+                <p><span class="float-left"><span><img src="http://thinkaurelius.files.wordpress.com/2012/04/splash-graph.png" width="200px"></span></span></p>
+<p>Real-world graphs are not <a href="http://en.wikipedia.org/wiki/Random_graph">random</a>. Example real-world graphs include social graphs, word graphs, neural graphs, airline graphs, water flow graphs, etc. Interestingly enough, there is a simple statistical understanding of most natural graphs. In short, many vertices have few connections and very few vertices have many connections. A popular algorithm to generate a graph that has this connectivity pattern is known as the <a href="http://en.wikipedia.org/wiki/Preferential_attachment">preferential attachment</a> algorithm which can be simply described with the colloquial phrase: “the rich get richer.” This section provides some simple code to artificially generate a natural looking graph in Titan using <a href="http://gremlin.tinkerpop.com">Gremlin</a>.</p>
+<p><br><br></p>
+<h2>Generating a Graph with Natural Statistics</h2>
+<p>The first thing to do is to connect to a Cassandra cluster with Titan. In the example below, a local connection is used where <code>storage.batch-loading</code> ensures more speedy performance.</p>
+<div class="highlight">
+<pre>conf = new BaseConfiguration()
+conf.setProperty('storage.backend','cassandra')
+conf.setProperty('storage.hostname','127.0.0.1')
+conf.setProperty('storage.batch-loading','true');
+g = TitanFactory.open(conf)
+</pre>
+</div>
+
+<p>Next, the following script generates a graph with <code>size</code> number of edges.</p>
+<div class="highlight">
+<pre>size = 100000; ids = [g.addVertex().id]; rand = new Random();
+(1..size).each{
+  v = g.addVertex();
+  u = g.v(ids.get(rand.nextInt(ids.size())))
+  g.addEdge(v,u,'linked');
+  ids.add(u.id);
+  ids.add(v.id);
+  if(it % 1000 == 0) 
+    g.commit()
+}
+</pre>
+</div>
+
+<h2>Computing the In-Degree Distribution of the Graph</h2>
+<div class="highlight">
+<pre>indegree = [:].withDefault{0}
+ids.unique().each{ 
+  count = g.v(it).inE.count();
+  indegree[count] = indegree[count] + 1;
+}
+indegree.sort{a,b -&gt; b.value &lt;=&gt; a.value}
+</pre>
+</div>
+
+              </div>
+            </div>
+          </div>
+          <div class="admin">
+            <div style="float: left;">
+              <small>Last edited by <b>Dan LaRocque</b>, 2013-07-28 06:49:42</small>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
