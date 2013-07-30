@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+    <title>Advanced Indexing</title>
+    <link rel="stylesheet" href="./css/screen.css" type="text/css" charset="utf-8" />
+    <link rel="stylesheet" href="./css/gollum.css" type="text/css" charset="utf-8" />
+    <link rel="stylesheet" href="./css/syntax.css" type="text/css" charset="utf-8" />
+    <script src="./javascript/jquery-1.4.2.min.js" type="text/javascript"></script>
+    <script src="./javascript/jquery.text_selection-1.0.0.min.js" type="text/javascript"></script>
+    <script src="./javascript/jquery.previewable_comment_form.js" type="text/javascript"></script>
+    <script src="./javascript/jquery.tabs.js" type="text/javascript"></script>
+    <script src="./javascript/gollum.js" type="text/javascript"></script>
+  </head>
+
+  <body>
+    <div id="main">
+      <div class="site">
+        <div id="guides">
+          <div class="guide">
+            <div class="main">
+              <div class="actions">
+                <div>
+                  <a href="./Home.html">Aurelius Titan</a>
+                </div>
+              </div>
+              <h1>Advanced Indexing</h1>
+              <div class="content wikistyle gollum textile">
+                <p>This page discusses a number of advanced indexing topics. Be sure to read about <a class="internal present" href="./Indexing-Backend-Overview.html">Titan's indexing system</a> first.</p>
+<h2>Dual Indexing</h2>
+<p>For some use cases, it can be beneficial to register a property key with multiple index backends. This is supported by Titan.</p>
+<p>For instance, consider the scenario where user vertices have the property key <code>name</code> which stores the full name of the user – first, middle, and last name. We define the <code>name</code> key as follows:</p>
+<div class="highlight">
+<pre><span class="n">g</span><span class="o">.</span><span class="na">makeType</span><span class="o">().</span><span class="na">name</span><span class="o">(</span><span class="s">"name"</span><span class="o">).</span><span class="na">dataType</span><span class="o">(</span><span class="n">String</span><span class="o">.</span><span class="na">class</span><span class="o">).</span><span class="na">indexed</span><span class="o">(</span><span class="n">Vertex</span><span class="o">.</span><span class="na">class</span><span class="o">).</span><span class="na">indexed</span><span class="o">(</span><span class="s">"search"</span><span class="o">,</span><span class="n">Vertex</span><span class="o">.</span><span class="na">class</span><span class="o">).</span><span class="na">unique</span><span class="o">(</span><span class="n">Direction</span><span class="o">.</span><span class="na">OUT</span><span class="o">).</span><span class="na">makePropertyKey</span><span class="o">()</span>
+</pre>
+</div>
+
+<p>Defining registering the <code>name</code> key with the standard index <em>and</em> an external full-text index has the following advantages:</p>
+<ul>
+<li>Quick querying for users by their entire name using the standard index: <code>g.query().has("name",EQUAL,"John Doe").vertices()</code>
+</li>
+	<li>Using the full-text index to search for user’s by any part of their name: <code>g.query().has("name",CONTAINS,"John").vertices()</code>
+</li>
+</ul><p>Titan will automatically route the index request to the correct index backend.</p>
+              </div>
+            </div>
+          </div>
+          <div class="admin">
+            <div style="float: left;">
+              <small>Last edited by <b>Dan LaRocque</b>, 2013-07-28 06:49:42</small>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

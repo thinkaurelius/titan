@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+    <title>Datatype and Attribute Serializer Configuration</title>
+    <link rel="stylesheet" href="./css/screen.css" type="text/css" charset="utf-8" />
+    <link rel="stylesheet" href="./css/gollum.css" type="text/css" charset="utf-8" />
+    <link rel="stylesheet" href="./css/syntax.css" type="text/css" charset="utf-8" />
+    <script src="./javascript/jquery-1.4.2.min.js" type="text/javascript"></script>
+    <script src="./javascript/jquery.text_selection-1.0.0.min.js" type="text/javascript"></script>
+    <script src="./javascript/jquery.previewable_comment_form.js" type="text/javascript"></script>
+    <script src="./javascript/jquery.tabs.js" type="text/javascript"></script>
+    <script src="./javascript/gollum.js" type="text/javascript"></script>
+  </head>
+
+  <body>
+    <div id="main">
+      <div class="site">
+        <div id="guides">
+          <div class="guide">
+            <div class="main">
+              <div class="actions">
+                <div>
+                  <a href="./Home.html">Aurelius Titan</a>
+                </div>
+              </div>
+              <h1>Datatype and Attribute Serializer Configuration</h1>
+              <div class="content wikistyle gollum textile">
+                <p>Titan supports a number of classes for attribute values on properties. Titan efficiently serializes primitives, primitive arrays, <code>Date</code>, <code>ArrayList</code> and <code>HashMap</code>. By default, Titan allows arbitrary objects as attribute values on properties, but those use default serializer which have significant overhead and may not be as efficient.</p>
+<table>
+<tr>
+<th>Option </th>
+		<th>Description </th>
+		<th>Value </th>
+		<th>Default </th>
+		<th>Modifiable </th>
+	</tr>
+<tr>
+<td> attributes.allow-all </td>
+		<td> If enabled, arbitrary objects can be used as attributes on properties otherwise only pre-configured and configured attributes are allowed </td>
+		<td> <em>true</em> or <em>false</em> </td>
+		<td> <em>true</em> </td>
+		<td> No </td>
+	</tr>
+</table><p>To configure a custom attribute class with a custom serializer, follow these steps:</p>
+<ol>
+<li>Implement a custom <code>AttributeSerializer</code> for the custom attribute class</li>
+	<li>Add the following configuration options where [X] is the custom attribute id that must be larger than all attribute ids for already configured custom attributes:
+	<ol>
+<li><code>attributes.attribute[X] = [Full attribute class name]</code></li>
+		<li><code>attributes.serializer[X] = [Full serializer class name]</code></li>
+	</ol>
+</li>
+</ol><p>For example, suppose we want to register a special integer attribute class called <code>SpecialInt</code> and have implemented a custom serializer <code>SpecialIntSerializer</code> that implements <code>AttributeSerializer</code>. We already have 9 custom attributes configured in the configuration file, so we would add the following lines<br></p><div class="highlight">
+<pre><span class="n">attributes</span><span class="p">.</span><span class="n">attribute10</span> <span class="p">=</span> <span class="n">com</span><span class="p">.</span><span class="n">example</span><span class="p">.</span><span class="n">SpecialInt</span>
+<span class="n">attributes</span><span class="p">.</span><span class="n">serializer10</span> <span class="p">=</span> <span class="n">com</span><span class="p">.</span><span class="n">example</span><span class="p">.</span><span class="n">SpecialIntSerializer</span>
+</pre>
+</div>
+
+<h2>Custom Object Serialization</h2>
+<p>Titan supports arbitrary objects as property attributes and uses <a href="http://code.google.com/p/kryo/">Kryo’s</a> <a href="http://code.google.com/p/kryo/#Default_serializers">default serializers</a> to serialize such objects to disk. For this default serializer to work for a custom class, the following two conditions must be fulfilled:</p>
+<ul>
+<li>The class must have a no-argument constructor</li>
+	<li>The class must implement the <code>equals(Object)</code> method</li>
+</ul><p>The second requirement is Titan specific because Titan will test bot serialization and deserialization of a custom class before persisting data to disk.</p>
+              </div>
+            </div>
+          </div>
+          <div class="admin">
+            <div style="float: left;">
+              <small>Last edited by <b>Dan LaRocque</b>, 2013-07-28 06:49:42</small>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

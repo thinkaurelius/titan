@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+    <title>Global Graph Analytics</title>
+    <link rel="stylesheet" href="./css/screen.css" type="text/css" charset="utf-8" />
+    <link rel="stylesheet" href="./css/gollum.css" type="text/css" charset="utf-8" />
+    <link rel="stylesheet" href="./css/syntax.css" type="text/css" charset="utf-8" />
+    <script src="./javascript/jquery-1.4.2.min.js" type="text/javascript"></script>
+    <script src="./javascript/jquery.text_selection-1.0.0.min.js" type="text/javascript"></script>
+    <script src="./javascript/jquery.previewable_comment_form.js" type="text/javascript"></script>
+    <script src="./javascript/jquery.tabs.js" type="text/javascript"></script>
+    <script src="./javascript/gollum.js" type="text/javascript"></script>
+  </head>
+
+  <body>
+    <div id="main">
+      <div class="site">
+        <div id="guides">
+          <div class="guide">
+            <div class="main">
+              <div class="actions">
+                <div>
+                  <a href="./Home.html">Aurelius Titan</a>
+                </div>
+              </div>
+              <h1>Global Graph Analytics</h1>
+              <div class="content wikistyle gollum textile">
+                <p><img src="images/faunus-diagram.png" alt=""></p>
+<p>Titan is designed to compute numerous, concurrent, short-lived, local graph traversals. Titan is <em>not</em> designed for global graph analysis. In order to understand the difference, a itemization of each term above is defined below.</p>
+<ul>
+<li>
+<strong>Numerous concurrent interactions</strong>: the graph is being queried, in parallel, by different users solving different problems.</li>
+	<li>
+<strong>Short-lived transactions</strong>: each interaction with Titan is intended to be real-time on the order of hundreds of milliseconds.</li>
+	<li>
+<strong>Local graph traversals</strong>: each transaction is touching a small fraction of the entire graph and as such is solving a problem within a localized region of the graph.</li>
+</ul><h2>Faunus: Graph Analytics Engine</h2>
+<p>Titan is a multi-client database in the classic sense. For performing global graph analytics, Titan relies on <a href="http://thinkaurelius.github.com/faunus/">Faunus</a>. Faunus is a batch processing framework that is optimized for computing a small number of concurrent, long running, global graph traversals.</p>
+<p>Please review Faunus documentation for instructions on how to connect <a href="https://github.com/thinkaurelius/faunus/wiki/Titan-Format">Titan to Faunus</a>. However, a short example is provided below. With Faunus it is possible to use Titan as the source of a <a href="hadoop.apache.org">Hadoop</a> MapReduce job chain. Like Titan, Faunus uses Gremlin as its traversal language. However, Faunus compiles its Gremlin statements down to MapReduce jobs. Assume the Titan/Cassandra maintains <em>The Graph of the Gods</em>. The Faunus/Gremlin shell can be used to create a <code>FaunusGraph</code>. When the traversal is evaluated, Titan serves as the data source and Hadoop serves as the data processing system.</p>
+<div class="highlight">
+<pre>faunus$ bin/gremlin.sh 
+
+         \,,,/
+         (o o)
+-----oOOo-(_)-oOOo-----
+gremlin&gt; g = FaunusFactory.open('bin/titan-cassandra-input.properties')
+==&gt;faunusgraph[titancassandrainputformat]
+gremlin&gt; g.V.count()
+12/12/15 23:58:38 INFO mapreduce.FaunusCompiler: Compiled to 1 MapReduce job(s)
+12/12/15 23:58:38 INFO mapreduce.FaunusCompiler: Executing job 1 out of 1: MapSequence[com.thinkaurelius.faunus.mapreduce.transform.VerticesMap.Map, com.thinkaurelius.faunus.mapreduce.util.CountMapReduce.Map, com.thinkaurelius.faunus.mapreduce.util.CountMapReduce.Reduce]
+...
+12/12/15 23:59:16 INFO mapred.JobClient:     Total committed heap usage (bytes)=269619200
+12/12/15 23:59:16 INFO mapred.JobClient:     Combine input records=12
+12/12/15 23:59:16 INFO mapred.JobClient:     SPLIT_RAW_BYTES=120
+12/12/15 23:59:16 INFO mapred.JobClient:     Reduce input records=1
+12/12/15 23:59:16 INFO mapred.JobClient:     Reduce input groups=1
+12/12/15 23:59:16 INFO mapred.JobClient:     Combine output records=1
+12/12/15 23:59:16 INFO mapred.JobClient:     Reduce output records=0
+12/12/15 23:59:16 INFO mapred.JobClient:     Map output records=12
+==&gt;12
+gremlin&gt; 
+</pre>
+</div>
+
+              </div>
+            </div>
+          </div>
+          <div class="admin">
+            <div style="float: left;">
+              <small>Last edited by <b>Dan LaRocque</b>, 2013-07-28 06:49:42</small>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

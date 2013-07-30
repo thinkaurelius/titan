@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+    <title>Example Graph Configuration</title>
+    <link rel="stylesheet" href="./css/screen.css" type="text/css" charset="utf-8" />
+    <link rel="stylesheet" href="./css/gollum.css" type="text/css" charset="utf-8" />
+    <link rel="stylesheet" href="./css/syntax.css" type="text/css" charset="utf-8" />
+    <script src="./javascript/jquery-1.4.2.min.js" type="text/javascript"></script>
+    <script src="./javascript/jquery.text_selection-1.0.0.min.js" type="text/javascript"></script>
+    <script src="./javascript/jquery.previewable_comment_form.js" type="text/javascript"></script>
+    <script src="./javascript/jquery.tabs.js" type="text/javascript"></script>
+    <script src="./javascript/gollum.js" type="text/javascript"></script>
+  </head>
+
+  <body>
+    <div id="main">
+      <div class="site">
+        <div id="guides">
+          <div class="guide">
+            <div class="main">
+              <div class="actions">
+                <div>
+                  <a href="./Home.html">Aurelius Titan</a>
+                </div>
+              </div>
+              <h1>Example Graph Configuration</h1>
+              <div class="content wikistyle gollum textile">
+                <p>This page illustrates a number of common graph configurations. Please refer to the <a class="internal present" href="./Graph-Configuration.html">Graph Configuration</a> documentation and the pages of the respective <a class="internal present" href="./Storage-Backend-Overview.html">storage backend</a> and <a class="internal present" href="./Indexing-Backend-Overview.html">index backend</a> for more information.</p>
+<p>Also, note that the Titan distribution includes local configuration files in the <code>bin/</code> directory.</p>
+<h3>BerkeleyDB</h3>
+<div class="highlight">
+<pre><span class="na">storage.backend</span><span class="o">=</span><span class="s">berkeleyje</span>
+<span class="na">storage.directory</span><span class="o">=</span><span class="s">/tmp/graph</span>
+
+<span class="na">storage.index.search.backend</span><span class="o">=</span><span class="s">elasticsearch</span>
+<span class="na">storage.index.search.directory</span><span class="o">=</span><span class="s">/tmp/searchindex</span>
+<span class="na">storage.index.search.client-only</span><span class="o">=</span><span class="s">false</span>
+<span class="na">storage.index.search.local-mode</span><span class="o">=</span><span class="s">true</span>
+</pre>
+</div>
+
+<p>This configuration file configures Titan to use <a class="internal present" href="./Using-BerkeleyDB.html">BerkeleyDB</a> as an embedded storage backend, meaning, Titan will start BerkeleyDB internally. The primary data will be stored in the directory <code>/tmp/graph</code>.</p>
+<p>In addition, this configures an embedded <a class="internal present" href="./Using-Elastic-Search.html">Elasticsearch</a> index backend with the name <code>search</code>. Titan will start Elasticsearch internally and it will not be externally accessible since <code>local-mode</code> is enabled. Elasticsearch stores all data for the <code>search</code> index in <code>/tmp/searchindex</code>. Configuring an index backend is optional.</p>
+<h3>Cassandra</h3>
+<h4>Cassandra Remote</h4>
+<div class="highlight">
+<pre><span class="na">storage.backend</span><span class="o">=</span><span class="s">cassandra</span>
+<span class="na">storage.hostname</span><span class="o">=</span><span class="s">100.100.100.1,100.100.100.2</span>
+
+<span class="na">storage.index.search.backend</span><span class="o">=</span><span class="s">elasticsearch</span>
+<span class="na">storage.index.search.hostname</span><span class="o">=</span><span class="s">100.100.101.1,100.100.101.2</span>
+<span class="na">storage.index.search.client-only</span><span class="o">=</span><span class="s">true</span>
+</pre>
+</div>
+
+<p>This configuration file configures Titan to use <a class="internal present" href="./Using-Cassandra.html">Cassandra</a> as a remote storage backend. It assumes that a Cassandra cluster is running and accessible at the given IP addresses. If Cassandra is running locally, use the IP address <code>127.0.0.1</code>.</p>
+<p>In addition, this configures a remote <a class="internal present" href="./Using-Elastic-Search.html">Elasticsearch</a> index backend with the name <code>search</code>. It assumes that an Elasticsearch cluster is running and accessible at the given IP addresses. Enabling <code>client-only</code> ensures that the local instance does not join the existing Elasticsearch cluster as another node but only connects to it. Configuring an index backend is optional.</p>
+<h4>Embedded Cassandra</h4>
+<div class="highlight">
+<pre><span class="na">storage.backend</span><span class="o">=</span><span class="s">embeddedcassandra</span>
+<span class="na">storage.cassandra-config-dir</span><span class="o">=</span><span class="s">config/cassandra.yaml</span>
+
+<span class="na">storage.index.search.backend</span><span class="o">=</span><span class="s">elasticsearch</span>
+<span class="na">storage.index.search.directory</span><span class="o">=</span><span class="s">/tmp/searchindex</span>
+<span class="na">storage.index.search.client-only</span><span class="o">=</span><span class="s">false</span>
+<span class="na">storage.index.search.local-mode</span><span class="o">=</span><span class="s">true</span>
+</pre>
+</div>
+
+<p>This configuration file configures Titan to start <a class="internal present" href="./Using-Cassandra.html">Cassandra</a> internally embedded in Titan and specifies the yaml configuration file for Cassandra. Cassandra is still accessible externally and can connect to other available Cassandra nodes to form a cluster as configured in the yaml file.</p>
+<p>The optional index backend configuration is identical to embedded index configuration described above.</p>
+<h3>HBase</h3>
+<div class="highlight">
+<pre><span class="na">storage.backend</span><span class="o">=</span><span class="s">hbase</span>
+<span class="na">storage.hostname</span><span class="o">=</span><span class="s">127.0.0.1</span>
+<span class="na">storage.port</span><span class="o">=</span><span class="s">2181</span>
+
+<span class="na">storage.index.search.backend</span><span class="o">=</span><span class="s">elasticsearch</span>
+<span class="na">storage.index.search.hostname</span><span class="o">=</span><span class="s">127.0.0.1</span>
+<span class="na">storage.index.search.client-only</span><span class="o">=</span><span class="s">true</span>
+</pre>
+</div>
+
+<p>This configuration file configures Titan to use <a class="internal present" href="./Using-HBase.html">HBase</a> as a remote storage backend. It assumes that an HBase cluster is running and accessible at the given IP addresses through the configured port. If HBase is running locally, use the IP address <code>127.0.0.1</code>.</p>
+<p>The optional index backend configuration is identical to remote index configuration described above.</p>
+              </div>
+            </div>
+          </div>
+          <div class="admin">
+            <div style="float: left;">
+              <small>Last edited by <b>Dan LaRocque</b>, 2013-07-28 06:49:42</small>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

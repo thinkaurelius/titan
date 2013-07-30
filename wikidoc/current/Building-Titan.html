@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+    <title>Building Titan</title>
+    <link rel="stylesheet" href="./css/screen.css" type="text/css" charset="utf-8" />
+    <link rel="stylesheet" href="./css/gollum.css" type="text/css" charset="utf-8" />
+    <link rel="stylesheet" href="./css/syntax.css" type="text/css" charset="utf-8" />
+    <script src="./javascript/jquery-1.4.2.min.js" type="text/javascript"></script>
+    <script src="./javascript/jquery.text_selection-1.0.0.min.js" type="text/javascript"></script>
+    <script src="./javascript/jquery.previewable_comment_form.js" type="text/javascript"></script>
+    <script src="./javascript/jquery.tabs.js" type="text/javascript"></script>
+    <script src="./javascript/gollum.js" type="text/javascript"></script>
+  </head>
+
+  <body>
+    <div id="main">
+      <div class="site">
+        <div id="guides">
+          <div class="guide">
+            <div class="main">
+              <div class="actions">
+                <div>
+                  <a href="./Home.html">Aurelius Titan</a>
+                </div>
+              </div>
+              <h1>Building Titan</h1>
+              <div class="content wikistyle gollum textile">
+                <p><img src="images/building-titan.png" alt=""></p>
+<p>To build Titan you need <a href="http://git-scm.com/">git</a> and <a href="http://maven.apache.org/">Maven</a>.</p>
+<ol>
+<li>Clone the <a href="https://github.com/thinkaurelius/titan">Titan repository from GitHub</a> to a local directory.</li>
+	<li>In that directory, execute <code>mvn clean install</code>. This will build Titan and run the internal test suite. The internal test suite has no external dependencies. Note, that running all test cases requires a significant amount of time. To skip the tests when building Titan, execute <code>mvn clean install -DskipTests</code>
+</li>
+	<li>For comprehensive test coverage, execute <code>mvn clean test -P comprehensive</code>. This will run additional test covering communication to external storage backends, performance tests and concurrency tests. The comprehensive test suite uses Cassandra and HBase as external databases and requires that Cassandra and HBase are installed. Note, that running the comprehensive test suite requires a significant amount of of time (&gt; 1 hour).</li>
+</ol><h2>Depending on Titan Snapshots</h2>
+<p>For developing against the most current version of Titan, depend on Titan snapshot releases. Note, that these releases are development releases and therefore unstable and likely to change. Unless one is interested in the most recent development status of Titan, we recommend to use the stable Titan release instead.</p>
+<div class="highlight">
+<pre><span class="nt">&lt;dependency&gt;</span>
+   <span class="nt">&lt;groupId&gt;</span>com.thinkaurelius.titan<span class="nt">&lt;/groupId&gt;</span>
+   <span class="nt">&lt;artifactId&gt;</span>titan-core<span class="nt">&lt;/artifactId&gt;</span>
+   <span class="nt">&lt;version&gt;</span>X.Y.Z-SNAPSHOT<span class="nt">&lt;/version&gt;</span>
+<span class="nt">&lt;/dependency&gt;</span>
+</pre>
+</div>
+<br>
+Check the <a href="https://github.com/thinkaurelius/titan/tree/">master branch</a> for the most current release version.<br>
+SNAPSHOTs are available through the <a href="https://oss.sonatype.org/content/repositories/snapshots/com/thinkaurelius/titan/">Sonatype repository</a>.
+<p>When adding this dependency, be sure to add the following repository to the <code>pom.xml</code>:</p>
+<div class="highlight">
+<pre><span class="nt">&lt;repository&gt;</span>
+  <span class="nt">&lt;id&gt;</span>sonatype-nexus-snapshots<span class="nt">&lt;/id&gt;</span>
+  <span class="nt">&lt;name&gt;</span>Sonatype Nexus Snapshots<span class="nt">&lt;/name&gt;</span>
+  <span class="nt">&lt;url&gt;</span>https://oss.sonatype.org/content/repositories/snapshots<span class="nt">&lt;/url&gt;</span>
+  <span class="nt">&lt;releases&gt;</span>
+    <span class="nt">&lt;enabled&gt;</span>false<span class="nt">&lt;/enabled&gt;</span>
+  <span class="nt">&lt;/releases&gt;</span>
+  <span class="nt">&lt;snapshots&gt;</span>
+    <span class="nt">&lt;enabled&gt;</span>true<span class="nt">&lt;/enabled&gt;</span>
+  <span class="nt">&lt;/snapshots&gt;</span>
+<span class="nt">&lt;/repository&gt;</span>
+</pre>
+</div>
+
+<h2>FAQs</h2>
+<p>1. <strong>Maven build causes dozens of “[<span class="caps">WARNING</span>] We have a duplicate…” errors</strong><br>
+Make sure to use the maven-assembly-plugin when building or depending on Titan. Please refer to the following <a href="https://github.com/thinkaurelius/titan/issues/84">ticket</a> for more information</p>
+              </div>
+            </div>
+          </div>
+          <div class="admin">
+            <div style="float: left;">
+              <small>Last edited by <b>Dan LaRocque</b>, 2013-07-28 06:49:42</small>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

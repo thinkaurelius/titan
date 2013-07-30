@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+    <title>Storage Backend Overview</title>
+    <link rel="stylesheet" href="./css/screen.css" type="text/css" charset="utf-8" />
+    <link rel="stylesheet" href="./css/gollum.css" type="text/css" charset="utf-8" />
+    <link rel="stylesheet" href="./css/syntax.css" type="text/css" charset="utf-8" />
+    <script src="./javascript/jquery-1.4.2.min.js" type="text/javascript"></script>
+    <script src="./javascript/jquery.text_selection-1.0.0.min.js" type="text/javascript"></script>
+    <script src="./javascript/jquery.previewable_comment_form.js" type="text/javascript"></script>
+    <script src="./javascript/jquery.tabs.js" type="text/javascript"></script>
+    <script src="./javascript/gollum.js" type="text/javascript"></script>
+  </head>
+
+  <body>
+    <div id="main">
+      <div class="site">
+        <div id="guides">
+          <div class="guide">
+            <div class="main">
+              <div class="actions">
+                <div>
+                  <a href="./Home.html">Aurelius Titan</a>
+                </div>
+              </div>
+              <h1>Storage Backend Overview</h1>
+              <div class="content wikistyle gollum textile">
+                <p>Titan persists all data in a storage backend. It supports various storage backends which is denoted by the <code>storage.backend</code> option. The choice of backend determines the transactional guarantees and scalability of a particular Titan graph instance. This means, Titan can accomodate any level of isolation, consistency, scalability, or availability that a particular application may require.</p>
+<p>However, the <a href="http://en.wikipedia.org/wiki/CAP_theorem"><span class="caps">CAP</span> theorem</a> stipulates that any practical database can only provide 2 of the 3 desirable properties: Consistency, Availability, and Partitionability (i.e. scalability). The choice of storage backend is therefore a tradeoff guided by the requirements of a particular use case.</p>
+<p>Titan currently supports 3 storage backends covering all 3 edges of the <span class="caps">CAP</span> theorem triangle as shown in the figure below.</p>
+<p><span class="align-center"><span><img src="./images/titan-captheorem.png"></span></span><br><br></p>
+<h2>Storage Backend Comparison</h2>
+<table>
+<tr>
+<th>Name </th>
+		<th>
+<code>storage.option</code> </th>
+		<th>Consistency </th>
+		<th>Availability </th>
+		<th>Scalability </th>
+		<th>Replication </th>
+	</tr>
+<tr>
+<td> <a class="internal present" href="./Using-Cassandra.html">Cassandra</a> </td>
+		<td> <em>cassandra</em> </td>
+		<td> <a href="http://en.wikipedia.org/wiki/Eventual_consistency">eventually consistent</a> </td>
+		<td> highly available </td>
+		<td> linear scalability </td>
+		<td> yes </td>
+	</tr>
+<tr>
+<td> <a class="internal present" href="./Using-HBase.html">HBase</a> </td>
+		<td> <em>hbase</em> </td>
+		<td> vertex consistent </td>
+		<td> single point of failure </td>
+		<td> linear scalability </td>
+		<td> yes </td>
+	</tr>
+<tr>
+<td> <a class="internal present" href="./Using-BerkeleyDB.html">BerkeleyDB</a> </td>
+		<td> <em>berkeleyje</em> </td>
+		<td> <a href="http://en.wikipedia.org/wiki/ACID"><span class="caps">ACID</span></a> </td>
+		<td> single point of failure </td>
+		<td> single machine </td>
+		<td> HA mode available </td>
+	</tr>
+</table>
+              </div>
+            </div>
+          </div>
+          <div class="admin">
+            <div style="float: left;">
+              <small>Last edited by <b>Dan LaRocque</b>, 2013-07-28 06:49:42</small>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
