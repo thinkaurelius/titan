@@ -304,8 +304,8 @@ public class LuceneIndex implements IndexProvider {
             } else if (value instanceof String) {
                 if (relation == Text.CONTAINS) {
                     return new TermsFilter(new Term(key,((String)value).toLowerCase()));
-//                } else if (relation == Txt.PREFIX) {
-//                    return new PrefixFilter(new Term(key+STR_SUFFIX,(String)value));
+                } else if (relation == Text.PREFIX) {
+                    return new PrefixFilter(new Term(key,(String)value));
 //                } else if (relation == Cmp.EQUAL) {
 //                    return new TermsFilter(new Term(key+STR_SUFFIX,(String)value));
 //                } else if (relation == Cmp.NOT_EQUAL) {
@@ -351,7 +351,7 @@ public class LuceneIndex implements IndexProvider {
         } else if (dataType == Geoshape.class) {
             return relation== Geo.WITHIN;
         } else if (dataType == String.class) {
-            return relation == Text.CONTAINS; // || relation == Txt.PREFIX || relation == Cmp.EQUAL || relation == Cmp.NOT_EQUAL;
+            return relation == Text.CONTAINS || relation == Text.PREFIX ; // || relation == Cmp.EQUAL || relation == Cmp.NOT_EQUAL;
         } else return false;
     }
 

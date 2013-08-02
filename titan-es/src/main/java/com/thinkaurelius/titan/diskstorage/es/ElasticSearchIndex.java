@@ -332,17 +332,14 @@ public class ElasticSearchIndex implements IndexProvider {
                     }
                 }
             } else if (value instanceof String) {
-                if (relation == Text.CONTAINS) {
-                    return FilterBuilders.termFilter(key,((String)value).toLowerCase());
-//                } else if (relation == Txt.PREFIX) {
-//                    return new PrefixFilter(new Term(key+STR_SUFFIX,(String)value));
-//                } else if (relation == Cmp.EQUAL) {
-//                    return new TermsFilter(new Term(key+STR_SUFFIX,(String)value));
-//                } else if (relation == Cmp.NOT_EQUAL) {
-//                    BooleanFilter q = new BooleanFilter();
-//                    q.add(new TermsFilter(new Term(key+STR_SUFFIX,(String)value)), BooleanClause.Occur.MUST_NOT);
-//                    return q;
-                } else throw new IllegalArgumentException("Relation is not supported for string value: " + relation);
+				if(relation == Text.CONTAINS)
+					return FilterBuilders.termFilter(key,((String)value).toLowerCase());
+				else if(relation == Text.REGEXP)
+					return FilterBuilders.regexpFilter(key,(String)value).cache(true);
+				else if(relation == Text.PREFIX)
+					return FilterBuilders.prefixFilter(key,((String)value).toLowerCase()).cache(true);
+				else
+					throw new IllegalArgumentException("Relation is not supported for string value: " + relation);
             } else if (value instanceof Geoshape) {
                 Preconditions.checkArgument(relation==Geo.WITHIN,"Relation is not supported for geo value: " + relation);
                 Geoshape shape = (Geoshape)value;
@@ -403,7 +400,7 @@ public class ElasticSearchIndex implements IndexProvider {
         } else if (dataType == Geoshape.class) {
             return relation== Geo.WITHIN;
         } else if (dataType == String.class) {
-            return relation == Text.CONTAINS; // || relation == Txt.PREFIX || relation == Cmp.EQUAL || relation == Cmp.NOT_EQUAL;
+            return relation == Text.CONTAINS || relation == Text.PREFIX || relation == Text.REGEXP;
         } else return false;
     }
 
