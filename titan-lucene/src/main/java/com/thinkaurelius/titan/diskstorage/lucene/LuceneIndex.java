@@ -304,7 +304,7 @@ public class LuceneIndex implements IndexProvider {
             } else if (value instanceof String) {
                 if (relation == Text.CONTAINS) {
                     return new TermsFilter(new Term(key,((String)value).toLowerCase()));
-                } else if (relation == Txt.PREFIX) {
+                } else if (relation == Text.PREFIX) {
                     return new PrefixFilter(new Term(key,(String)value));
 //                } else if (relation == Cmp.EQUAL) {
 //                    return new TermsFilter(new Term(key+STR_SUFFIX,(String)value));
