@@ -118,7 +118,7 @@ public class TitanGraphQueryBuilder implements TitanGraphQuery, QueryOptimizer<S
 
 
     @Override
-    public TitanGraphQueryBuilder limit(long max) {
+    public TitanGraphQuery limit(long max) {
         Preconditions.checkArgument(max>=0,"Non-negative limit expected: %s",max);
         Preconditions.checkArgument(max<=Integer.MAX_VALUE,"Limit expected to be smaller or equal than [%s] but given %s",Integer.MAX_VALUE,limit);
         this.limit=(int)max;
