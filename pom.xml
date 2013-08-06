@@ -78,6 +78,7 @@
         <module>titan-cassandra</module>
         <module>titan-es</module>
         <module>titan-lucene</module>
+        <!--<module>titan-solr</module>-->
         <module>titan-hbase</module>
         <module>titan-all</module>
     </modules>

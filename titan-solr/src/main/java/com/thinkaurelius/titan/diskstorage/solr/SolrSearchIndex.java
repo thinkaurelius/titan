@@ -2,6 +2,10 @@ package com.thinkaurelius.titan.diskstorage.solr;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Sets;
+import com.thinkaurelius.titan.core.attribute.Cmp;
+import com.thinkaurelius.titan.core.attribute.Geo;
+import com.thinkaurelius.titan.core.attribute.Geoshape;
+import com.thinkaurelius.titan.core.attribute.Text;
 import com.thinkaurelius.titan.diskstorage.StorageException;
 import com.thinkaurelius.titan.diskstorage.TemporaryStorageException;
 import com.thinkaurelius.titan.diskstorage.TransactionHandle;
@@ -17,21 +21,27 @@ import org.apache.solr.common.SolrInputDocument;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.util.*;
+
+import static com.thinkaurelius.titan.diskstorage.solr.SolrSearchConstants.*;
 
 /**
  * @author Jared Holmberg (jholmberg@bericotechnologies.com)
  */
 public class SolrSearchIndex implements IndexProvider {
 
+    private boolean isEmbeddedMode;
     private Logger log = LoggerFactory.getLogger(SolrSearchIndex.class);
-
-    public static final String SOLR_KEY_FIELD = "solr.key.field.name";
-    public static final String SOLR_DEFAULT_KEY_FIELD = "docid";
 
     private String keyIdField;
 
-    private SolrServer solrServer;
+    /**
+     * Builds a mapping between the core name and its respective Solr Server connection.
+     */
+    private Map<String, SolrServer> solrServers;
+
+    private List<String> coreNames;
 
     public SolrSearchIndex(Configuration config) {
         //There are several different modes in which solr can be found running:
@@ -39,8 +49,16 @@ public class SolrSearchIndex implements IndexProvider {
         //2. HttpSolrServer - used to connect to Solr instance via Apache HTTP client to a specific solr instance bound to a specific URL.
         //3. CloudSolrServer - used to connect to a SolrCloud cluster that uses Apache Zookeeper. This lets clients hit one host and Zookeeper distributes queries and writes automatically
         SolrServerFactory factory = new SolrServerFactory();
+
+        coreNames = SolrSearchUtils.parseConfigForCoreNames(config);
+
         try {
-            solrServer = factory.buildSolrServer(config);
+            solrServers = factory.buildSolrServers(config);
+
+            String mode = config.getString(SOLR_MODE, SOLR_MODE_EMBEDDED);
+            if (mode.equalsIgnoreCase(SOLR_MODE_EMBEDDED)) {
+                isEmbeddedMode = true;
+            }
 
         } catch (Exception e) {
             log.error("Unable to generate a Solr Server connection.", e);
@@ -49,6 +67,8 @@ public class SolrSearchIndex implements IndexProvider {
         keyIdField = config.getString(SOLR_KEY_FIELD, SOLR_DEFAULT_KEY_FIELD);
         log.trace("Will use field name of {} as the identifying field for documents in Solr. This can be changed by updating the {} field in settings.", keyIdField, SOLR_KEY_FIELD);
     }
+
+
 
     /**
      * Unlike the ElasticSearch Index, which is schema free, Solr requires a schema to
@@ -78,10 +98,11 @@ public class SolrSearchIndex implements IndexProvider {
      */
     @Override
     public void mutate(Map<String, Map<String, IndexMutation>> mutations, TransactionHandle tx) throws StorageException {
-        int bulkRequests = 0;
+
         try {
             for (Map.Entry<String, Map<String, IndexMutation>> stores : mutations.entrySet()) {
-                String storeName = stores.getKey();
+                String coreName = stores.getKey();
+                SolrServer server = solrServers.get(coreName);
 
                 List<String> deleteIds = new ArrayList<String>();
                 Collection<SolrInputDocument> newDocuments = new ArrayList<SolrInputDocument>();
@@ -99,7 +120,6 @@ public class SolrSearchIndex implements IndexProvider {
                         if (mutation.isDeleted()) {
                             log.trace("Deleting entire document from Solr {}", docId);
                             deleteIds.add(docId);
-                            bulkRequests++;
                         }
                     } else {
                         Set<String> fieldDeletions = Sets.newHashSet(mutation.getDeletions());
@@ -119,7 +139,7 @@ public class SolrSearchIndex implements IndexProvider {
                                 sb.append(sb + ",");
                             }
                             log.trace("Deleting individual fields [{}] for document {}", sb.toString(), docId);
-                            solrServer.add(doc);
+                            server.add(doc);
 
                         }
                     }
@@ -129,6 +149,7 @@ public class SolrSearchIndex implements IndexProvider {
                         if (mutation.isNew()) { //Index
                             log.trace("Adding new document {}", docId);
                             SolrInputDocument newDoc = new SolrInputDocument();
+                            newDoc.addField(keyIdField, docId);
                             for (IndexEntry ie : additions) {
                                 newDoc.addField(ie.key, ie.value);
                             }
@@ -151,52 +172,118 @@ public class SolrSearchIndex implements IndexProvider {
                     }
                 }
 
-                if (deleteIds.size() > 0) {
-                    solrServer.deleteById(deleteIds);
-                }
-
-                if (newDocuments.size() > 0) {
-                    solrServer.add(newDocuments);
-                }
-
-                if (updateDocuments.size() > 0) {
-                    solrServer.add(updateDocuments);
-                }
+                commitDeletes(server, deleteIds);
+                commitDocumentChanges(server, newDocuments);
+                commitDocumentChanges(server, updateDocuments);
             }
-            solrServer.commit();
+
         } catch (Exception e) {
             throw storageException(e);
         }
     }
+
+    private void commitDocumentChanges(SolrServer server, Collection<SolrInputDocument> documents) throws SolrServerException, IOException {
+        if (documents.size() > 0) {
+            if (isEmbeddedMode) {
+                int commitWithinMs = 10000;
+                for(SolrInputDocument doc : documents) {
+                    server.add(doc, commitWithinMs);
+                    server.commit();
+                }
+            } else {
+                server.add(documents);
+                server.commit();
+            }
+        }
+    }
+
+    private void commitDeletes(SolrServer server, List<String> deleteIds) throws SolrServerException, IOException {
+        if (deleteIds.size() > 0) {
+            server.deleteById(deleteIds);
+            server.commit();
+        }
+    }
+
 
     @Override
     public List<String> query(IndexQuery query, TransactionHandle tx) throws StorageException {
         return null;  //To change body of implemented methods use File | Settings | File Templates.
     }
 
+    /**
+     * Solr handles all transactions on the server-side. That means all
+     * commit, optimize, or rollback applies since the last commit/optimize/rollback.
+     * Solr documentation recommends best way to update Solr is in one process to avoid
+     * race conditions.
+     * @return
+     * @throws StorageException
+     */
     @Override
     public TransactionHandle beginTransaction() throws StorageException {
-        return null;  //To change body of implemented methods use File | Settings | File Templates.
+        return TransactionHandle.NO_TRANSACTION;
     }
 
     @Override
     public void close() throws StorageException {
-        //To change body of implemented methods use File | Settings | File Templates.
+        for (Map.Entry<String, SolrServer> pair : solrServers.entrySet()) {
+
+            String coreName = pair.getKey();
+            SolrServer server = pair.getValue();
+            log.trace("Shutting down connection to Solr Core: " + coreName);
+            server.shutdown();
+
+            if (isEmbeddedMode) {
+                break;
+            }
+
+
+        }
+        solrServers.clear();
     }
 
     @Override
     public void clearStorage() throws StorageException {
-        //To change body of implemented methods use File | Settings | File Templates.
+        try {
+            for (Map.Entry<String, SolrServer> pair : solrServers.entrySet()) {
+                String coreName = pair.getKey();
+                SolrServer server = pair.getValue();
+                log.trace("Clearing storage from Solr Core: " + coreName);
+                server.deleteByQuery("*:*");
+            }
+        } catch (SolrServerException e) {
+            log.error("Unable to clear storage from index due to server error on Solr.", e);
+        } catch (IOException e) {
+            log.error("Unable to clear storage from index due to low-level I/O error.", e);
+        } catch (Exception e) {
+            log.error("Unable to clear storage from index due to general error.", e);
+        }
     }
 
     @Override
     public boolean supports(Class<?> dataType, Relation relation) {
-        return false;  //To change body of implemented methods use File | Settings | File Templates.
+        if (Number.class.isAssignableFrom(dataType)) {
+            if (relation instanceof Cmp) {
+                return true;
+            } else {
+                return false;
+            }
+        } else if (dataType == Geoshape.class) {
+            return relation == Geo.WITHIN;
+        } else if (dataType == String.class) {
+            return relation == Text.CONTAINS;
+        } else {
+            return false;
+        }
     }
 
     @Override
     public boolean supports(Class<?> dataType) {
-        return false;  //To change body of implemented methods use File | Settings | File Templates.
+        if (Number.class.isAssignableFrom(dataType) ||
+                dataType == Geoshape.class ||
+                dataType == String.class) {
+            return true;
+        }
+        return false;
     }
 
     private StorageException storageException(Exception solrException) {
