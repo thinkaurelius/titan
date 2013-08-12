@@ -97,21 +97,17 @@ public class SolrServerFactory {
     private Map<String, SolrServer> buildHttpSolrServer(Configuration config)
             throws SolrException {
         HttpSolrServer server = null;
-
-
-
-        String url = config.getString(SOLR_HTTP_URL, SOLR_HTTP_DEFAULT_URL);
-        server = new HttpSolrServer(url);
-        server.setConnectionTimeout(config.getInt(SOLR_HTTP_CONNECTION_TIMEOUT,SOLR_HTTP_CONNECTION_DEFAULT_TIMEOUT));
-        server.setAllowCompression(config.getBoolean(SOLR_HTTP_CONNECTION_ALLOW_COMPRESSION, SOLR_HTTP_CONNECTION_DEFAULT_ALLLOW_COMPRESSION));
-        server.setDefaultMaxConnectionsPerHost(config.getInt(SOLR_HTTP_CONNECTION_MAX_CONNECTIONS, SOLR_HTTP_CONNECTION_DEFAULT_MAX_CONNECTIONS_PER_HOST));
-        server.setMaxTotalConnections(config.getInt(SOLR_HTTP_CONNECTION_MAX_CONNECTIONS, SOLR_HTTP_CONNECTION_DEFAULT_MAX_CONNECTIONS));
-
         List<String> coreNames = SolrSearchUtils.parseConfigForCoreNames(config);
-
-        createCoreIfNotExists(coreNames, server);
         Map<String, SolrServer> servers = new HashMap<String, SolrServer>();
         for (String coreName : coreNames) {
+            String url = config.getString(SOLR_HTTP_URL, SOLR_HTTP_DEFAULT_URL);
+            server = new HttpSolrServer(url + "/" +  coreName);
+
+            server.setConnectionTimeout(config.getInt(SOLR_HTTP_CONNECTION_TIMEOUT,SOLR_HTTP_CONNECTION_DEFAULT_TIMEOUT));
+            server.setAllowCompression(config.getBoolean(SOLR_HTTP_CONNECTION_ALLOW_COMPRESSION, SOLR_HTTP_CONNECTION_DEFAULT_ALLLOW_COMPRESSION));
+            server.setDefaultMaxConnectionsPerHost(config.getInt(SOLR_HTTP_CONNECTION_MAX_CONNECTIONS, SOLR_HTTP_CONNECTION_DEFAULT_MAX_CONNECTIONS_PER_HOST));
+            server.setMaxTotalConnections(config.getInt(SOLR_HTTP_CONNECTION_MAX_CONNECTIONS, SOLR_HTTP_CONNECTION_DEFAULT_MAX_CONNECTIONS));
+
             servers.put(coreName, server);
         }
         return servers;
@@ -119,45 +115,40 @@ public class SolrServerFactory {
 
 
 
-    private void createCoreIfNotExists(List<String> coreNames, SolrServer server) {
-        if (coreNames == null || coreNames.size() == 0) {
-            return;
-        }
+    private void createCoreIfNotExists(String coreName, SolrServer server) {
 
-        for (String coreName : coreNames) {
-            CoreAdminRequest coreRequest = new CoreAdminRequest();
-            coreRequest.setAction(CoreAdminParams.CoreAdminAction.STATUS);
+        CoreAdminRequest coreRequest = new CoreAdminRequest();
+        coreRequest.setAction(CoreAdminParams.CoreAdminAction.STATUS);
+        try {
+            NamedList<Object> coreStatus = null;
             try {
-                NamedList<Object> coreStatus = null;
-                try {
-                    CoreAdminResponse statusResponse = coreRequest.process(server);
-                    coreStatus = statusResponse.getCoreStatus(coreName);
-                } catch (SolrException e) {
-                    log.error("Unable to successfully determine status of cores on solr server provided.", e);
-                }
-
-                if (coreStatus != null) {
-                    log.trace("Core {} already created.", coreName);
-                } else {
-
-                    coreRequest = new CoreAdminRequest();
-                    coreRequest.setCoreName(coreName);
-                    coreRequest.setAction(CoreAdminParams.CoreAdminAction.CREATE);
-                    try {
-                        CoreAdminResponse createResponse = coreRequest.process(server);
-                        if (createResponse.getUptime(coreName) > 0L) {
-                            log.trace("Core {} successfully created.", coreName);
-                        }
-
-                    } catch (Exception e) {
-                        log.error("Unable to create requested core " +  coreName, e);
-                    }
-                }
-            } catch (SolrServerException e) {
+                CoreAdminResponse statusResponse = coreRequest.process(server);
+                coreStatus = statusResponse.getCoreStatus(coreName);
+            } catch (SolrException e) {
                 log.error("Unable to successfully determine status of cores on solr server provided.", e);
-            } catch (IOException e) {
-                log.error("Unable to establish connection with solr server.", e);
             }
+
+            if (coreStatus != null) {
+                log.trace("Core {} already created.", coreName);
+            } else {
+
+                coreRequest = new CoreAdminRequest();
+                coreRequest.setCoreName(coreName);
+                coreRequest.setAction(CoreAdminParams.CoreAdminAction.CREATE);
+                try {
+                    CoreAdminResponse createResponse = coreRequest.process(server);
+                    if (createResponse.getUptime(coreName) > 0L) {
+                        log.trace("Core {} successfully created.", coreName);
+                    }
+
+                } catch (Exception e) {
+                    log.error("Unable to create requested core " +  coreName, e);
+                }
+            }
+        } catch (SolrServerException e) {
+            log.error("Unable to successfully determine status of cores on solr server provided.", e);
+        } catch (IOException e) {
+            log.error("Unable to establish connection with solr server.", e);
         }
 
     }
@@ -174,9 +165,9 @@ public class SolrServerFactory {
 
             List<String> coreNames = SolrSearchUtils.parseConfigForCoreNames(config);
 
-            createCoreIfNotExists(coreNames, server);
 
             for (String coreName : coreNames) {
+                createCoreIfNotExists(coreName, server);
                 servers.put(coreName, server);
             }
         } catch (MalformedURLException e) {

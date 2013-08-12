@@ -13,6 +13,7 @@ import com.thinkaurelius.titan.diskstorage.indexing.IndexEntry;
 import com.thinkaurelius.titan.diskstorage.indexing.IndexMutation;
 import com.thinkaurelius.titan.diskstorage.indexing.IndexProvider;
 import com.thinkaurelius.titan.diskstorage.indexing.IndexQuery;
+import com.thinkaurelius.titan.diskstorage.solr.transform.GeoToWktConverter;
 import com.thinkaurelius.titan.graphdb.query.keycondition.Relation;
 import org.apache.commons.configuration.Configuration;
 import org.apache.solr.client.solrj.SolrServer;
@@ -102,7 +103,7 @@ public class SolrSearchIndex implements IndexProvider {
         try {
             for (Map.Entry<String, Map<String, IndexMutation>> stores : mutations.entrySet()) {
                 String coreName = stores.getKey();
-                SolrServer server = solrServers.get(coreName);
+                SolrServer solr = solrServers.get(coreName);
 
                 List<String> deleteIds = new ArrayList<String>();
                 Collection<SolrInputDocument> newDocuments = new ArrayList<SolrInputDocument>();
@@ -139,7 +140,8 @@ public class SolrSearchIndex implements IndexProvider {
                                 sb.append(sb + ",");
                             }
                             log.trace("Deleting individual fields [{}] for document {}", sb.toString(), docId);
-                            server.add(doc);
+                            solr.add(doc);
+                            solr.commit();
 
                         }
                     }
@@ -151,9 +153,16 @@ public class SolrSearchIndex implements IndexProvider {
                             SolrInputDocument newDoc = new SolrInputDocument();
                             newDoc.addField(keyIdField, docId);
                             for (IndexEntry ie : additions) {
-                                newDoc.addField(ie.key, ie.value);
+                                Object fieldValue = ie.value;
+                                if (GeoToWktConverter.isGeoshape(ie.value))  {
+                                    fieldValue = GeoToWktConverter.convertToWktString(ie.value);
+                                }
+                                newDoc.addField(ie.key, fieldValue);
                             }
-                            newDocuments.add(newDoc);
+                            //newDocuments.add(newDoc);
+                            solr.add(newDoc);
+
+                            solr.commit();
 
                         } else { //Update
                             boolean doUpdate = (false == mutation.hasDeletions());
@@ -161,20 +170,26 @@ public class SolrSearchIndex implements IndexProvider {
                             updateDoc.addField(keyIdField, docId);
                             for (IndexEntry ie : additions) {
                                 Map<String, String> updateFields = new HashMap<String, String>();
-                                updateFields.put("set", ie.value.toString());
+                                Object fieldValue = ie.value;
+                                if (GeoToWktConverter.isGeoshape(ie.value))  {
+                                    fieldValue = GeoToWktConverter.convertToWktString(ie.value);
+                                }
+                                updateFields.put("set", fieldValue.toString());
                                 updateDoc.addField(ie.key, updateFields);
                             }
                             if (doUpdate) {
-                                updateDocuments.add(updateDoc);
+                                //updateDocuments.add(updateDoc);
+                                solr.add(updateDoc);
+                                solr.commit();
                             }
                         }
 
                     }
                 }
 
-                commitDeletes(server, deleteIds);
-                commitDocumentChanges(server, newDocuments);
-                commitDocumentChanges(server, updateDocuments);
+//                commitDeletes(server, deleteIds);
+//                commitDocumentChanges(server, newDocuments);
+//                commitDocumentChanges(server, updateDocuments);
             }
 
         } catch (Exception e) {
