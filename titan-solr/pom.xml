@@ -10,6 +10,7 @@
 
     <properties>
         <solr.version>4.4.0</solr.version>
+        <zookeeper.version>3.4.5</zookeeper.version>
     </properties>
     <artifactId>titan-solr</artifactId>
     <name>Titan-Solr: Distributed Indexing Support</name>
@@ -35,8 +36,17 @@
             <artifactId>solr-core</artifactId>
             <groupId>org.apache.solr</groupId>
             <version>${solr.version}</version>
-            <type>jar</type>
-            <scope>compile</scope>
+            <!-- As of 08/12/13
+                solr-core uses Zookeeper 3.4.2 and solr-solrj uses Zookeeper 3.4.5.
+                This generates a maven enforcer convergence issue. Added exception to this dependency to
+                resolve the issue.
+            -->
+            <exclusions>
+                <exclusion>
+                    <groupId>org.apache.zookeeper</groupId>
+                    <artifactId>zookeeper</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>javax.servlet</groupId>

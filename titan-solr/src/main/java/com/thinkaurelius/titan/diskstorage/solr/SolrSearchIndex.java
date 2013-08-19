@@ -2,10 +2,7 @@ package com.thinkaurelius.titan.diskstorage.solr;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Sets;
-import com.thinkaurelius.titan.core.attribute.Cmp;
-import com.thinkaurelius.titan.core.attribute.Geo;
-import com.thinkaurelius.titan.core.attribute.Geoshape;
-import com.thinkaurelius.titan.core.attribute.Text;
+import com.thinkaurelius.titan.core.attribute.*;
 import com.thinkaurelius.titan.diskstorage.StorageException;
 import com.thinkaurelius.titan.diskstorage.TemporaryStorageException;
 import com.thinkaurelius.titan.diskstorage.TransactionHandle;
@@ -14,8 +11,11 @@ import com.thinkaurelius.titan.diskstorage.indexing.IndexMutation;
 import com.thinkaurelius.titan.diskstorage.indexing.IndexProvider;
 import com.thinkaurelius.titan.diskstorage.indexing.IndexQuery;
 import com.thinkaurelius.titan.diskstorage.solr.transform.GeoToWktConverter;
+import com.thinkaurelius.titan.graphdb.query.keycondition.KeyAtom;
+import com.thinkaurelius.titan.graphdb.query.keycondition.KeyCondition;
 import com.thinkaurelius.titan.graphdb.query.keycondition.Relation;
 import org.apache.commons.configuration.Configuration;
+import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.SolrServer;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.common.SolrInputDocument;
@@ -222,7 +222,64 @@ public class SolrSearchIndex implements IndexProvider {
 
     @Override
     public List<String> query(IndexQuery query, TransactionHandle tx) throws StorageException {
-        return null;  //To change body of implemented methods use File | Settings | File Templates.
+        String core = query.getStore();
+        SolrServer solr = this.solrServers.get(core);
+        SolrQuery solrQuery = new SolrQuery();
+
+
+        return new ArrayList<String>();
+    }
+
+    public SolrQuery buildQuery(SolrQuery q, KeyCondition<String> condition) {
+        if (condition instanceof KeyAtom) {
+            KeyAtom<String> atom= (KeyAtom<String>) condition;
+            Object value = atom.getCondition();
+            String key = atom.getKey();
+            Relation relation = atom.getRelation();
+
+            if (value instanceof Number ||
+                value instanceof Interval) {
+
+                Preconditions.checkArgument(relation instanceof Cmp, "Relation not supported on numeric types: " + relation);
+                Cmp numRel = (Cmp) relation;
+                if (numRel == Cmp.INTERVAL) {
+                    Interval i = (Interval)value;
+                    q.addFacetQuery(key + ":[" + i.getStart() + " TO " + "]");
+                    return q;
+                } else {
+                    Preconditions.checkArgument(value instanceof Number);
+
+                    switch (numRel) {
+                        case EQUAL:
+                            q.addFacetQuery(key + ":" + value.toString());
+                            return q;
+                        case NOT_EQUAL:
+                            q.addFacetQuery("-" + key + ":" + value.toString());
+                            return q;
+                        case LESS_THAN:
+                            //use right curly to mean up to but not including value
+                            q.addFacetQuery(key + ":[* TO " + value.toString() + "}");
+                            return q;
+                        case LESS_THAN_EQUAL:
+                            q.addFacetQuery(key + ":[* TO " + value.toString() + "]");
+                            return q;
+                        case GREATER_THAN:
+                            //use left curly to mean greater than but not including value
+                            q.addFacetQuery(key + ":{" + value.toString() + " TO *]");
+                            return q;
+                        case GREATER_THAN_EQUAL:
+                            q.addFacetQuery(key + ":[" + value.toString() + " TO *]");
+                            return q;
+                        default: throw new IllegalArgumentException("Unexpected relation: " + numRel);
+                    }
+                }
+            } else if (value instanceof String) {
+                if (relation == Text.CONTAINS) {
+
+                }
+            }
+        }
+        return null;
     }
 
     /**
