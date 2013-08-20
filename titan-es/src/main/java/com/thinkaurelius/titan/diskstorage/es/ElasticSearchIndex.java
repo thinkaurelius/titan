@@ -191,7 +191,7 @@ public class ElasticSearchIndex implements IndexProvider {
                 throw new PermanentStorageException("Could not render json for put mapping request",e);
             }
             try {
-            PutMappingResponse response = client.admin().indices().preparePutMapping(indexName).
+                PutMappingResponse response = client.admin().indices().preparePutMapping(indexName).
                     setIgnoreConflicts(false).setType(store).setSource(mapping).execute().actionGet();
             } catch (Exception e) {
                 throw convert(e);
