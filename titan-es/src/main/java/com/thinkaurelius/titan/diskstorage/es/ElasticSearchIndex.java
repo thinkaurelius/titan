@@ -379,6 +379,7 @@ public class ElasticSearchIndex implements IndexProvider {
         srb.setQuery(QueryBuilders.matchAllQuery());
         srb.setFilter(getFilter(query.getCondition()));
         srb.setFrom(0);
+        srb.setNoFields();
         if (query.hasLimit()) srb.setSize(query.getLimit());
         else srb.setSize(MAX_RESULT_SET_SIZE);
         //srb.setExplain(true);
