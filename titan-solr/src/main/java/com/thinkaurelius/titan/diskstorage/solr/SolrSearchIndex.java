@@ -275,11 +275,61 @@ public class SolrSearchIndex implements IndexProvider {
                 }
             } else if (value instanceof String) {
                 if (relation == Text.CONTAINS) {
-
+                    //e.g. - if terms tomorrow and world were supplied, and fq=text:(tomorrow  world)
+                    //sample data set would return 2 documents: one where text = Tomorrow is the World,
+                    //and the second where text = Hello World
+                    q.addFacetQuery(key + ":("+((String) value).toLowerCase()+")");
+                    return q;
+                } else {
+                    throw new IllegalArgumentException("Relation is not supported for string value: " + relation);
+                }
+            } else if (value instanceof Geoshape) {
+                Geoshape geo = (Geoshape)value;
+                if (geo.getType() == Geoshape.Type.CIRCLE) {
+                    Geoshape.Point center = geo.getPoint();
+                    q.addFacetQuery("{!geofilt sfield=" + key +
+                            " pt=" + center.getLatitude() + "," + center.getLongitude() +
+                            " d=" + geo.getRadius() + "}"); //distance in kilometers
+                    return q;
+                } else if (geo.getType() == Geoshape.Type.BOX) {
+                    Geoshape.Point southwest = geo.getPoint(0);
+                    Geoshape.Point northeast = geo.getPoint(1);
+                    q.addFacetQuery(key + ":[" + southwest.getLatitude() + "," + southwest.getLongitude() +
+                                    " TO " + northeast.getLatitude() + "," + northeast.getLongitude() + "]");
+                    return q;
+                } else if (geo.getType() == Geoshape.Type.POLYGON) {
+                    List<Geoshape.Point> coordinates = getPolygonPoints(geo);
+                    StringBuilder poly = new StringBuilder(key + ":\"IsWithin(POLYGON((");
+                    for (Geoshape.Point coordinate : coordinates) {
+                        poly.append(coordinate.getLongitude() + " " + coordinate.getLatitude() + ", ");
+                    }
+                    //close the polygon with the first coordinate
+                    poly.append(coordinates.get(0).getLongitude() + " " + coordinates.get(0).getLatitude())
+                    poly.append(")))\" distErrPct=0");
+                    q.addFacetQuery(poly.toString());
+                    return q;
                 }
             }
         }
         return null;
+    }
+
+    private List<Geoshape.Point> getPolygonPoints(Geoshape polygon) {
+        List<Geoshape.Point> locations = new ArrayList<Geoshape.Point>();
+
+        int index = 0;
+        boolean hasCoordinates = true;
+        while (hasCoordinates) {
+            try {
+                locations.add(polygon.getPoint(index));
+            } catch (ArrayIndexOutOfBoundsException ignore) {
+                //just means we asked for a point past the size of the list
+                //of known coordinates
+                hasCoordinates = false;
+            }
+        }
+
+        return locations;
     }
 
     /**
