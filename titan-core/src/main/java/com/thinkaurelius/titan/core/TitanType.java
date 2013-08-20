@@ -48,8 +48,8 @@ public interface TitanType extends TitanVertex {
      * <i>Birthdate</i> is an example of an out-unique property key since each person has at most one birth date.</li>
      * <li>A property key is in-unique, if at most one vertex can be assigned a given value.
      * <i>Social security number</i> is an example of an in-unique property key since there can only be one person for a particular SSN.</li>
-     * <li>An edge lable is out-unique, if a vertex has at most one outgoing edge for that label.
-     * <i>Father</i> is an exmaple of a functional edge label, since each person has at most one father.</li>
+     * <li>An edge label is out-unique, if a vertex has at most one outgoing edge for that label.
+     * <i>Father</i> is an example of a functional edge label, since each person has at most one father.</li>
      * </ul>
      *
      * @return true, if the type is unique in the given direction, else false

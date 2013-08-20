@@ -56,7 +56,7 @@ public interface TypeMaker {
      *
      * <p />
      * The consistency parameter specifies the consistency guarantees given when ensuring uniqueness. Without acquiring locks,
-     * unique relations may be overwritten by competing transactions. Acquring locks prohibits that at and additional "locking cost".
+     * unique relations may be overwritten by competing transactions. Acquiring locks prohibits that at an additional "locking cost".
      *
      * @return this type maker
      */
@@ -136,7 +136,7 @@ public interface TypeMaker {
      * For instance, if all edges with label <i>friend</i> have a property with key <i>createdOn</i>, then specifying
      * (<i>createdOn</i>) as the signature for type <i>friend</i> allows friend edges to be stored more efficiently.
      * <br />
-     * {@link TitanType}s used in the primary key must be either property out-unique keys or out-unique unidirected edge lables.
+     * {@link TitanType}s used in the primary key must be either property out-unique keys or out-unique unidirected edge labels.
      * <br />
      * The signature should not contain any types already included in the primary key. The primary key provides the same
      * storage and retrieval efficiency.
