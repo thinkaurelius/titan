@@ -48,6 +48,7 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -168,30 +169,55 @@ public class ElasticSearchIndex implements IndexProvider {
 
     @Override
     public void register(String store, String key, Class<?> dataType, TransactionHandle tx) throws StorageException {
-        if (dataType==Geoshape.class) { //Only need to update for geoshape
-            log.debug("Registering geo_point type for {}",key);
-            XContentBuilder mapping = null;
-            try {
-                mapping =
-                    XContentFactory.jsonBuilder()
-                            .startObject()
-                                .startObject(store)
-                                    .startObject("properties")
-                                        .startObject(key)
-                                            .field("type", "geo_point")
-                                        .endObject()
-                                    .endObject()
-                                .endObject()
-                            .endObject();
-            } catch (IOException e) {
-                throw new PermanentStorageException("Could not render json for put mapping request",e);
+        XContentBuilder mapping = null;
+
+        try {
+            mapping = XContentFactory.jsonBuilder().
+                    startObject().
+                        startObject(store).
+                            startObject("properties").
+                                startObject(key);
+
+            if (dataType==String.class) {
+                log.debug("Registering string type for {}",key);
+                mapping.field("type", "string");
+            } else if (dataType==Float.class) {
+                log.debug("Registering float type for {}",key);
+                mapping.field("type", "float");
+            } else if (dataType==Double.class) {
+                log.debug("Registering double type for {}",key);
+                mapping.field("type", "double");
+            } else if (dataType==Byte.class) {
+                log.debug("Registering byte type for {}",key);
+                mapping.field("type", "byte");
+            } else if (dataType==Short.class) {
+                log.debug("Registering short type for {}",key);
+                mapping.field("type", "short");
+            } else if (dataType==Integer.class) {
+                log.debug("Registering integer type for {}",key);
+                mapping.field("type", "integer");
+            } else if (dataType==Long.class) {
+                log.debug("Registering long type for {}",key);
+                mapping.field("type", "long");
+            } else if (dataType==Boolean.class) {
+                log.debug("Registering boolean type for {}",key);
+                mapping.field("type", "boolean");
+            } else if (dataType==Geoshape.class) {
+                log.debug("Registering geo_point type for {}",key);
+                mapping.field("type", "geo_point");
             }
-            try {
-                PutMappingResponse response = client.admin().indices().preparePutMapping(indexName).
-                    setIgnoreConflicts(false).setType(store).setSource(mapping).execute().actionGet();
-            } catch (Exception e) {
-                throw convert(e);
-            }
+
+            mapping.endObject().endObject().endObject().endObject();
+
+        } catch (IOException e) {
+            throw new PermanentStorageException("Could not render json for put mapping request",e);
+        }
+
+        try {
+            PutMappingResponse response = client.admin().indices().preparePutMapping(indexName).
+                setIgnoreConflicts(false).setType(store).setSource(mapping).execute().actionGet();
+        } catch (Exception e) {
+            throw convert(e);
         }
     }
 

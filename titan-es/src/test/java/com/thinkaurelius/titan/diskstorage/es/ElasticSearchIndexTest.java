@@ -40,9 +40,12 @@ public class ElasticSearchIndexTest extends IndexProviderTest {
     @Test
     public void testSupport() {
         assertTrue(index.supports(String.class));
+        assertTrue(index.supports(Float.class));
         assertTrue(index.supports(Double.class));
-        assertTrue(index.supports(Long.class));
+        assertTrue(index.supports(Byte.class));
+        assertTrue(index.supports(Short.class));
         assertTrue(index.supports(Integer.class));
+        assertTrue(index.supports(Long.class));
         assertTrue(index.supports(Geoshape.class));
         assertFalse(index.supports(Object.class));
         assertFalse(index.supports(Exception.class));
