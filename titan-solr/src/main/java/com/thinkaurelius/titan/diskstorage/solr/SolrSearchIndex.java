@@ -11,13 +11,13 @@ import com.thinkaurelius.titan.diskstorage.indexing.IndexMutation;
 import com.thinkaurelius.titan.diskstorage.indexing.IndexProvider;
 import com.thinkaurelius.titan.diskstorage.indexing.IndexQuery;
 import com.thinkaurelius.titan.diskstorage.solr.transform.GeoToWktConverter;
-import com.thinkaurelius.titan.graphdb.query.keycondition.KeyAtom;
-import com.thinkaurelius.titan.graphdb.query.keycondition.KeyCondition;
-import com.thinkaurelius.titan.graphdb.query.keycondition.Relation;
+import com.thinkaurelius.titan.graphdb.query.keycondition.*;
 import org.apache.commons.configuration.Configuration;
 import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.SolrServer;
 import org.apache.solr.client.solrj.SolrServerException;
+import org.apache.solr.client.solrj.response.QueryResponse;
+import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.SolrInputDocument;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,15 +32,15 @@ import static com.thinkaurelius.titan.diskstorage.solr.SolrSearchConstants.*;
  */
 public class SolrSearchIndex implements IndexProvider {
 
+    private static final int MAX_RESULT_SET_SIZE = 100000;
     private boolean isEmbeddedMode;
     private Logger log = LoggerFactory.getLogger(SolrSearchIndex.class);
-
-    private String keyIdField;
 
     /**
      * Builds a mapping between the core name and its respective Solr Server connection.
      */
     private Map<String, SolrServer> solrServers;
+    private Map<String, String> keyFieldIds;
 
     private List<String> coreNames;
 
@@ -65,10 +65,36 @@ public class SolrSearchIndex implements IndexProvider {
             log.error("Unable to generate a Solr Server connection.", e);
         }
 
-        keyIdField = config.getString(SOLR_KEY_FIELD, SOLR_DEFAULT_KEY_FIELD);
-        log.trace("Will use field name of {} as the identifying field for documents in Solr. This can be changed by updating the {} field in settings.", keyIdField, SOLR_KEY_FIELD);
+        try {
+            keyFieldIds = parseKeyFieldsForCores(config);
+        } catch (Exception e) {
+            log.error(e.getMessage(), e);
+        }
     }
 
+    private Map<String, String> parseKeyFieldsForCores(Configuration config) throws Exception {
+        Map<String, String> keyFieldNames = new HashMap<String, String>();
+        List<String> coreFieldStatements = config.getList(SOLR_KEY_FIELD_NAMES);
+        if (null == coreFieldStatements || coreFieldStatements.size() == 0) {
+            log.info("No key field names were defined for any Solr cores. When querying Solr, system will use default key field of: {} to query schema. This can be set using the {} setting and supplying unique id field for that core's schema (e.g. - core1=docid,core2=id,core3=document_id).", SOLR_DEFAULT_KEY_FIELD, SOLR_KEY_FIELD_NAMES);
+            for (String coreName : coreNames) {
+                keyFieldNames.put(coreName, SOLR_DEFAULT_KEY_FIELD);
+            }
+        } else {
+            for (String coreFieldStatement : coreFieldStatements) {
+                String[] parts = coreFieldStatement.trim().split("=");
+                if (parts == null || parts.length == 0) {
+                    throw new Exception("Unable to parse the core name/ key field name pair. It should be of the format core=field");
+                }
+                String coreName = parts[0];
+                String keyFieldName = parts[1];
+                keyFieldNames.put(coreName, keyFieldName);
+                log.trace("Will use field name of {} as the identifying field for Solr core {}. This can be changed by updating the {} field in settings.",
+                        keyFieldName, coreName, SOLR_KEY_FIELD_NAMES);
+            }
+        }
+        return keyFieldNames;
+    }
 
 
     /**
@@ -104,6 +130,7 @@ public class SolrSearchIndex implements IndexProvider {
             for (Map.Entry<String, Map<String, IndexMutation>> stores : mutations.entrySet()) {
                 String coreName = stores.getKey();
                 SolrServer solr = solrServers.get(coreName);
+                String keyIdField = keyFieldIds.get(coreName);
 
                 List<String> deleteIds = new ArrayList<String>();
                 Collection<SolrInputDocument> newDocuments = new ArrayList<SolrInputDocument>();
@@ -222,12 +249,35 @@ public class SolrSearchIndex implements IndexProvider {
 
     @Override
     public List<String> query(IndexQuery query, TransactionHandle tx) throws StorageException {
+        List<String> result = null;
         String core = query.getStore();
+        String keyIdField = keyFieldIds.get(core);
         SolrServer solr = this.solrServers.get(core);
         SolrQuery solrQuery = new SolrQuery();
+        solrQuery.setQuery("*:*");
+        solrQuery = buildQuery(solrQuery, query.getCondition());
+        if (query.hasLimit()) {
+            solrQuery.setRows(query.getLimit());
+        } else {
+            solrQuery.setRows(MAX_RESULT_SET_SIZE);
+        }
+        try {
+            QueryResponse response = solr.query(solrQuery);
+            log.debug("Executed query [{}] in {} ms", query.getCondition(), response.getElapsedTime());
+            int totalHits = response.getResults().size();
+            if (false == query.hasLimit() && totalHits >= MAX_RESULT_SET_SIZE) {
+                log.warn("Query result set truncated to first [{}] elements for query: {}", MAX_RESULT_SET_SIZE, query);
+            }
+            result = new ArrayList<String>(totalHits);
+            for (SolrDocument hit : response.getResults()) {
+                result.add(hit.getFieldValue(keyIdField).toString());
+            }
 
+        } catch (SolrServerException e) {
+            log.error("Unable to query Solr index.", e);
+        }
 
-        return new ArrayList<String>();
+        return result;
     }
 
     public SolrQuery buildQuery(SolrQuery q, KeyCondition<String> condition) {
@@ -244,31 +294,31 @@ public class SolrSearchIndex implements IndexProvider {
                 Cmp numRel = (Cmp) relation;
                 if (numRel == Cmp.INTERVAL) {
                     Interval i = (Interval)value;
-                    q.addFacetQuery(key + ":[" + i.getStart() + " TO " + "]");
+                    q.addFacetQuery(key + ":[" + i.getStart() + " TO " + i.getEnd() + "]");
                     return q;
                 } else {
                     Preconditions.checkArgument(value instanceof Number);
 
                     switch (numRel) {
                         case EQUAL:
-                            q.addFacetQuery(key + ":" + value.toString());
+                            q.addFilterQuery(key + ":" + value.toString());
                             return q;
                         case NOT_EQUAL:
-                            q.addFacetQuery("-" + key + ":" + value.toString());
+                            q.addFilterQuery("-" + key + ":" + value.toString());
                             return q;
                         case LESS_THAN:
                             //use right curly to mean up to but not including value
-                            q.addFacetQuery(key + ":[* TO " + value.toString() + "}");
+                            q.addFilterQuery(key + ":[* TO " + value.toString() + "}");
                             return q;
                         case LESS_THAN_EQUAL:
-                            q.addFacetQuery(key + ":[* TO " + value.toString() + "]");
+                            q.addFilterQuery(key + ":[* TO " + value.toString() + "]");
                             return q;
                         case GREATER_THAN:
                             //use left curly to mean greater than but not including value
-                            q.addFacetQuery(key + ":{" + value.toString() + " TO *]");
+                            q.addFilterQuery(key + ":{" + value.toString() + " TO *]");
                             return q;
                         case GREATER_THAN_EQUAL:
-                            q.addFacetQuery(key + ":[" + value.toString() + " TO *]");
+                            q.addFilterQuery(key + ":[" + value.toString() + " TO *]");
                             return q;
                         default: throw new IllegalArgumentException("Unexpected relation: " + numRel);
                     }
@@ -278,7 +328,7 @@ public class SolrSearchIndex implements IndexProvider {
                     //e.g. - if terms tomorrow and world were supplied, and fq=text:(tomorrow  world)
                     //sample data set would return 2 documents: one where text = Tomorrow is the World,
                     //and the second where text = Hello World
-                    q.addFacetQuery(key + ":("+((String) value).toLowerCase()+")");
+                    q.addFilterQuery(key + ":("+((String) value).toLowerCase()+")");
                     return q;
                 } else {
                     throw new IllegalArgumentException("Relation is not supported for string value: " + relation);
@@ -287,15 +337,15 @@ public class SolrSearchIndex implements IndexProvider {
                 Geoshape geo = (Geoshape)value;
                 if (geo.getType() == Geoshape.Type.CIRCLE) {
                     Geoshape.Point center = geo.getPoint();
-                    q.addFacetQuery("{!geofilt sfield=" + key +
-                            " pt=" + center.getLatitude() + "," + center.getLongitude() +
+                    q.addFilterQuery("{!geofilt sfield=" + key +
+                            " pt=" + center.getLongitude() + "," + center.getLatitude() +
                             " d=" + geo.getRadius() + "}"); //distance in kilometers
                     return q;
                 } else if (geo.getType() == Geoshape.Type.BOX) {
                     Geoshape.Point southwest = geo.getPoint(0);
                     Geoshape.Point northeast = geo.getPoint(1);
-                    q.addFacetQuery(key + ":[" + southwest.getLatitude() + "," + southwest.getLongitude() +
-                                    " TO " + northeast.getLatitude() + "," + northeast.getLongitude() + "]");
+                    q.addFilterQuery(key + ":[" + southwest.getLongitude() + "," + southwest.getLatitude() +
+                                    " TO " + northeast.getLongitude() + "," + northeast.getLatitude() + "]");
                     return q;
                 } else if (geo.getType() == Geoshape.Type.POLYGON) {
                     List<Geoshape.Point> coordinates = getPolygonPoints(geo);
@@ -304,12 +354,28 @@ public class SolrSearchIndex implements IndexProvider {
                         poly.append(coordinate.getLongitude() + " " + coordinate.getLatitude() + ", ");
                     }
                     //close the polygon with the first coordinate
-                    poly.append(coordinates.get(0).getLongitude() + " " + coordinates.get(0).getLatitude())
+                    poly.append(coordinates.get(0).getLongitude() + " " + coordinates.get(0).getLatitude());
                     poly.append(")))\" distErrPct=0");
-                    q.addFacetQuery(poly.toString());
+                    q.addFilterQuery(poly.toString());
                     return q;
                 }
             }
+        } else if (condition instanceof KeyNot) {
+            String[] filterConditions = q.getFilterQueries();
+           for (String filterCondition : filterConditions) {
+                //if (filterCondition.contains(key)) {
+                    q.removeFilterQuery(filterCondition);
+                    q.addFilterQuery("-" + filterCondition);
+                //}
+            }
+            return q;
+        } else if (condition instanceof KeyAnd) {
+            for (KeyCondition<String> c : condition.getChildren()) {
+                buildQuery(q, c);
+            }
+            return q;
+        } else {
+            throw new IllegalArgumentException("Invalid condition: " + condition);
         }
         return null;
     }

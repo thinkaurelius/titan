@@ -12,7 +12,7 @@ public class SolrSearchConstants {
     public static final String SOLR_MODE_CLOUD = "cloud";
 
     //Field name that uniquely identifies each document in Solr
-    public static final String SOLR_KEY_FIELD = "solr.key.field.name";
+    public static final String SOLR_KEY_FIELD_NAMES = "solr.key.field.names";
     public static final String SOLR_DEFAULT_KEY_FIELD = "docid";
 
     //Embedded config settings
