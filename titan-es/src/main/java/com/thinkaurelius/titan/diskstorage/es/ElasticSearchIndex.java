@@ -332,14 +332,14 @@ public class ElasticSearchIndex implements IndexProvider {
                     }
                 }
             } else if (value instanceof String) {
-				if(relation == Text.CONTAINS)
-					return FilterBuilders.termFilter(key,((String)value).toLowerCase());
-				else if(relation == Text.REGEXP)
-					return FilterBuilders.regexpFilter(key,(String)value).cache(true);
-				else if(relation == Text.PREFIX)
-					return FilterBuilders.prefixFilter(key,((String)value).toLowerCase()).cache(true);
-				else
-					throw new IllegalArgumentException("Relation is not supported for string value: " + relation);
+                if(relation == Text.CONTAINS)
+                    return FilterBuilders.termFilter(key,((String)value).toLowerCase());
+                else if(relation == Text.REGEXP)
+                    return FilterBuilders.regexpFilter(key,(String)value).cache(true);
+                else if(relation == Text.PREFIX)
+                    return FilterBuilders.prefixFilter(key,((String)value).toLowerCase()).cache(true);
+                else
+                    throw new IllegalArgumentException("Relation is not supported for string value: " + relation);
             } else if (value instanceof Geoshape) {
                 Preconditions.checkArgument(relation==Geo.WITHIN,"Relation is not supported for geo value: " + relation);
                 Geoshape shape = (Geoshape)value;

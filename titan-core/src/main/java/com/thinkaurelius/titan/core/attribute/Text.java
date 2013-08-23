@@ -54,12 +54,12 @@ public enum Text implements Relation {
         }
 
     },
-	
-	/**
-	 * Whether the text matches the given regular expression
-	 */
-	REGEXP {
-	
+
+   /**
+    * Whether the text matches the given regular expression
+    */
+    REGEXP {
+
 	    @Override
         public boolean satisfiesCondition(Object value, Object condition) {
             Preconditions.checkArgument(condition instanceof String);
@@ -70,11 +70,11 @@ public enum Text implements Relation {
 
         @Override
         public boolean isValidCondition(Object condition) {
-			if (condition==null) return false;
+            if (condition==null) return false;
             else if (condition instanceof String && StringUtils.isNotBlank((String)condition)) return true;
             else return false;
         }
-	};
+    };
 
     private static final Logger log = LoggerFactory.getLogger(Text.class);
 
