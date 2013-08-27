@@ -122,7 +122,11 @@ public abstract class IndexProviderTest {
             assertEquals(ImmutableSet.of("doc2"), ImmutableSet.copyOf(result));
 
             result = tx.query(new IndexQuery(store, KeyAnd.of(KeyAtom.of("time", Cmp.INTERVAL, Interval.of(-1000,1010)), KeyAtom.of("location", Geo.WITHIN,Geoshape.circle(48.5,0.5,1000.00)))));
-            assertEquals(ImmutableSet.of("doc1","doc3"), ImmutableSet.copyOf(result));
+            //According to calculations, geo points within docs 1,2, and 3 are all within the 1000 km radius
+            //Doc 1 with point at lat 48.0/ lon 0 = 0.6007043 deg or 66.8 km from center of circle
+            //Doc 2 with point at lat 49.0/ lon 1.0 = 0.59889996 deg or 66.59 km from center of circle
+            //Doc 3 with point at lat 47.0/ lon 10 = 6.556516 deg or 729.05 km from center of circle
+            assertEquals(ImmutableSet.of("doc1","doc2","doc3"), ImmutableSet.copyOf(result));
 
             result = tx.query(new IndexQuery(store, KeyAnd.of(KeyAtom.of("weight", Cmp.GREATER_THAN, 10.0))));
             assertEquals(ImmutableSet.of("doc3"), ImmutableSet.copyOf(result));
@@ -150,7 +154,7 @@ public abstract class IndexProviderTest {
 
             result = tx.query(new IndexQuery(store, KeyAnd.of(KeyAtom.of("text", Text.CONTAINS, "world"), KeyAtom.of("weight", Cmp.GREATER_THAN,6.0))));
             assertEquals(1,result.size());
-            assertEquals("doc1",result.get(0));
+            assertEquals(ImmutableSet.of("doc1"),ImmutableSet.copyOf(result));
 
             result = tx.query(new IndexQuery(store, KeyAtom.of("location", Geo.WITHIN,Geoshape.circle(48.5,0.5,200.00))));
             assertEquals(ImmutableSet.of("doc1"), ImmutableSet.copyOf(result));
@@ -195,14 +199,14 @@ public abstract class IndexProviderTest {
         assertEquals(oldresultSize,result.size());
     }
 
-    private void initialize(String store) throws StorageException {
+    protected void initialize(String store) throws StorageException {
         if (index.supports(String.class)) index.register(store,"text",String.class,tx);
         if (index.supports(Long.class)) index.register(store,"time",Long.class,tx);
         if (index.supports(Double.class)) index.register(store,"weight",Double.class,tx);
         if (index.supports(Geoshape.class)) index.register(store,"location",Geoshape.class,tx);
     }
 
-    private void add(String store, String docid, Map<String,Object> doc, boolean isNew) {
+    protected void add(String store, String docid, Map<String,Object> doc, boolean isNew) {
         for (Map.Entry<String,Object> kv : doc.entrySet()) {
             if (index.supports(kv.getValue().getClass())) {
                 tx.add(store,docid,kv.getKey(),kv.getValue(),isNew);
@@ -210,7 +214,7 @@ public abstract class IndexProviderTest {
         }
     }
 
-    private void remove(String store, String docid, Map<String,Object> doc, boolean deleteAll) {
+    protected void remove(String store, String docid, Map<String,Object> doc, boolean deleteAll) {
         for (Map.Entry<String,Object> kv : doc.entrySet()) {
             if (index.supports(kv.getValue().getClass())) {
                 tx.delete(store,docid,kv.getKey(),deleteAll);

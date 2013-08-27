@@ -241,9 +241,10 @@
         <fieldType name="geo"
                    class="solr.SpatialRecursivePrefixTreeFieldType"
                    spatialContextFactory="com.spatial4j.core.context.jts.JtsSpatialContextFactory"
-                   distErrPct="0.025"
+                   distErrPct="0.000"
                    maxDistErr="0.000009"
-                   units="degrees"/>
+                   units="degrees"
+		   prefixTree="geohash"/>
 
     </types>
 

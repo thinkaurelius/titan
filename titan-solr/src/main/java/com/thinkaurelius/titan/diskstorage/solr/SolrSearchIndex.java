@@ -16,6 +16,7 @@ import org.apache.commons.configuration.Configuration;
 import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.SolrServer;
 import org.apache.solr.client.solrj.SolrServerException;
+import org.apache.solr.client.solrj.impl.HttpSolrServer;
 import org.apache.solr.client.solrj.response.QueryResponse;
 import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.SolrInputDocument;
@@ -33,8 +34,11 @@ import static com.thinkaurelius.titan.diskstorage.solr.SolrSearchConstants.*;
 public class SolrSearchIndex implements IndexProvider {
 
     private static final int MAX_RESULT_SET_SIZE = 100000;
+    private static int BATCH_SIZE;
+    private static final int DEFAULT_BATCH_SIZE = 1000;
     private boolean isEmbeddedMode;
     private Logger log = LoggerFactory.getLogger(SolrSearchIndex.class);
+    private float kilometersPerDegree = 111.12f;
 
     /**
      * Builds a mapping between the core name and its respective Solr Server connection.
@@ -44,11 +48,52 @@ public class SolrSearchIndex implements IndexProvider {
 
     private List<String> coreNames;
 
+    /**
+     *  There are several different modes in which the index can be configured with Solr:
+     *  <ol>
+     *    <li>EmbeddedSolrServer - used when Solr runs in same JVM as titan. Good for development but not encouraged</li>
+     *    <li>HttpSolrServer - used to connect to Solr instance via Apache HTTP client to a specific solr instance bound to a specific URL.</li>
+     *    <li>CloudSolrServer - used to connect to a SolrCloud cluster that uses Apache Zookeeper. This lets clients hit one host and Zookeeper distributes queries and writes automatically</li>
+     *  </ol>
+     *  <p>
+     *      An example follows in configuring Solr support for Titan::
+     *      <pre>
+     *          {@code
+     *              import org.apache.commons.configuration.Configuration;
+     *              import static com.thinkaurelius.titan.diskstorage.solr.SolrSearchConstants.*;
+     *
+     *              public class MyClass {
+     *                  private Configuration config;
+     *
+     *                  public MyClass(String mode) {
+     *                            if (mode == SOLR_MODE_EMBEDDED) {
+     *                                config = new BaseConfiguration()
+     *                                config.setProperty(SOLR_MODE, SOLR_MODE_EMBEDDED);
+     *                                config.setProperty(SOLR_CORE_NAMES, "core1,core2,core3");
+     *                                //titan-solr is the working directory in this case
+     *                                config.setProperty(SOLR_HOME, "titan-solr/target/test-classes/solr/");
+     *                                //A key/value list where key is the core name and value us the name of the field used in solr to uniquely identify a document.
+     *                                config.setProperty(SOLR_KEY_FIELD_NAMES, "core1=docId,core2=document_id,core3=unique_id");
+     *                            } else if (mode == SOLR_MODE_HTTP) {
+     *                                config.setProperty(SOLR_MODE, SOLR_MODE_HTTP);
+     *                                config.setProperty(SOLR_HTTP_URL, "http://localhost:8983/solr");
+     *                                config.setProperty(SOLR_HTTP_CONNECTION_TIMEOUT, 10000); //in milliseconds
+     *                                //titan-solr is the working directory in this case
+     *                                config.setProperty(SOLR_HOME, "titan-solr/target/test-classes/solr/");
+     *                                //A key/value list where key is the core name and value us the name of the field used in solr to uniquely identify a document.
+     *                                config.setProperty(SOLR_KEY_FIELD_NAMES, "core1=docId,core2=document_id,core3=unique_id");
+     *                            } else if (mode == SOLR_MODE_CLOUD) {
+     *
+     *                            }
+     *                  }
+     *              }
+     *          }
+     *      </pre>
+     *  </p>
+     * @param config
+     */
     public SolrSearchIndex(Configuration config) {
-        //There are several different modes in which solr can be found running:
-        //1. EmbeddedSolrServer - used when Solr runs in same JVM as titan. Good for development but not encouraged
-        //2. HttpSolrServer - used to connect to Solr instance via Apache HTTP client to a specific solr instance bound to a specific URL.
-        //3. CloudSolrServer - used to connect to a SolrCloud cluster that uses Apache Zookeeper. This lets clients hit one host and Zookeeper distributes queries and writes automatically
+
         SolrServerFactory factory = new SolrServerFactory();
 
         coreNames = SolrSearchUtils.parseConfigForCoreNames(config);
@@ -70,6 +115,8 @@ public class SolrSearchIndex implements IndexProvider {
         } catch (Exception e) {
             log.error(e.getMessage(), e);
         }
+
+        BATCH_SIZE =  config.getInt(SOLR_COMMIT_BATCH_SIZE, DEFAULT_BATCH_SIZE);
     }
 
     private Map<String, String> parseKeyFieldsForCores(Configuration config) throws Exception {
@@ -127,14 +174,19 @@ public class SolrSearchIndex implements IndexProvider {
     public void mutate(Map<String, Map<String, IndexMutation>> mutations, TransactionHandle tx) throws StorageException {
 
         try {
+            List<String> deleteIds = new ArrayList<String>();
+            Collection<SolrInputDocument> newDocuments = new ArrayList<SolrInputDocument>();
+            Collection<SolrInputDocument> updateDocuments = new ArrayList<SolrInputDocument>();
+            boolean isLastBatch = false;
+
             for (Map.Entry<String, Map<String, IndexMutation>> stores : mutations.entrySet()) {
                 String coreName = stores.getKey();
                 SolrServer solr = solrServers.get(coreName);
+                if (null == solr) {
+                    throw new Exception("Store name of " + coreName +  " provided in the query does not exist in Solr or has not been specified in the configuration of titan.");
+                }
                 String keyIdField = keyFieldIds.get(coreName);
-
-                List<String> deleteIds = new ArrayList<String>();
-                Collection<SolrInputDocument> newDocuments = new ArrayList<SolrInputDocument>();
-                Collection<SolrInputDocument> updateDocuments = new ArrayList<SolrInputDocument>();
+                int numProcessed = 0;
 
                 for (Map.Entry<String, IndexMutation> entry : stores.getValue().entrySet()) {
                     String docId = entry.getKey();
@@ -148,6 +200,10 @@ public class SolrSearchIndex implements IndexProvider {
                         if (mutation.isDeleted()) {
                             log.trace("Deleting entire document from Solr {}", docId);
                             deleteIds.add(docId);
+//                            solr.deleteById(docId);
+//                            solr.commit();
+                        } else {
+                            deleteIndividualFieldsFromIndex(solr, keyIdField, docId, mutation);
                         }
                     } else {
                         Set<String> fieldDeletions = Sets.newHashSet(mutation.getDeletions());
@@ -156,21 +212,7 @@ public class SolrSearchIndex implements IndexProvider {
                                 fieldDeletions.remove(indexEntry.key);
                             }
                         }
-                        if (false == fieldDeletions.isEmpty()) {
-                            Map<String, String> fieldDeletes = new HashMap<String, String>();
-                            fieldDeletes.put("set", null);
-                            SolrInputDocument doc = new SolrInputDocument();
-                            doc.addField(keyIdField, docId);
-                            StringBuilder sb = new StringBuilder();
-                            for (String fieldToDelete : fieldDeletions) {
-                                doc.addField(fieldToDelete, fieldDeletes);
-                                sb.append(sb + ",");
-                            }
-                            log.trace("Deleting individual fields [{}] for document {}", sb.toString(), docId);
-                            solr.add(doc);
-                            solr.commit();
-
-                        }
+                        deleteIndividualFieldsFromIndex(solr, keyIdField, docId, mutation);
                     }
 
                     if (mutation.hasAdditions()) {
@@ -186,13 +228,12 @@ public class SolrSearchIndex implements IndexProvider {
                                 }
                                 newDoc.addField(ie.key, fieldValue);
                             }
-                            //newDocuments.add(newDoc);
-                            solr.add(newDoc);
-
-                            solr.commit();
+                            newDocuments.add(newDoc);
+//                            solr.add(newDoc);
+//                            solr.commit();
 
                         } else { //Update
-                            boolean doUpdate = (false == mutation.hasDeletions());
+                            //boolean doUpdate = (false == mutation.hasDeletions());
                             SolrInputDocument updateDoc = new SolrInputDocument();
                             updateDoc.addField(keyIdField, docId);
                             for (IndexEntry ie : additions) {
@@ -204,19 +245,23 @@ public class SolrSearchIndex implements IndexProvider {
                                 updateFields.put("set", fieldValue.toString());
                                 updateDoc.addField(ie.key, updateFields);
                             }
-                            if (doUpdate) {
-                                //updateDocuments.add(updateDoc);
-                                solr.add(updateDoc);
-                                solr.commit();
-                            }
+                            //if (doUpdate) {
+                                updateDocuments.add(updateDoc);
+//                                solr.add(updateDoc);
+//                                solr.commit();
+                            //}
                         }
 
                     }
-                }
+                    numProcessed++;
+                    if (numProcessed == stores.getValue().size()) {
+                        isLastBatch = true;
+                    }
 
-//                commitDeletes(server, deleteIds);
-//                commitDocumentChanges(server, newDocuments);
-//                commitDocumentChanges(server, updateDocuments);
+                    commitDeletes(solr, deleteIds, isLastBatch);
+                    commitDocumentChanges(solr, newDocuments, isLastBatch);
+                    commitDocumentChanges(solr, updateDocuments, isLastBatch);
+                }
             }
 
         } catch (Exception e) {
@@ -224,8 +269,32 @@ public class SolrSearchIndex implements IndexProvider {
         }
     }
 
-    private void commitDocumentChanges(SolrServer server, Collection<SolrInputDocument> documents) throws SolrServerException, IOException {
-        if (documents.size() > 0) {
+    private void deleteIndividualFieldsFromIndex(SolrServer solr, String keyIdField, String docId, IndexMutation mutation) throws SolrServerException, IOException {
+        Set<String> fieldDeletions = Sets.newHashSet(mutation.getDeletions());
+        if (false == fieldDeletions.isEmpty()) {
+            Map<String, String> fieldDeletes = new HashMap<String, String>();
+            fieldDeletes.put("set", null);
+            SolrInputDocument doc = new SolrInputDocument();
+            doc.addField(keyIdField, docId);
+            StringBuilder sb = new StringBuilder();
+            for (String fieldToDelete : fieldDeletions) {
+                doc.addField(fieldToDelete, fieldDeletes);
+                sb.append(fieldToDelete + ",");
+            }
+            log.trace("Deleting individual fields [{}] for document {}", sb.toString(), docId);
+            solr.add(doc);
+            solr.commit();
+
+        }
+    }
+
+    private void commitDocumentChanges(SolrServer server, Collection<SolrInputDocument> documents, boolean isLastBatch) throws SolrServerException, IOException {
+        int numUpdates = documents.size();
+        if (numUpdates == 0) {
+            return;
+        }
+
+        if (numUpdates >= BATCH_SIZE || isLastBatch) {
             if (isEmbeddedMode) {
                 int commitWithinMs = 10000;
                 for(SolrInputDocument doc : documents) {
@@ -235,21 +304,28 @@ public class SolrSearchIndex implements IndexProvider {
             } else {
                 server.add(documents);
                 server.commit();
+                documents.clear();
             }
         }
     }
 
-    private void commitDeletes(SolrServer server, List<String> deleteIds) throws SolrServerException, IOException {
-        if (deleteIds.size() > 0) {
+    private void commitDeletes(SolrServer server, List<String> deleteIds, boolean isLastBatch) throws SolrServerException, IOException {
+        int numDeletes = deleteIds.size();
+        if (numDeletes == 0) {
+            return;
+        }
+
+        if (numDeletes >= BATCH_SIZE || isLastBatch) {
             server.deleteById(deleteIds);
             server.commit();
+            deleteIds.clear();
         }
     }
 
 
     @Override
     public List<String> query(IndexQuery query, TransactionHandle tx) throws StorageException {
-        List<String> result = null;
+        List<String> result = new ArrayList<String>();
         String core = query.getStore();
         String keyIdField = keyFieldIds.get(core);
         SolrServer solr = this.solrServers.get(core);
@@ -262,7 +338,9 @@ public class SolrSearchIndex implements IndexProvider {
             solrQuery.setRows(MAX_RESULT_SET_SIZE);
         }
         try {
-            QueryResponse response = solr.query(solrQuery);
+            QueryResponse response = null;
+
+            response = solr.query(solrQuery);
             log.debug("Executed query [{}] in {} ms", query.getCondition(), response.getElapsedTime());
             int totalHits = response.getResults().size();
             if (false == query.hasLimit() && totalHits >= MAX_RESULT_SET_SIZE) {
@@ -273,10 +351,11 @@ public class SolrSearchIndex implements IndexProvider {
                 result.add(hit.getFieldValue(keyIdField).toString());
             }
 
+        } catch (HttpSolrServer.RemoteSolrException e) {
+            log.error("Query did not complete because parameters were not recognized : ", e);
         } catch (SolrServerException e) {
             log.error("Unable to query Solr index.", e);
         }
-
         return result;
     }
 
@@ -294,7 +373,7 @@ public class SolrSearchIndex implements IndexProvider {
                 Cmp numRel = (Cmp) relation;
                 if (numRel == Cmp.INTERVAL) {
                     Interval i = (Interval)value;
-                    q.addFacetQuery(key + ":[" + i.getStart() + " TO " + i.getEnd() + "]");
+                    q.addFilterQuery(key + ":[" + i.getStart() + " TO " + i.getEnd() + "]");
                     return q;
                 } else {
                     Preconditions.checkArgument(value instanceof Number);
@@ -338,14 +417,14 @@ public class SolrSearchIndex implements IndexProvider {
                 if (geo.getType() == Geoshape.Type.CIRCLE) {
                     Geoshape.Point center = geo.getPoint();
                     q.addFilterQuery("{!geofilt sfield=" + key +
-                            " pt=" + center.getLongitude() + "," + center.getLatitude() +
-                            " d=" + geo.getRadius() + "}"); //distance in kilometers
+                            " pt=" + center.getLatitude() + "," + center.getLongitude() +
+                            " d=" + geo.getRadius() + "} distErrPct=0"); //distance in kilometers
                     return q;
                 } else if (geo.getType() == Geoshape.Type.BOX) {
                     Geoshape.Point southwest = geo.getPoint(0);
                     Geoshape.Point northeast = geo.getPoint(1);
-                    q.addFilterQuery(key + ":[" + southwest.getLongitude() + "," + southwest.getLatitude() +
-                                    " TO " + northeast.getLongitude() + "," + northeast.getLatitude() + "]");
+                    q.addFilterQuery(key + ":[" + southwest.getLatitude() + "," + southwest.getLongitude() +
+                                    " TO " + northeast.getLatitude() + "," + northeast.getLongitude() + "]");
                     return q;
                 } else if (geo.getType() == Geoshape.Type.POLYGON) {
                     List<Geoshape.Point> coordinates = getPolygonPoints(geo);
@@ -371,7 +450,14 @@ public class SolrSearchIndex implements IndexProvider {
             return q;
         } else if (condition instanceof KeyAnd) {
             for (KeyCondition<String> c : condition.getChildren()) {
-                buildQuery(q, c);
+                SolrQuery andCondition = new SolrQuery();
+                andCondition.setQuery("*:*");
+                andCondition =  buildQuery(andCondition, c);
+                String[] andFilterConditions = andCondition.getFilterQueries();
+                for (String filter : andFilterConditions) {
+                    //+ in solr makes the condition required
+                    q.addFilterQuery("+" + filter);
+                }
             }
             return q;
         } else {
@@ -437,6 +523,7 @@ public class SolrSearchIndex implements IndexProvider {
                 SolrServer server = pair.getValue();
                 log.trace("Clearing storage from Solr Core: " + coreName);
                 server.deleteByQuery("*:*");
+                server.commit();
             }
         } catch (SolrServerException e) {
             log.error("Unable to clear storage from index due to server error on Solr.", e);

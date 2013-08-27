@@ -23,15 +23,15 @@ public class GeoToWktConverter {
         String wktString = titanPoint;
         while (matcher.find()) {
             //group 2 should say "point"
-            //group 3 should be the X coordinate (lattitude). We'll leave that value as is
+            //group 3 should be the X coordinate (lattitude).
+            // We'll need to move this to the second since WKT does Long Lat
+            String latitude = matcher.group(3);
             //group 4 should have the comma (and possibly whitespace) in it
             String delimiter = matcher.group(4);
-            //group 5 should be the Y coordinate (longitude). We'll leave that value as is
-            String pointLabel = matcher.group(2);
-            wktString = wktString.replace(pointLabel, "POINT");
-            wktString = wktString.replace("[", "(");
-            wktString = wktString.replace("]", ")");
-            wktString = wktString.replace(delimiter, " ");
+            //group 5 should be the Y coordinate (longitude).
+            //We'll need to swap its position too
+            String longitude = matcher.group(5);
+            wktString = "POINT(" + longitude + " " + latitude + ")";
         }
         return wktString;
     }

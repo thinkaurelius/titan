@@ -10,6 +10,7 @@ public class SolrSearchConstants {
     public static final String SOLR_MODE_EMBEDDED = "embedded";
     public static final String SOLR_MODE_HTTP = "http";
     public static final String SOLR_MODE_CLOUD = "cloud";
+    public static final String SOLR_COMMIT_BATCH_SIZE = "solr.commit.batch.size";
 
     //Field name that uniquely identifies each document in Solr
     public static final String SOLR_KEY_FIELD_NAMES = "solr.key.field.names";
