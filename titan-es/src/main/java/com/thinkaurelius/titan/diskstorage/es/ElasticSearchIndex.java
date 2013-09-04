@@ -78,10 +78,6 @@ public class ElasticSearchIndex implements IndexProvider {
 
     public static final String ES_YML_KEY = "config-file";
 
-
-
-
-
     private final Node node;
     private final Client client;
     private final String indexName;
@@ -248,12 +244,12 @@ public class ElasticSearchIndex implements IndexProvider {
     @Override
     public void mutate(Map<String, Map<String, IndexMutation>> mutations, TransactionHandle tx) throws StorageException {
         BulkRequestBuilder brb = client.prepareBulk();
-        int bulkrequests = 0;
+        int bulkRequests = 0;
         try {
             for (Map.Entry<String,Map<String, IndexMutation>> stores : mutations.entrySet()) {
-                String storename = stores.getKey();
+                String storeName = stores.getKey();
                 for (Map.Entry<String, IndexMutation> entry : stores.getValue().entrySet()) {
-                    String docid = entry.getKey();
+                    String docId = entry.getKey();
                     IndexMutation mutation = entry.getValue();
                     Preconditions.checkArgument(!(mutation.isNew() && mutation.isDeleted()));
                     Preconditions.checkArgument(!mutation.isNew() || !mutation.hasDeletions());
@@ -262,9 +258,9 @@ public class ElasticSearchIndex implements IndexProvider {
                     //Deletions first
                     if (mutation.hasDeletions()) {
                         if (mutation.isDeleted()) {
-                            log.trace("Deleting entire document {}",docid);
-                            brb.add(new DeleteRequest(indexName,storename,docid));
-                            bulkrequests++;
+                            log.trace("Deleting entire document {}",docId);
+                            brb.add(new DeleteRequest(indexName,storeName,docId));
+                            bulkRequests++;
                         } else {
                             Set<String> deletions = Sets.newHashSet(mutation.getDeletions());
                             if (mutation.hasAdditions()) {
@@ -278,30 +274,31 @@ public class ElasticSearchIndex implements IndexProvider {
                                 for (String key : deletions) {
                                     script.append("ctx._source.remove(\""+key+"\"); ");
                                 }
-                                log.trace("Deleting individual fields [{}] for document {}",deletions,docid);
-                                client.prepareUpdate(indexName,storename,docid).setScript(script.toString()).execute().actionGet();
+                                log.trace("Deleting individual fields [{}] for document {}",deletions,docId);
+                                client.prepareUpdate(indexName,storeName,docId).setScript(script.toString()).execute().actionGet();
                             }
                         }
                     }
 
                     if (mutation.hasAdditions()) {
                         if (mutation.isNew()) { //Index
-                            log.trace("Adding entire document {}",docid);
-                            brb.add(new IndexRequest(indexName,storename,docid).source(getContent(mutation.getAdditions())));
-                            bulkrequests++;
+                            log.trace("Adding entire document {}",docId);
+                            XContentBuilder builder = getContent(mutation.getAdditions());
+                            brb.add(new IndexRequest(indexName,storeName,docId).source(builder));
+                            bulkRequests++;
                         } else { //Update: TODO make part of batch mutation if/when possible
                             boolean needUpsert = !mutation.hasDeletions();
                             XContentBuilder builder = getContent(mutation.getAdditions());
-                            UpdateRequestBuilder update = client.prepareUpdate(indexName,storename,docid).setDoc(builder);
+                            UpdateRequestBuilder update = client.prepareUpdate(indexName,storeName,docId).setDoc(builder);
                             if (needUpsert) update.setUpsertRequest(builder);
-                            log.trace("Updating document {} with upsert {}",docid,needUpsert);
+                            log.trace("Updating document {} with upsert {}",docId,needUpsert);
                             update.execute().actionGet();
                         }
                     }
 
                 }
             }
-            if (bulkrequests>0) brb.execute().actionGet();
+            if (bulkRequests>0) brb.execute().actionGet();
         }  catch (Exception e) {  throw convert(e);  }
     }
 
