@@ -69,11 +69,11 @@ public class IndexSerializer {
     public void newPropertyKey(TitanKey key, BackendTransaction tx) throws StorageException {
         for (String index : key.getIndexes(Vertex.class)) {
             if (!index.equals(Titan.Token.STANDARD_INDEX))
-                tx.getIndexTransactionHandle(index).register(ElementType.VERTEX.getName(),key2String(key),key.getDataType());
+                tx.getIndexTransactionHandle(index).register(ElementType.VERTEX.getName(),key.getName(),key.getDataType());
         }
         for (String index : key.getIndexes(Edge.class)) {
             if (!index.equals(Titan.Token.STANDARD_INDEX))
-                tx.getIndexTransactionHandle(index).register(ElementType.EDGE.getName(),key2String(key),key.getDataType());
+                tx.getIndexTransactionHandle(index).register(ElementType.EDGE.getName(),key.getName(),key.getDataType());
         }
     }
 
@@ -163,12 +163,12 @@ public class IndexSerializer {
 
     private void addKeyValue(TitanElement element, TitanKey key, Object value, String index, BackendTransaction tx) throws StorageException {
         Preconditions.checkArgument(key.isUnique(Direction.OUT),"Only out-unique properties are supported by index [%s]",index);
-        tx.getIndexTransactionHandle(index).add(getStoreName(element),element2String(element),key2String(key),value,element.isNew());
+        tx.getIndexTransactionHandle(index).add(getStoreName(element),element2String(element),key.getName(),value,element.isNew());
     }
 
     private void removeKeyValue(TitanElement element, TitanKey key, String index, BackendTransaction tx) {
         Preconditions.checkArgument(key.isUnique(Direction.OUT), "Only out-unique properties are supported by index [%s]", index);
-        tx.getIndexTransactionHandle(index).delete(getStoreName(element),element2String(element),key2String(key),element.isRemoved());
+        tx.getIndexTransactionHandle(index).delete(getStoreName(element),element2String(element),key.getName(),element.isRemoved());
     }
 
     /* ################################################
@@ -282,13 +282,12 @@ public class IndexSerializer {
                         TitanKey key = (TitanKey) pc.getKey();
                         Preconditions.checkArgument(key.hasIndex(indexName, resultType.getElementType()));
                         Preconditions.checkArgument(indexes.get(indexName).supports(key.getDataType(), pc.getPredicate()));
-                        return new PredicateCondition<String, TitanElement>(key2String(key), pc.getPredicate(), pc.getValue());
+                        return new PredicateCondition<String, TitanElement>(key.getName(), pc.getPredicate(), pc.getValue());
                     }
                 }));
             }
         }
     }
-
 
     /* ################################################
                 Utility Functions
@@ -319,10 +318,6 @@ public class IndexSerializer {
     private static final Object string2ElementId(String str) {
         if (str.contains(RelationIdentifier.TOSTRING_DELIMITER)) return RelationIdentifier.parse(str);
         else return name2LongID(str);
-    }
-
-    private static final String key2String(TitanKey key) {
-        return longID2Name(key.getID());
     }
 
     private static final String longID2Name(long id) {

@@ -32,26 +32,26 @@ public class IndexTransaction implements TransactionHandle {
         this.mutations = null;
     }
 
-    public void add(String store, String docid, String key, Object value, boolean isNew) {
-        getIndexMutation(store,docid,isNew,false).addition(new IndexEntry(key,value));
+    public void add(String storeName, String docId, String key, Object value, boolean isNew) {
+        getIndexMutation(storeName,docId,isNew,false).addition(new IndexEntry(key,value));
     }
 
-    public void delete(String store, String docid, String key, boolean deleteAll) {
-        getIndexMutation(store,docid,false,deleteAll).deletion(key);
+    public void delete(String storeName, String docId, String key, boolean deleteAll) {
+        getIndexMutation(storeName,docId,false,deleteAll).deletion(key);
     }
 
-    private IndexMutation getIndexMutation(String store, String docid, boolean isNew, boolean isDeleted) {
+    private IndexMutation getIndexMutation(String storeName, String docId, boolean isNew, boolean isDeleted) {
         if (mutations==null) mutations = new HashMap<String,Map<String,IndexMutation>>(DEFAULT_OUTER_MAP_SIZE);
-        Map<String,IndexMutation> storeMutations = mutations.get(store);
+        Map<String,IndexMutation> storeMutations = mutations.get(storeName);
         if (storeMutations==null) {
             storeMutations = new HashMap<String,IndexMutation>(DEFAULT_INNER_MAP_SIZE);
-            mutations.put(store,storeMutations);
+            mutations.put(storeName,storeMutations);
 
         }
-        IndexMutation m = storeMutations.get(docid);
+        IndexMutation m = storeMutations.get(docId);
         if (m==null) {
             m = new IndexMutation(isNew,isDeleted);
-            storeMutations.put(docid, m);
+            storeMutations.put(docId, m);
         }
         return m;
     }
