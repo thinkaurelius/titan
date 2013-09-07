@@ -167,7 +167,7 @@ public class SolrServerFactory {
 
 
             for (String coreName : coreNames) {
-                createCoreIfNotExists(coreName, server);
+                //createCoreIfNotExists(coreName, server);
                 servers.put(coreName, server);
             }
         } catch (MalformedURLException e) {

@@ -61,30 +61,37 @@ public class SolrSearchIndex implements IndexProvider {
      *          {@code
      *              import org.apache.commons.configuration.Configuration;
      *              import static com.thinkaurelius.titan.diskstorage.solr.SolrSearchConstants.*;
+     *              import com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfiguration;
      *
      *              public class MyClass {
      *                  private Configuration config;
      *
      *                  public MyClass(String mode) {
-     *                            if (mode == SOLR_MODE_EMBEDDED) {
-     *                                config = new BaseConfiguration()
-     *                                config.setProperty(SOLR_MODE, SOLR_MODE_EMBEDDED);
-     *                                config.setProperty(SOLR_CORE_NAMES, "core1,core2,core3");
-     *                                //titan-solr is the working directory in this case
-     *                                config.setProperty(SOLR_HOME, "titan-solr/target/test-classes/solr/");
-     *                                //A key/value list where key is the core name and value us the name of the field used in solr to uniquely identify a document.
-     *                                config.setProperty(SOLR_KEY_FIELD_NAMES, "core1=docId,core2=document_id,core3=unique_id");
-     *                            } else if (mode == SOLR_MODE_HTTP) {
-     *                                config.setProperty(SOLR_MODE, SOLR_MODE_HTTP);
-     *                                config.setProperty(SOLR_HTTP_URL, "http://localhost:8983/solr");
-     *                                config.setProperty(SOLR_HTTP_CONNECTION_TIMEOUT, 10000); //in milliseconds
-     *                                //titan-solr is the working directory in this case
-     *                                config.setProperty(SOLR_HOME, "titan-solr/target/test-classes/solr/");
-     *                                //A key/value list where key is the core name and value us the name of the field used in solr to uniquely identify a document.
-     *                                config.setProperty(SOLR_KEY_FIELD_NAMES, "core1=docId,core2=document_id,core3=unique_id");
-     *                            } else if (mode == SOLR_MODE_CLOUD) {
+     *                      config = new BaseConfiguration()
+     *                      if (mode.equals(SOLR_MODE_EMBEDDED)) {
+     *                          config.setProperty(GraphDatabaseConfiguration.STORAGE_DIRECTORY_KEY, StorageSetup.getHomeDir("solr"));
+     *                          String home = "titan-solr/target/test-classes/solr";
+     *                          config.setProperty(SOLR_MODE, SOLR_MODE_EMBEDDED);
+     *                          config.setProperty(SOLR_CORE_NAMES, "core1,core2,core3");
+     *                          config.setProperty(SOLR_HOME, home);
      *
-     *                            }
+     *                      } else if (mode.equals(SOLR_MODE_HTTP)) {
+     *                          config.setProperty(SOLR_MODE, SOLR_MODE_HTTP);
+     *                          config.setProperty(SOLR_HTTP_URL, "http://localhost:8983/solr");
+     *                          config.setProperty(SOLR_HTTP_CONNECTION_TIMEOUT, 10000); //in milliseconds
+     *
+     *                      } else if (mode.equals(SOLR_MODE_CLOUD)) {
+     *                          config.setProperty(SOLR_MODE, SOLR_MODE_CLOUD);
+     *                          //Don't add the protocol: http:// or https:// to the url
+     *                          config.setProperty(SOLR_CLOUD_ZOOKEEPER_URL, "localhost:2181")
+     *                          //Set the default collection for Solr in Zookeeper.
+     *                          //Titan allows for more but just needs a default one as a fallback
+     *                          config.setProperty(SOLR_CLOUD_COLLECTION, "store");
+     *                      }
+     *
+     *                      config.setProperty(SOLR_CORE_NAMES, "store,store1,store2,store3");
+     *                      //A key/value list where key is the core name and value us the name of the field used in solr to uniquely identify a document.
+     *                      config.setProperty(SOLR_KEY_FIELD_NAMES, "store=document_id,store1=document_id,store2=document_id,store3=document_id");
      *                  }
      *              }
      *          }
@@ -95,17 +102,11 @@ public class SolrSearchIndex implements IndexProvider {
     public SolrSearchIndex(Configuration config) {
 
         SolrServerFactory factory = new SolrServerFactory();
-
         coreNames = SolrSearchUtils.parseConfigForCoreNames(config);
 
         try {
             solrServers = factory.buildSolrServers(config);
-
-            String mode = config.getString(SOLR_MODE, SOLR_MODE_EMBEDDED);
-            if (mode.equalsIgnoreCase(SOLR_MODE_EMBEDDED)) {
-                isEmbeddedMode = true;
-            }
-
+            detectAndSetEmbeddedMode(config);
         } catch (Exception e) {
             log.error("Unable to generate a Solr Server connection.", e);
         }
@@ -117,6 +118,13 @@ public class SolrSearchIndex implements IndexProvider {
         }
 
         BATCH_SIZE =  config.getInt(SOLR_COMMIT_BATCH_SIZE, DEFAULT_BATCH_SIZE);
+    }
+
+    private void detectAndSetEmbeddedMode(Configuration config) {
+        String mode = config.getString(SOLR_MODE, SOLR_MODE_EMBEDDED);
+        if (mode.equalsIgnoreCase(SOLR_MODE_EMBEDDED)) {
+            isEmbeddedMode = true;
+        }
     }
 
     private Map<String, String> parseKeyFieldsForCores(Configuration config) throws Exception {
@@ -158,7 +166,6 @@ public class SolrSearchIndex implements IndexProvider {
     @Override
     public void register(String store, String key, Class<?> dataType, TransactionHandle tx) throws StorageException {
         //Since all data types must be defined in the schema.xml, pre-registering a type does not work
-
     }
 
     /**
@@ -200,8 +207,6 @@ public class SolrSearchIndex implements IndexProvider {
                         if (mutation.isDeleted()) {
                             log.trace("Deleting entire document from Solr {}", docId);
                             deleteIds.add(docId);
-//                            solr.deleteById(docId);
-//                            solr.commit();
                         } else {
                             deleteIndividualFieldsFromIndex(solr, keyIdField, docId, mutation);
                         }
@@ -229,8 +234,6 @@ public class SolrSearchIndex implements IndexProvider {
                                 newDoc.addField(ie.key, fieldValue);
                             }
                             newDocuments.add(newDoc);
-//                            solr.add(newDoc);
-//                            solr.commit();
 
                         } else { //Update
                             //boolean doUpdate = (false == mutation.hasDeletions());
@@ -245,13 +248,9 @@ public class SolrSearchIndex implements IndexProvider {
                                 updateFields.put("set", fieldValue.toString());
                                 updateDoc.addField(ie.key, updateFields);
                             }
-                            //if (doUpdate) {
-                                updateDocuments.add(updateDoc);
-//                                solr.add(updateDoc);
-//                                solr.commit();
-                            //}
-                        }
 
+                            updateDocuments.add(updateDoc);
+                        }
                     }
                     numProcessed++;
                     if (numProcessed == stores.getValue().size()) {
@@ -263,7 +262,6 @@ public class SolrSearchIndex implements IndexProvider {
                     commitDocumentChanges(solr, updateDocuments, isLastBatch);
                 }
             }
-
         } catch (Exception e) {
             throw storageException(e);
         }
@@ -564,4 +562,6 @@ public class SolrSearchIndex implements IndexProvider {
     private StorageException storageException(Exception solrException) {
         return new TemporaryStorageException("Unable to complete query on Solr.", solrException);
     }
+
+
 }

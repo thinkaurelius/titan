@@ -36,24 +36,22 @@ public class SolrSearchIndexTest extends IndexProviderTest {
         Configuration config = new BaseConfiguration();
 
         //SOLR_MODE_HTTP
-        /*
-        config.setProperty(SOLR_MODE, SOLR_MODE_HTTP);
-        config.setProperty(SOLR_HTTP_URL, "http://localhost:8983/solr");
-        config.setProperty(SOLR_HTTP_CONNECTION_TIMEOUT, 10000); //in milliseconds
-        */
+//        config.setProperty(SOLR_MODE, SOLR_MODE_HTTP);
+//        config.setProperty(SOLR_HTTP_URL, "http://localhost:8983/solr");
+//        config.setProperty(SOLR_HTTP_CONNECTION_TIMEOUT, 10000); //in milliseconds
 
         //SOLR_MODE_EMBEDDED
-        config.setProperty(GraphDatabaseConfiguration.STORAGE_DIRECTORY_KEY, StorageSetup.getHomeDir("solr"));
-        String home = "titan-solr/target/test-classes/solr/";
-        config.setProperty(SOLR_HOME, home);
-
+//        config.setProperty(GraphDatabaseConfiguration.STORAGE_DIRECTORY_KEY, StorageSetup.getHomeDir("solr"));
+//        String home = "titan-solr/target/test-classes/solr/";
+//        config.setProperty(SOLR_HOME, home);
+       //SOLR CLOUD
+        config.setProperty(SOLR_MODE, SOLR_MODE_CLOUD);
+        config.setProperty(SOLR_CLOUD_ZOOKEEPER_URL, "localhost:2181");
+        config.setProperty(SOLR_CLOUD_COLLECTION, "store");
 
 
         config.setProperty(SOLR_CORE_NAMES, "store,store1,store2,store3");
         config.setProperty(SOLR_KEY_FIELD_NAMES, "store=document_id,store1=document_id,store2=document_id,store3=document_id");
-
-
-
 
         return config;
     }
