@@ -26,6 +26,7 @@ import com.thinkaurelius.titan.diskstorage.StaticBuffer;
 import com.thinkaurelius.titan.diskstorage.StorageException;
 import com.thinkaurelius.titan.diskstorage.TemporaryStorageException;
 import com.thinkaurelius.titan.diskstorage.cassandra.AbstractCassandraStoreManager;
+import com.thinkaurelius.titan.diskstorage.cassandra.CassandraTransaction;
 import com.thinkaurelius.titan.diskstorage.cassandra.astyanax.locking.AstyanaxRecipeLocker;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.Entry;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.KCVMutation;
@@ -220,12 +221,24 @@ public class AstyanaxStoreManager extends AbstractCassandraStoreManager {
 
     @Override
     public void mutateMany(Map<String, Map<StaticBuffer, KCVMutation>> batch, StoreTransaction txh) throws StorageException {
+        CassandraTransaction ctxh = getTx(txh);
         MutationBatch m = keyspaceContext.getClient().prepareMutationBatch()
                                                      .setConsistencyLevel(getTx(txh).getWriteConsistencyLevel().getAstyanaxConsistency())
                                                      .withRetryPolicy(retryPolicy.duplicate());
 
-        final long delTS = TimeUtility.INSTANCE.getApproxNSSinceEpoch(false);
-        final long addTS = TimeUtility.INSTANCE.getApproxNSSinceEpoch(true);
+        final long delTS;
+        final long addTS;
+
+        if (ctxh.getTimestamp() == null) {
+            // If cassandra transaction timestamp not provided, use current time
+            delTS = TimeUtility.INSTANCE.getApproxNSSinceEpoch(false);
+            addTS = TimeUtility.INSTANCE.getApproxNSSinceEpoch(true);
+        } else {
+            // Set the transaction timestamp according to transaction. Deletions get
+            // the earlier timestamp.
+            delTS = ctxh.getTimestamp();
+            addTS = ctxh.getTimestamp() + 1;
+        }
 
         for (Map.Entry<String, Map<StaticBuffer, KCVMutation>> batchentry : batch.entrySet()) {
             String storeName = batchentry.getKey();

@@ -104,18 +104,42 @@ public class StandardTitanGraph extends TitanBlueprintsGraph {
 
     @Override
     public TitanTransaction newTransaction() {
-        return newTransaction(new TransactionConfig(config, false));
+        return newTransaction(new TransactionConfig(config, false), null);
     }
 
     @Override
     public TitanTransaction newThreadBoundTransaction() {
-        return newTransaction(new TransactionConfig(config, true));
+        return newTransaction(new TransactionConfig(config, true), null);
     }
 
+    /**
+     * Creates a new transaction with set timestamp and provided db configuration
+     * @param timestamp
+     * @return standard titan transaction
+     */
+    public StandardTitanTx newTransaction(long timestamp) {
+        return newTransaction(new TransactionConfig(config, false), timestamp);
+    }
+
+    /**
+     * Creates a new transaction with provided db config and null (default) timestamp
+     * @param configuration
+     * @return standard titan transaction
+     */
     public StandardTitanTx newTransaction(TransactionConfig configuration) {
+        return newTransaction(configuration, null);
+    }
+
+    /**
+     * Creates new transaction with provided transaction config and set timestamp
+     * @param configuration
+     * @param timestamp
+     * @return standard titan transaction
+     */
+    public StandardTitanTx newTransaction(TransactionConfig configuration, Long timestamp) {
         if (!isOpen) ExceptionFactory.graphShutdown();
         try {
-            return new StandardTitanTx(this, configuration, backend.beginTransaction());
+            return new StandardTitanTx(this, configuration, backend.beginTransaction(timestamp));
         } catch (StorageException e) {
             throw new TitanException("Could not start new transaction", e);
         }

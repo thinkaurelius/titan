@@ -129,6 +129,13 @@ public class PersistitStoreManager extends LocalStoreManager implements OrderedK
         }
     }
 
+    // This implementation ignores timestamp (present for interface compatibility)
+    @Override
+    public PersistitTransaction beginTransaction(ConsistencyLevel level, Long timestamp)
+            throws StorageException {
+        return beginTransaction(level);
+    }
+
     /**
      * Returns a transaction handle for a new transaction.
      *
