@@ -4,14 +4,14 @@ import com.thinkaurelius.titan.core.*;
 import com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfiguration;
 import com.thinkaurelius.titan.graphdb.database.StandardTitanGraph;
 import com.thinkaurelius.titan.graphdb.util.ExceptionFactory;
-import com.tinkerpop.blueprints.Edge;
-import com.tinkerpop.blueprints.Element;
-import com.tinkerpop.blueprints.Parameter;
-import com.tinkerpop.blueprints.Vertex;
+import com.tinkerpop.blueprints.*;
 import com.tinkerpop.blueprints.util.StringFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.util.Map;
 import java.util.Set;
-import java.util.WeakHashMap;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Blueprints specific implementation for {@link TitanGraph}.
@@ -20,6 +20,9 @@ import java.util.WeakHashMap;
  * @author Matthias Broecheler (me@matthiasb.com)
  */
 public abstract class TitanBlueprintsGraph implements TitanGraph {
+
+    private static final Logger log =
+            LoggerFactory.getLogger(TitanBlueprintsGraph.class);
 
     // ########## TRANSACTION HANDLING ###########################
 
@@ -31,7 +34,18 @@ public abstract class TitanBlueprintsGraph implements TitanGraph {
 
     };
 
-    private final WeakHashMap<TitanTransaction, Boolean> openTx = new WeakHashMap<TitanTransaction, Boolean>(4);
+    /**
+     * ThreadLocal transactions used behind the scenes in
+     * {@link TransactionalGraph} methods. Transactions started through
+     * {@code ThreadedTransactionalGraph#newTransaction()} aren't included in
+     * this map. Contrary to the javadoc comment above
+     * {@code ThreadedTransactionalGraph#newTransaction()}, the caller is
+     * responsible for holding references to and committing or rolling back any
+     * transactions started through
+     * {@code ThreadedTransactionalGraph#newTransaction()}.
+     */
+    private final Map<TitanTransaction, Boolean> openTx =
+            new ConcurrentHashMap<TitanTransaction, Boolean>();
 
     @Override
     public void commit() {
@@ -42,6 +56,7 @@ public abstract class TitanBlueprintsGraph implements TitanGraph {
             } finally {
                 txs.remove();
                 openTx.remove(tx);
+                log.debug("Committed thread-bound transaction {}", tx);
             }
         }
     }
@@ -55,11 +70,13 @@ public abstract class TitanBlueprintsGraph implements TitanGraph {
             } finally {
                 txs.remove();
                 openTx.remove(tx);
+                log.debug("Rolled back thread-bound transaction {}", tx);
             }
         }
     }
 
     @Override
+    @Deprecated
     public void stopTransaction(Conclusion conclusion) {
         switch (conclusion) {
             case SUCCESS:
@@ -76,12 +93,13 @@ public abstract class TitanBlueprintsGraph implements TitanGraph {
     public abstract TitanTransaction newThreadBoundTransaction();
 
     private TitanTransaction getAutoStartTx() {
-        if (txs==null)  ExceptionFactory.graphShutdown();
+        if (txs == null) ExceptionFactory.graphShutdown();
         TitanTransaction tx = txs.get();
         if (tx == null) {
             tx = newThreadBoundTransaction();
             txs.set(tx);
             openTx.put(tx, Boolean.TRUE);
+            log.debug("Created new thread-bound transaction {}", tx);
         }
         return tx;
     }
@@ -108,6 +126,10 @@ public abstract class TitanBlueprintsGraph implements TitanGraph {
 //        return StringFactory.graphString(this,config.getBackendDescription());
     }
 
+    @Override
+    public <T extends TitanType> Iterable<T> getTypes(Class<T> clazz) {
+        return getAutoStartTx().getTypes(clazz);
+    }
 
     // ########## INDEX HANDLING ###########################
 
@@ -156,6 +178,10 @@ public abstract class TitanBlueprintsGraph implements TitanGraph {
     @Override
     public TitanGraphQuery query() {
         return getAutoStartTx().query();
+    }
+
+    public TitanMultiVertexQuery multiQuery(TitanVertex... vertices) {
+        return getAutoStartTx().multiQuery(vertices);
     }
 
     @Override

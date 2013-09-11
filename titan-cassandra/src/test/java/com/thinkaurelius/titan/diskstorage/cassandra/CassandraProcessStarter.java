@@ -7,7 +7,6 @@ import com.thinkaurelius.titan.diskstorage.TemporaryStorageException;
 import com.thinkaurelius.titan.diskstorage.cassandra.embedded.CassandraDaemonWrapper;
 import com.thinkaurelius.titan.diskstorage.cassandra.thrift.thriftpool.CTConnection;
 import com.thinkaurelius.titan.diskstorage.cassandra.thrift.thriftpool.CTConnectionFactory;
-import com.thinkaurelius.titan.diskstorage.cassandra.thrift.thriftpool.CTConnectionPool;
 import com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfiguration;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.StringUtils;
@@ -27,7 +26,7 @@ public class CassandraProcessStarter {
     private CassandraOutputReader outputReader;
     private Thread cassandraKiller;
     private boolean delete = true;
-
+    
     private final ExecutorService cassandraOutputLogger =
             Executors.newSingleThreadExecutor();
     private boolean logCassandraOutput = true;
@@ -166,17 +165,6 @@ public class CassandraProcessStarter {
                 throw new TemporaryStorageException(msg);
             }
             log.debug("Cassandra process logged successful Thrift-port bind.");
-			
-			/*
-			 * Destroy any pooled Thrift connections to this
-			 * Cassandra INSTANCE.  This isn't necessary in
-			 * normal operation, but in testing, where maven may
-			 * destroy and recreate a Cassandra cluster many
-			 * times without restarting the JVM, failure to
-			 * destroy stale connections can cause odd failures.
-			 */
-            log.debug("Clearing pooled Thrift connections for {}:{}", address, port);
-            CTConnectionPool.clearPool(address, port, GraphDatabaseConfiguration.CONNECTION_TIMEOUT_DEFAULT);
         } catch (Exception e) {
             e.printStackTrace();
             throw new TitanException(e);
@@ -209,10 +197,9 @@ public class CassandraProcessStarter {
     }
 
     public void waitForClusterSize(int minSize) throws InterruptedException, StorageException {
-        CTConnectionFactory f = CTConnectionPool.getFactory(address,
-                                                            port,
-                                                            GraphDatabaseConfiguration.CONNECTION_TIMEOUT_DEFAULT,
-                                                            AbstractCassandraStoreManager.THRIFT_DEFAULT_FRAME_SIZE);
+        CTConnectionFactory f = new CTConnectionFactory(address, port,
+                GraphDatabaseConfiguration.CONNECTION_TIMEOUT_DEFAULT,
+                AbstractCassandraStoreManager.THRIFT_DEFAULT_FRAME_SIZE);
         CTConnection conn = null;
         try {
             conn = f.makeRawConnection();
@@ -226,7 +213,12 @@ public class CassandraProcessStarter {
         }
     }
 
-    public static void startCleanEmbedded(String cassandraYamlPath) {
+    public static synchronized void startCleanEmbedded(String cassandraYamlPath) {
+        if (CassandraDaemonWrapper.isStarted()) {
+            log.debug("Already started embedded cassandra; subsequent attempts to start do nothing");
+            return;
+        }
+        
         try {
             FileUtils.deleteDirectory(new File(CassandraStorageSetup.CASSANDRA_TEMP_PATH + File.separator + "workdir"));
         } catch (IOException e) {

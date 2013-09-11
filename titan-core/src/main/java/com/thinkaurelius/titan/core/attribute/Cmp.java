@@ -1,8 +1,7 @@
 package com.thinkaurelius.titan.core.attribute;
 
 import com.google.common.base.Preconditions;
-import com.thinkaurelius.titan.graphdb.query.keycondition.Relation;
-import com.tinkerpop.blueprints.Query;
+import com.thinkaurelius.titan.graphdb.query.TitanPredicate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -12,12 +11,12 @@ import org.slf4j.LoggerFactory;
  * @author Matthias Broecheler (me@matthiasb.com)
  */
 
-public enum Cmp implements Relation {
+public enum Cmp implements TitanPredicate {
 
     EQUAL {
 
         @Override
-        public boolean isValidDataType(Class<?> clazz) {
+        public boolean isValidValueType(Class<?> clazz) {
             return true;
         }
 
@@ -27,7 +26,7 @@ public enum Cmp implements Relation {
         }
 
         @Override
-        public boolean satisfiesCondition(Object value, Object condition) {
+        public boolean evaluate(Object value, Object condition) {
             if (condition==null) {
                 return value==null;
             } else {
@@ -39,12 +38,17 @@ public enum Cmp implements Relation {
         public String toString() {
             return "=";
         }
+
+        @Override
+        public TitanPredicate negate() {
+            return NOT_EQUAL;
+        }
     },
 
     NOT_EQUAL {
 
         @Override
-        public boolean isValidDataType(Class<?> clazz) {
+        public boolean isValidValueType(Class<?> clazz) {
             return true;
         }
 
@@ -54,7 +58,7 @@ public enum Cmp implements Relation {
         }
 
         @Override
-        public boolean satisfiesCondition(Object value, Object condition) {
+        public boolean evaluate(Object value, Object condition) {
             if (condition==null) {
                 return value!=null;
             } else {
@@ -66,12 +70,17 @@ public enum Cmp implements Relation {
         public String toString() {
             return "<>";
         }
+
+        @Override
+        public TitanPredicate negate() {
+            return EQUAL;
+        }
     },
 
     LESS_THAN {
 
         @Override
-        public boolean isValidDataType(Class<?> clazz) {
+        public boolean isValidValueType(Class<?> clazz) {
             Preconditions.checkNotNull(clazz);
             return Comparable.class.isAssignableFrom(clazz);
         }
@@ -82,7 +91,7 @@ public enum Cmp implements Relation {
         }
 
         @Override
-        public boolean satisfiesCondition(Object value, Object condition) {
+        public boolean evaluate(Object value, Object condition) {
             if (value==null) return false;
             try {
                 return ((Comparable)value).compareTo(condition)<0;
@@ -96,12 +105,17 @@ public enum Cmp implements Relation {
         public String toString() {
             return "<";
         }
+
+        @Override
+        public TitanPredicate negate() {
+            return GREATER_THAN_EQUAL;
+        }
     },
 
     LESS_THAN_EQUAL {
 
         @Override
-        public boolean isValidDataType(Class<?> clazz) {
+        public boolean isValidValueType(Class<?> clazz) {
             Preconditions.checkNotNull(clazz);
             return Comparable.class.isAssignableFrom(clazz);
         }
@@ -112,7 +126,7 @@ public enum Cmp implements Relation {
         }
 
         @Override
-        public boolean satisfiesCondition(Object value, Object condition) {
+        public boolean evaluate(Object value, Object condition) {
             if (value==null) return false;
             try {
                 return ((Comparable)value).compareTo(condition)<=0;
@@ -126,12 +140,17 @@ public enum Cmp implements Relation {
         public String toString() {
             return "<=";
         }
+
+        @Override
+        public TitanPredicate negate() {
+            return GREATER_THAN;
+        }
     },
 
     GREATER_THAN {
 
         @Override
-        public boolean isValidDataType(Class<?> clazz) {
+        public boolean isValidValueType(Class<?> clazz) {
             Preconditions.checkNotNull(clazz);
             return Comparable.class.isAssignableFrom(clazz);
         }
@@ -142,7 +161,7 @@ public enum Cmp implements Relation {
         }
 
         @Override
-        public boolean satisfiesCondition(Object value, Object condition) {
+        public boolean evaluate(Object value, Object condition) {
             if (value==null) return false;
             try {
                 return ((Comparable)value).compareTo(condition)>0;
@@ -156,12 +175,17 @@ public enum Cmp implements Relation {
         public String toString() {
             return ">";
         }
+
+        @Override
+        public TitanPredicate negate() {
+            return LESS_THAN_EQUAL;
+        }
     },
 
     GREATER_THAN_EQUAL {
 
         @Override
-        public boolean isValidDataType(Class<?> clazz) {
+        public boolean isValidValueType(Class<?> clazz) {
             Preconditions.checkNotNull(clazz);
             return Comparable.class.isAssignableFrom(clazz);
         }
@@ -172,7 +196,7 @@ public enum Cmp implements Relation {
         }
 
         @Override
-        public boolean satisfiesCondition(Object value, Object condition) {
+        public boolean evaluate(Object value, Object condition) {
             if (value==null) return false;
             try {
                 return ((Comparable)value).compareTo(condition)>=0;
@@ -186,59 +210,24 @@ public enum Cmp implements Relation {
         public String toString() {
             return ">=";
         }
-    },
-
-    INTERVAL {
 
         @Override
-        public boolean isValidDataType(Class<?> clazz) {
-            Preconditions.checkNotNull(clazz);
-            return Comparable.class.isAssignableFrom(clazz);
-        }
-
-        @Override
-        public boolean isValidCondition(Object condition) {
-            return condition!=null && condition instanceof Interval;
-        }
-
-        @Override
-        public boolean satisfiesCondition(Object value, Object condition) {
-            if (value==null) return false;
-            Preconditions.checkArgument(condition instanceof Interval);
-            try {
-                return ((Interval)condition).inInterval(value);
-            } catch (Throwable e) {
-                log.warn("Could not compare element: {} - {}",value,condition);
-                return false;
-            }
-        }
-
-        @Override
-        public String toString() {
-            return "in";
+        public TitanPredicate negate() {
+            return LESS_THAN;
         }
     };
 
 
-    private static final Logger log = LoggerFactory.getLogger(Cmp.class);
-
-
-    /**
-     * Convert Blueprint's comparison operators to Titan's
-     *
-     * @param comp Blueprint's comparison operator
-     * @return
-     */
-    public static final Cmp convert(Query.Compare comp) {
-        switch(comp) {
-            case EQUAL: return EQUAL;
-            case NOT_EQUAL: return NOT_EQUAL;
-            case GREATER_THAN: return GREATER_THAN;
-            case GREATER_THAN_EQUAL: return GREATER_THAN_EQUAL;
-            case LESS_THAN: return LESS_THAN;
-            case LESS_THAN_EQUAL: return LESS_THAN_EQUAL;
-            default: throw new IllegalArgumentException("Unexpected comparator: " + comp);
-        }
+    @Override
+    public boolean hasNegation() {
+        return true;
     }
+
+    @Override
+    public boolean isQNF() {
+        return true;
+    }
+
+    private static final Logger log = LoggerFactory.getLogger(Cmp.class);
 
 }

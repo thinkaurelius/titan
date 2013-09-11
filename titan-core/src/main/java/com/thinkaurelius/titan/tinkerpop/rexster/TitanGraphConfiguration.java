@@ -1,14 +1,12 @@
 package com.thinkaurelius.titan.tinkerpop.rexster;
 
+import com.google.common.base.Joiner;
 import com.thinkaurelius.titan.core.TitanFactory;
 import com.tinkerpop.blueprints.Graph;
 import com.tinkerpop.rexster.Tokens;
 import com.tinkerpop.rexster.config.GraphConfiguration;
 import com.tinkerpop.rexster.config.GraphConfigurationException;
-import org.apache.commons.configuration.BaseConfiguration;
-import org.apache.commons.configuration.CompositeConfiguration;
-import org.apache.commons.configuration.Configuration;
-import org.apache.commons.configuration.HierarchicalConfiguration;
+import org.apache.commons.configuration.*;
 
 import java.io.File;
 import java.util.Iterator;
@@ -35,11 +33,16 @@ public class TitanGraphConfiguration implements GraphConfiguration {
 
                 final Iterator<String> titanConfigPropertiesKeys = titanConfigProperties.getKeys();
                 while (titanConfigPropertiesKeys.hasNext()) {
-                    String key = titanConfigPropertiesKeys.next();
+                    String doubleDotKey = titanConfigPropertiesKeys.next();
 
                     // replace the ".." put in play by apache commons configuration.  that's expected behavior
                     // due to parsing key names to xml.
-                    titanConfig.setProperty(key.replace("..", "."), titanConfigProperties.getString(key));
+                    String singleDotKey = doubleDotKey.replace("..", ".");
+
+                    // Combine multiple values into a comma-separated string
+                    String listVal = Joiner.on(AbstractConfiguration.getDefaultListDelimiter()).join(titanConfigProperties.getStringArray(doubleDotKey));
+                    
+                    titanConfig.setProperty(singleDotKey, listVal);
                 }
             } catch (IllegalArgumentException iae) {
                 throw new GraphConfigurationException("Check graph configuration. Missing or empty configuration element: " + Tokens.REXSTER_GRAPH_PROPERTIES);

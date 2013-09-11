@@ -3,8 +3,12 @@ package com.thinkaurelius.titan.graphdb.astyanax;
 import com.thinkaurelius.titan.CassandraStorageSetup;
 import com.thinkaurelius.titan.diskstorage.cassandra.CassandraProcessStarter;
 import com.thinkaurelius.titan.graphdb.TitanGraphConcurrentTest;
-import org.junit.BeforeClass;
+import com.thinkaurelius.titan.testcategory.PerformanceTests;
 
+import org.junit.BeforeClass;
+import org.junit.experimental.categories.Category;
+
+@Category({PerformanceTests.class})
 public class InternalAstyanaxGraphConcurrentTest extends TitanGraphConcurrentTest {
 
     @BeforeClass
@@ -13,7 +17,7 @@ public class InternalAstyanaxGraphConcurrentTest extends TitanGraphConcurrentTes
     }
 
     public InternalAstyanaxGraphConcurrentTest() {
-        super(CassandraStorageSetup.getAstyanaxGraphConfiguration());
+        super(CassandraStorageSetup.getAstyanaxGraphConfiguration(InternalAstyanaxGraphConcurrentTest.class.getSimpleName()));
     }
 
 }

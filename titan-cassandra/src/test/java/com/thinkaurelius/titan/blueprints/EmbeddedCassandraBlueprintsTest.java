@@ -1,16 +1,21 @@
 package com.thinkaurelius.titan.blueprints;
 
+import org.apache.commons.configuration.Configuration;
+import org.junit.experimental.categories.Category;
+
 import com.thinkaurelius.titan.CassandraStorageSetup;
 import com.thinkaurelius.titan.core.TitanFactory;
 import com.thinkaurelius.titan.diskstorage.StorageException;
 import com.thinkaurelius.titan.diskstorage.cassandra.embedded.CassandraEmbeddedStoreManager;
 import com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfiguration;
+import com.thinkaurelius.titan.testcategory.RandomPartitionerTests;
 import com.tinkerpop.blueprints.Graph;
 
 /**
  * @author Matthias Broecheler (me@matthiasb.com)
  */
 
+@Category({RandomPartitionerTests.class})
 public class EmbeddedCassandraBlueprintsTest extends TitanBlueprintsTest {
 
     @Override
@@ -25,14 +30,14 @@ public class EmbeddedCassandraBlueprintsTest extends TitanBlueprintsTest {
 
     @Override
     public Graph generateGraph() {
-        Graph graph = TitanFactory.open(CassandraStorageSetup.getEmbeddedCassandraGraphConfiguration());
+        Graph graph = TitanFactory.open(getGraphConfig());
         return graph;
     }
 
     @Override
     public void cleanUp() throws StorageException {
         CassandraEmbeddedStoreManager s = new CassandraEmbeddedStoreManager(
-                CassandraStorageSetup.getEmbeddedCassandraGraphConfiguration().subset(GraphDatabaseConfiguration.STORAGE_NAMESPACE));
+                getGraphConfig().subset(GraphDatabaseConfiguration.STORAGE_NAMESPACE));
         s.clearStorage();
     }
 
@@ -46,5 +51,7 @@ public class EmbeddedCassandraBlueprintsTest extends TitanBlueprintsTest {
         throw new UnsupportedOperationException();
     }
 
-
+    private Configuration getGraphConfig() {
+        return CassandraStorageSetup.getEmbeddedCassandraGraphConfiguration(getClass().getSimpleName());
+    }
 }

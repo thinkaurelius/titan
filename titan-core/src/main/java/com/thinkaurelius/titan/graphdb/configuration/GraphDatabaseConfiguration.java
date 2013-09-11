@@ -1,6 +1,7 @@
 package com.thinkaurelius.titan.graphdb.configuration;
 
 import com.google.common.base.Preconditions;
+import com.thinkaurelius.titan.core.AttributeHandler;
 import com.thinkaurelius.titan.core.AttributeSerializer;
 import com.thinkaurelius.titan.core.DefaultTypeMaker;
 import com.thinkaurelius.titan.diskstorage.Backend;
@@ -9,6 +10,7 @@ import com.thinkaurelius.titan.graphdb.database.idassigner.VertexIDAssigner;
 import com.thinkaurelius.titan.graphdb.database.serialize.Serializer;
 import com.thinkaurelius.titan.graphdb.database.serialize.kryo.KryoSerializer;
 import com.thinkaurelius.titan.graphdb.types.DisableDefaultTypeMaker;
+import com.thinkaurelius.titan.util.stats.MetricManager;
 import org.apache.commons.configuration.BaseConfiguration;
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.ConfigurationException;
@@ -16,6 +18,7 @@ import org.apache.commons.configuration.PropertiesConfiguration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.management.MBeanServerFactory;
 import java.io.File;
 import java.util.*;
 
@@ -41,11 +44,11 @@ public class GraphDatabaseConfiguration {
      * is disabled.
      */
     public static final String AUTO_TYPE_KEY = "autotype";
-    public static final String AUTO_TYPE_DEFAULT = "../../titan-core/src/test/java/com/thinkaurelius/titan/blueprints";
+    public static final String AUTO_TYPE_DEFAULT = "blueprints";
 
     private static final Map<String, DefaultTypeMaker> preregisteredAutoType = new HashMap<String, DefaultTypeMaker>() {{
         put("none", DisableDefaultTypeMaker.INSTANCE);
-        put("../../titan-core/src/test/java/com/thinkaurelius/titan/blueprints", BlueprintsDefaultTypeMaker.INSTANCE);
+        put("blueprints", BlueprintsDefaultTypeMaker.INSTANCE);
     }};
 
 
@@ -148,6 +151,12 @@ public class GraphDatabaseConfiguration {
     public static final long LOCK_EXPIRE_MS_DEFAULT = 300 * 1000;
 
     /**
+     * Locker type to use.  The supported types are in {@link com.thinkaurelius.titan.diskstorage.Backend}.
+     */
+    public static final String LOCK_BACKEND = "lock-backend";
+    public static final String LOCK_BACKEND_DEFAULT = "consistentkey";
+
+    /**
      * The number of milliseconds the system waits for an id block application to be acknowledged by the storage backend.
      * Also, the time waited after the application before verifying that the application was successful.
      */
@@ -158,6 +167,27 @@ public class GraphDatabaseConfiguration {
      */
     public static final String IDAUTHORITY_RETRY_COUNT_KEY = "idauthority-retries";
     public static final int IDAUTHORITY_RETRY_COUNT_DEFAULT = 20;
+
+    /**
+     * Whether to enable basic timing and operation count monitoring on backend
+     * methods using the {@code com.codahale.metrics} package.
+     */
+    public static final String BASIC_METRICS = "enable-basic-metrics";
+    public static final boolean BASIC_METRICS_DEFAULT = true;
+
+    /**
+     * Whether to share a single set of Metrics objects across all stores. If
+     * true, then calls to KeyColumnValueStore methods any store instance in the
+     * database will share a common set of Metrics Counters, Timers, Histograms,
+     * etc. The prefix for these common metrics will be
+     * {@link Backend#METRICS_PREFIX} + {@link Backend#MERGED_METRICS}. If
+     * false, then each store has its own set of distinct metrics with a unique
+     * name prefix.
+     * <p/>
+     * This option has no effect when {@link #BASIC_METRICS} is false.
+     */
+    public static final String MERGE_BASIC_METRICS = "merge-basic-metrics";
+    public static final boolean MERGE_BASIC_METRICS_DEFAULT = true;
 
     /**
      * Configuration key for the hostname or list of hostname of remote storage backend servers to connect to.
@@ -192,7 +222,7 @@ public class GraphDatabaseConfiguration {
      * until this timeout is exceeded.
      * <p/>
      * A wait time of 0 disables waiting.
-     *
+     * <p/>
      * Value = {@value}
      */
     public static final int SETUP_WAITTIME_DEFAULT = 60000;
@@ -281,6 +311,71 @@ public class GraphDatabaseConfiguration {
     private static final String ATTRIBUTE_PREFIX = "attribute";
     private static final String SERIALIZER_PREFIX = "serializer";
 
+    // ################ Metrics #######################
+    // ################################################
+
+    /**
+     * Prefix for Metrics reporter configuration keys.
+     */
+    public static final String METRICS_NAMESPACE = "metrics";
+
+    /**
+     * Metrics console reporter interval in milliseconds. Leaving this
+     * configuration key absent or null disables the console reporter.
+     */
+    public static final String METRICS_CONSOLE_INTERVAL = "console.interval";
+    public static final Long METRICS_CONSOLE_INTERVAL_DEFAULT = null;
+
+    /**
+     * Metrics CSV reporter interval in milliseconds. Leaving this configuration
+     * key absent or null disables the CSV reporter.
+     */
+    public static final String METRICS_CSV_INTERVAL = "csv.interval";
+    public static final Long METRICS_CSV_INTERVAL_DEFAULT = null;
+    /**
+     * Metrics CSV output directory. It will be created if it doesn't already
+     * exist. This option must be non-null if {@link #METRICS_CSV_INTERVAL} is
+     * non-null. This option has no effect if {@code #METRICS_CSV_INTERVAL} is
+     * null.
+     */
+    public static final String METRICS_CSV_DIR = "csv.dir";
+    public static final String METRICS_CSV_DIR_DEFAULT = null;
+
+    /**
+     * Whether to report Metrics through a JMX MBean.
+     */
+    public static final String METRICS_JMX_ENABLED = "jmx.enabled";
+    public static final boolean METRICS_JMX_ENABLED_DEFAULT = false;
+    /**
+     * The JMX domain in which to report Metrics. If null, then Metrics applies
+     * its default value.
+     */
+    public static final String METRICS_JMX_DOMAIN = "jmx.domain";
+    public static final String METRICS_JMX_DOMAIN_DEFAULT = null;
+    /**
+     * The JMX agentId through which to report Metrics. Calling
+     * {@link MBeanServerFactory#findMBeanServer(String)} on this value must
+     * return exactly one {@code MBeanServer} at runtime. If null, then Metrics
+     * applies its default value.
+     */
+    public static final String METRICS_JMX_AGENTID = "jmx.agentid";
+    public static final String METRICS_JMX_AGENTID_DEFAULT = null;
+
+    /**
+     * Metrics Slf4j reporter interval in milliseconds. Leaving this
+     * configuration key absent or null disables the Slf4j reporter.
+     */
+    public static final String METRICS_SLF4J_INTERVAL = "slf4j.interval";
+    public static final Long METRICS_SLF4J_INTERVAL_DEFAULT = null;
+    /**
+     * The complete name of the Logger through which Metrics will report via
+     * Slf4j. If non-null, then Metrics will be dumped on
+     * {@link LoggerFactory#getLogger(String)} with the configured value as the
+     * argument. If null, then Metrics will use its default Slf4j logger.
+     */
+    public static final String METRICS_SLF4J_LOGGER = "slf4j.logger";
+    public static final String METRICS_SLF4J_LOGGER_DEFAULT = null;
+
 
     private final Configuration configuration;
 
@@ -311,7 +406,7 @@ public class GraphDatabaseConfiguration {
         try {
             if (dirOrFile.isFile())
                 return new PropertiesConfiguration(dirOrFile);
-            
+
             configuration = new BaseConfiguration();
             configuration.setProperty(keyInNamespace(STORAGE_NAMESPACE, STORAGE_DIRECTORY_KEY), dirOrFile.getAbsolutePath());
         } catch (ConfigurationException e) {
@@ -338,6 +433,54 @@ public class GraphDatabaseConfiguration {
         batchLoading = storageConfig.getBoolean(STORAGE_BATCH_KEY, STORAGE_BATCH_DEFAULT);
         defaultTypeMaker = preregisteredAutoType.get(configuration.getString(AUTO_TYPE_KEY, AUTO_TYPE_DEFAULT));
         Preconditions.checkNotNull(defaultTypeMaker, "Invalid " + AUTO_TYPE_KEY + " option: " + configuration.getString(AUTO_TYPE_KEY, AUTO_TYPE_DEFAULT));
+        configureMetrics();
+    }
+
+    private void configureMetrics() {
+        Preconditions.checkNotNull(configuration);
+
+        Configuration metricsConf = configuration.subset(METRICS_NAMESPACE);
+
+        if (null != metricsConf && !metricsConf.isEmpty()) {
+            configureMetricsConsoleReporter(metricsConf);
+            configureMetricsCsvReporter(metricsConf);
+            configureMetricsJmxReporter(metricsConf);
+            configureMetricsSlf4jReporter(metricsConf);
+        }
+    }
+
+    private void configureMetricsConsoleReporter(Configuration conf) {
+        Long ms = conf.getLong(METRICS_CONSOLE_INTERVAL, METRICS_CONSOLE_INTERVAL_DEFAULT);
+        if (null != ms) {
+            MetricManager.INSTANCE.addConsoleReporter(ms);
+        }
+    }
+
+    private void configureMetricsCsvReporter(Configuration conf) {
+        Long ms = conf.getLong(METRICS_CSV_INTERVAL, METRICS_CONSOLE_INTERVAL_DEFAULT);
+        String out = conf.getString(METRICS_CSV_DIR, METRICS_CSV_DIR_DEFAULT);
+        if (null != ms && null != out) {
+            MetricManager.INSTANCE.addCsvReporter(ms, out);
+        }
+    }
+
+    private void configureMetricsJmxReporter(Configuration conf) {
+        boolean enabled = conf.getBoolean(METRICS_JMX_ENABLED, METRICS_JMX_ENABLED_DEFAULT);
+        String domain = conf.getString(METRICS_JMX_DOMAIN, METRICS_JMX_DOMAIN_DEFAULT);
+        String agentId = conf.getString(METRICS_JMX_AGENTID, METRICS_JMX_AGENTID_DEFAULT);
+
+        if (enabled) {
+            MetricManager.INSTANCE.addJmxReporter(domain, agentId);
+        }
+    }
+
+    private void configureMetricsSlf4jReporter(Configuration conf) {
+        Long ms = conf.getLong(METRICS_SLF4J_INTERVAL, METRICS_SLF4J_INTERVAL_DEFAULT);
+        // null loggerName is allowed -- that means Metrics will use its internal default
+        String loggerName = conf.getString(METRICS_SLF4J_LOGGER, METRICS_SLF4J_LOGGER_DEFAULT);
+        if (null != ms) {
+            MetricManager.INSTANCE.addSlf4jReporter(ms, loggerName);
+        }
     }
 
     public boolean isReadOnly() {
@@ -384,7 +527,7 @@ public class GraphDatabaseConfiguration {
             try {
                 int position = Integer.parseInt(key.substring(ATTRIBUTE_PREFIX.length()));
                 Class<?> clazz = null;
-                AttributeSerializer<?> serializer = null;
+                AttributeHandler<?> serializer = null;
                 String classname = config.getString(key);
                 try {
                     clazz = Class.forName(classname);
@@ -397,7 +540,7 @@ public class GraphDatabaseConfiguration {
                     String serializername = config.getString(SERIALIZER_PREFIX + position);
                     try {
                         Class sclass = Class.forName(serializername);
-                        serializer = (AttributeSerializer) sclass.newInstance();
+                        serializer = (AttributeHandler) sclass.newInstance();
                     } catch (ClassNotFoundException e) {
                         throw new IllegalArgumentException("Could not find serializer class" + serializername);
                     } catch (InstantiationException e) {
@@ -536,7 +679,7 @@ public class GraphDatabaseConfiguration {
         while (keyiter.hasNext()) {
             String key = keyiter.next();
             int pos = key.indexOf(CONFIGURATION_SEPARATOR);
-            if (pos>0) names.add(key.substring(0,pos));
+            if (pos > 0) names.add(key.substring(0, pos));
         }
         return names;
     }

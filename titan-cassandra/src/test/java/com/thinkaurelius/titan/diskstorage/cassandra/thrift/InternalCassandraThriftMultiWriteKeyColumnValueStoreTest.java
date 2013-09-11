@@ -5,8 +5,13 @@ import com.thinkaurelius.titan.diskstorage.MultiWriteKeyColumnValueStoreTest;
 import com.thinkaurelius.titan.diskstorage.StorageException;
 import com.thinkaurelius.titan.diskstorage.cassandra.CassandraProcessStarter;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.KeyColumnValueStoreManager;
-import org.junit.BeforeClass;
+import com.thinkaurelius.titan.testcategory.RandomPartitionerTests;
 
+import org.apache.commons.configuration.Configuration;
+import org.junit.BeforeClass;
+import org.junit.experimental.categories.Category;
+
+@Category({RandomPartitionerTests.class})
 public class InternalCassandraThriftMultiWriteKeyColumnValueStoreTest extends MultiWriteKeyColumnValueStoreTest {
 
     @BeforeClass
@@ -16,6 +21,7 @@ public class InternalCassandraThriftMultiWriteKeyColumnValueStoreTest extends Mu
 
     @Override
     public KeyColumnValueStoreManager openStorageManager() throws StorageException {
-        return new CassandraThriftStoreManager(CassandraStorageSetup.getCassandraStorageConfiguration());
+        Configuration config = CassandraStorageSetup.getGenericCassandraStorageConfiguration(getClass().getSimpleName());
+        return new CassandraThriftStoreManager(config);
     }
 }

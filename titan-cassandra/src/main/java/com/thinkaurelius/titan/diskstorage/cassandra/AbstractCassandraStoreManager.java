@@ -10,7 +10,6 @@ import com.thinkaurelius.titan.diskstorage.keycolumnvalue.KeyColumnValueStoreMan
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.StoreFeatures;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.StoreTransaction;
 import org.apache.cassandra.dht.IPartitioner;
-import org.apache.cassandra.thrift.CfDef;
 import org.apache.commons.configuration.Configuration;
 
 /**
@@ -51,7 +50,7 @@ public abstract class AbstractCassandraStoreManager extends DistributedStoreMana
      */
     public static final String THRIFT_FRAME_SIZE_MB = "cassandra.thrift.frame_size_mb";
 
-    public static final int THRIFT_DEFAULT_FRAME_SIZE = 15 * 1024 * 1024;
+    public static final int THRIFT_DEFAULT_FRAME_SIZE = 15;
 
     /*
      * Any operation attempted with ConsistencyLevel.TWO
@@ -110,15 +109,7 @@ public abstract class AbstractCassandraStoreManager extends DistributedStoreMana
         this.writeConsistencyLevel = CassandraTransaction.Consistency.parse(storageConfig.getString(
                 WRITE_CONSISTENCY_LEVEL_KEY, WRITE_CONSISTENCY_LEVEL_DEFAULT));
 
-        String rawFrameSize = storageConfig.getString(THRIFT_FRAME_SIZE_MB);
-
-        try {
-            this.thriftFrameSize = (rawFrameSize != null)
-                                     ? Integer.valueOf(rawFrameSize) * 1024 * 1024
-                                     : THRIFT_DEFAULT_FRAME_SIZE;
-        } catch (NumberFormatException e) {
-            throw new IllegalArgumentException("Invalid Thrift storage option(s) given", e);
-        }
+        this.thriftFrameSize = storageConfig.getInt(THRIFT_FRAME_SIZE_MB, THRIFT_DEFAULT_FRAME_SIZE) * 1024 * 1024;
     }
 
     public abstract Partitioner getPartitioner() throws StorageException;
@@ -180,4 +171,8 @@ public abstract class AbstractCassandraStoreManager extends DistributedStoreMana
      *             if reading from Cassandra fails
      */
     public abstract Map<String, String> getCompressionOptions(String cf) throws StorageException;
+    
+    public String getName() {
+        return getClass().getSimpleName() + keySpaceName;
+    }
 }

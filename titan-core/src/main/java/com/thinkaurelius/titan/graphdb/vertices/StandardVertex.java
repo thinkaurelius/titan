@@ -22,7 +22,7 @@ import java.util.List;
 public class StandardVertex extends AbstractVertex {
 
     private byte lifecycle;
-    private AddedRelationsContainer addedRelations=AddedRelationsContainer.EMPTY;
+    private volatile AddedRelationsContainer addedRelations=AddedRelationsContainer.EMPTY;
 
     public StandardVertex(final StandardTitanTx tx, final long id, byte lifecycle) {
         super(tx, id);
@@ -68,6 +68,11 @@ public class StandardVertex extends AbstractVertex {
     public Iterable<Entry> loadRelations(SliceQuery query, Retriever<SliceQuery, List<Entry>> lookup) {
         if (isNew()) return ImmutableList.of();
         else return lookup.get(query);
+    }
+
+    @Override
+    public boolean hasLoadedRelations(SliceQuery query) {
+        return false;
     }
 
     @Override

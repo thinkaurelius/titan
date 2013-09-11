@@ -1,10 +1,13 @@
 package com.thinkaurelius.titan.graphdb.database;
 
+import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.Iterables;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import com.thinkaurelius.titan.core.*;
 import com.thinkaurelius.titan.core.attribute.Cmp;
+import com.thinkaurelius.titan.core.attribute.Contain;
 import com.thinkaurelius.titan.diskstorage.*;
 import com.thinkaurelius.titan.diskstorage.indexing.IndexInformation;
 import com.thinkaurelius.titan.diskstorage.indexing.IndexQuery;
@@ -16,22 +19,21 @@ import com.thinkaurelius.titan.diskstorage.util.WriteByteBuffer;
 import com.thinkaurelius.titan.graphdb.database.idhandling.VariableLong;
 import com.thinkaurelius.titan.graphdb.database.serialize.DataOutput;
 import com.thinkaurelius.titan.graphdb.database.serialize.Serializer;
+import com.thinkaurelius.titan.graphdb.internal.ElementType;
 import com.thinkaurelius.titan.graphdb.internal.InternalRelation;
 import com.thinkaurelius.titan.graphdb.internal.InternalType;
-import com.thinkaurelius.titan.graphdb.query.StandardElementQuery;
-import com.thinkaurelius.titan.graphdb.query.keycondition.*;
+import com.thinkaurelius.titan.graphdb.query.GraphCentricQuery;
+import com.thinkaurelius.titan.graphdb.query.condition.*;
 import com.thinkaurelius.titan.graphdb.relations.RelationIdentifier;
 import com.thinkaurelius.titan.util.encoding.LongEncoding;
 import com.tinkerpop.blueprints.Direction;
 import com.tinkerpop.blueprints.Edge;
-import com.tinkerpop.blueprints.Element;
 import com.tinkerpop.blueprints.Vertex;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import javax.annotation.Nullable;
+import java.util.*;
 
 import static com.thinkaurelius.titan.diskstorage.keycolumnvalue.KeyColumnValueStore.NO_ADDITIONS;
 import static com.thinkaurelius.titan.diskstorage.keycolumnvalue.KeyColumnValueStore.NO_DELETIONS;
@@ -54,6 +56,12 @@ public class IndexSerializer {
         this.indexes = indexes;
     }
 
+    public IndexInformation getIndexInformation(String indexName) {
+        IndexInformation indexinfo = indexes.get(indexName);
+        Preconditions.checkArgument(indexinfo!=null,"Index is unknown or not configured: %s",indexName);
+        return indexinfo;
+    }
+
     /* ################################################
                Index Updates
     ################################################### */
@@ -61,11 +69,11 @@ public class IndexSerializer {
     public void newPropertyKey(TitanKey key, BackendTransaction tx) throws StorageException {
         for (String index : key.getIndexes(Vertex.class)) {
             if (!index.equals(Titan.Token.STANDARD_INDEX))
-                tx.getIndexTransactionHandle(index).register(VERTEXINDEX_NAME,key2String(key),key.getDataType());
+                tx.getIndexTransactionHandle(index).register(ElementType.VERTEX.getName(),key2String(key),key.getDataType());
         }
         for (String index : key.getIndexes(Edge.class)) {
             if (!index.equals(Titan.Token.STANDARD_INDEX))
-                tx.getIndexTransactionHandle(index).register(EDGEINDEX_NAME,key2String(key),key.getDataType());
+                tx.getIndexTransactionHandle(index).register(ElementType.EDGE.getName(),key2String(key),key.getDataType());
         }
     }
 
@@ -153,20 +161,6 @@ public class IndexSerializer {
         }
     }
 
-    private static final StaticBuffer relationID2ByteBuffer(RelationIdentifier rid) {
-        long[] longs = rid.getLongRepresentation();
-        Preconditions.checkArgument(longs.length==3);
-        WriteBuffer buffer = new WriteByteBuffer(24);
-        for (int i=0;i<3;i++) VariableLong.writePositive(buffer,longs[i]);
-        return buffer.getStaticBuffer();
-    }
-
-    private static final RelationIdentifier bytebuffer2RelationId(ReadBuffer b) {
-        long[] relationId = new long[3];
-        for (int i=0;i<3;i++) relationId[i]=VariableLong.readPositive(b);
-        return RelationIdentifier.get(relationId);
-    }
-
     private void addKeyValue(TitanElement element, TitanKey key, Object value, String index, BackendTransaction tx) throws StorageException {
         Preconditions.checkArgument(key.isUnique(Direction.OUT),"Only out-unique properties are supported by index [%s]",index);
         tx.getIndexTransactionHandle(index).add(getStoreName(element),element2String(element),key2String(key),value,element.isNew());
@@ -181,86 +175,138 @@ public class IndexSerializer {
                 Querying
     ################################################### */
 
-    public List<Object> query(StandardElementQuery query, BackendTransaction tx) {
-        Preconditions.checkArgument(query.hasIndex());
-        String index = query.getIndex();
-        Preconditions.checkArgument(indexes.containsKey(index),"Index unknown or unconfigured: %s",index);
-        if (index.equals(Titan.Token.STANDARD_INDEX)) {
-            //Only one equals clause
-            KeyAtom<TitanKey> cond = null;
-            if (query.getCondition() instanceof KeyAtom) cond = (KeyAtom<TitanKey>)query.getCondition();
-            else if (query.getCondition() instanceof KeyAnd || query.getCondition() instanceof KeyOr) {
-                cond = (KeyAtom<TitanKey>)Iterables.getOnlyElement(query.getCondition().getChildren());
-            }
-            Preconditions.checkArgument(cond.getRelation()==Cmp.EQUAL,"Only equality relations are supported by standard index [%s]",cond);
-            TitanKey key = cond.getKey();
-            Object value = cond.getCondition();
-            Preconditions.checkArgument(key.hasIndex(index,query.getType().getElementType()),
-                    "Cannot retrieve for given property key - it does not have an index [%s]",key.getName());
+    public List<Object> query(String indexName, IndexQuery query, BackendTransaction tx) {
+        Preconditions.checkArgument(query.hasStore());
+        Preconditions.checkArgument(indexes.containsKey(indexName),"Index unknown or unconfigured: %s",indexName);
+        if (indexName.equals(Titan.Token.STANDARD_INDEX)) {
+            List<Object> results = null;
+            ElementType resultType = ElementType.getByName(query.getStore());
+            Condition<?> condition = query.getCondition();
 
-            StaticBuffer column = getUniqueIndexColumn(key);
-            KeySliceQuery sq = new KeySliceQuery(getIndexKey(value),column, SliceQuery.pointRange(column),query.getLimit(),((InternalType)key).isStatic(Direction.IN));
-            List<Entry> r;
-            if (query.getType()== StandardElementQuery.Type.VERTEX) {
-                r = tx.vertexIndexQuery(sq);
+            //Condition is in QNF, so process either a single PredicateCondition or an AND of ORs
+            if (condition instanceof PredicateCondition) {
+                PredicateCondition pc = (PredicateCondition)condition;
+                results = processSingleCondition(resultType, pc, query.getLimit(), tx);
+            } else if (condition instanceof And) {
+
+                /*
+                 * Iterate over the clauses in the and collection
+                 * query.getCondition().getChildren(), taking the intersection
+                 * of current results with cumulative results on each iteration.
+                 */
+                int limit = query.getLimit() * condition.numChildren(); //TODO: smarter initial estimate
+                boolean exhaustedResults;
+                do {
+                    exhaustedResults = true;
+                    Set<Object> cumulativeResults = null;
+                    for (Condition<?> child : condition.getChildren()) {
+                        List<Object> r=null;
+                        if (child instanceof Or) { //Concatenate results until we have enough for limit
+                            r = new ArrayList<Object>(limit);
+                            for (Condition nested : child.getChildren()) {
+                                Preconditions.checkArgument(nested instanceof PredicateCondition,"Invalid query (not in QNF): %s",condition);
+                                r.addAll(processSingleCondition(resultType,(PredicateCondition)nested,limit,tx));
+                                if (r.size()>=limit) break;
+                            }
+                        } else if (child instanceof PredicateCondition) {
+                            r = processSingleCondition(resultType, (PredicateCondition)child, limit, tx);
+                        } else throw new IllegalArgumentException("Invalid query provided (not in QNF):" + child);
+
+                        if (r.size()>=limit) exhaustedResults=false;
+                        if (cumulativeResults == null) {
+                            cumulativeResults = Sets.newHashSet(r);
+                        } else {
+                            cumulativeResults.retainAll(r);
+                        }
+                    }
+                    results = ImmutableList.builder().addAll(cumulativeResults).build();
+                    limit = (int)Math.min(Integer.MAX_VALUE-1,Math.pow(limit,1.5));
+                } while (results.size()<query.getLimit() && !exhaustedResults);
+
             } else {
-                r = tx.edgeIndexQuery(sq);
+                Preconditions.checkArgument(false,"Invalid query (not in QNF): %s",condition);
             }
-            List<Object> results = new ArrayList<Object>(r.size());
-            for (Entry entry : r) {
-                ReadBuffer entryValue = entry.getReadValue();
-                if (query.getType()== StandardElementQuery.Type.VERTEX) {
-                    results.add(Long.valueOf(VariableLong.readPositive(entryValue)));
-                } else {
-                    results.add(bytebuffer2RelationId(entryValue));
-                }
-            }
-            Preconditions.checkArgument(!(query.getType()== StandardElementQuery.Type.VERTEX && key.isUnique(Direction.IN)) || results.size()<=1);
             return results;
         } else {
-            verifyQuery(query.getCondition(),index,query.getType().getElementType());
-            KeyCondition<String> condition = convert(query.getCondition());
-            IndexQuery iquery = new IndexQuery(getStoreName(query),condition,query.getLimit());
-            List<String> r = tx.indexQuery(index, iquery);
+            List<String> r = tx.indexQuery(indexName, query);
             List<Object> result = new ArrayList<Object>(r.size());
             for (String id : r) result.add(string2ElementId(id));
             return result;
         }
     }
 
-    private final void verifyQuery(KeyCondition<TitanKey> condition, String indexName, Class<? extends Element> elementType) {
-        if (!condition.hasChildren()) {
-            KeyAtom<TitanKey> atom = (KeyAtom<TitanKey>)condition;
-            Preconditions.checkArgument(atom.getKey().hasIndex(indexName, elementType));
-            Preconditions.checkArgument(indexes.get(indexName).supports(atom.getKey().getDataType(), atom.getRelation()));
+    private List<Object> processSingleCondition(ElementType resultType, PredicateCondition pc, int limit, BackendTransaction tx) {
+        Preconditions.checkArgument(resultType==ElementType.EDGE || resultType==ElementType.VERTEX);
+        Preconditions.checkArgument(pc.getPredicate() == Cmp.EQUAL, "Only equality index retrievals are supported on standard index");
+        Preconditions.checkNotNull(pc.getValue());
+        TitanKey key = (TitanKey)pc.getKey();
+        Preconditions.checkArgument(key.hasIndex(Titan.Token.STANDARD_INDEX,resultType.getElementType()),
+                "Cannot retrieve for given property key - it does not have an index [%s]",key.getName());
+        Object value = pc.getValue();
+        StaticBuffer column = getUniqueIndexColumn(key);
+        KeySliceQuery sq = new KeySliceQuery(getIndexKey(value),column, SliceQuery.pointRange(column),((InternalType)key).isStatic(Direction.IN)).setLimit(limit);
+        List<Entry> r;
+        if (resultType== ElementType.VERTEX) {
+            r = tx.vertexIndexQuery(sq);
         } else {
-            for (KeyCondition<TitanKey> c : condition.getChildren()) verifyQuery(c,indexName,elementType);
+            r = tx.edgeIndexQuery(sq);
+        }
+        List<Object> results = new ArrayList<Object>(r.size());
+        for (Entry entry : r) {
+            ReadBuffer entryValue = entry.getReadValue();
+            if (resultType==ElementType.VERTEX) {
+                results.add(Long.valueOf(VariableLong.readPositive(entryValue)));
+            } else {
+                results.add(bytebuffer2RelationId(entryValue));
+            }
+        }
+        Preconditions.checkArgument(!(resultType==ElementType.VERTEX && key.isUnique(Direction.IN)) || results.size()<=1);
+        return results;
+    }
+
+    public IndexQuery getQuery(final String indexName, Condition<TitanElement> condition, final ElementType resultType) {
+        Preconditions.checkNotNull(resultType);
+        if (indexName==null) { //Special case which requires iterating over all elements which is handled in the transaction
+            return new IndexQuery(null,new FixedCondition<TitanElement>(true));
+        } else {
+            Preconditions.checkNotNull(condition);
+            if (indexName.equals(Titan.Token.STANDARD_INDEX)) {
+                return new IndexQuery(resultType.getName(),condition);
+            } else {
+                return new IndexQuery(resultType.getName(), ConditionUtil.literalTransformation(condition,new Function<Condition<TitanElement>, Condition<TitanElement>>() {
+                    @Nullable
+                    @Override
+                    public Condition<TitanElement> apply(@Nullable Condition<TitanElement> condition) {
+                        Preconditions.checkArgument(condition instanceof PredicateCondition);
+                        PredicateCondition pc = (PredicateCondition) condition;
+                        TitanKey key = (TitanKey) pc.getKey();
+                        Preconditions.checkArgument(key.hasIndex(indexName, resultType.getElementType()));
+                        Preconditions.checkArgument(indexes.get(indexName).supports(key.getDataType(), pc.getPredicate()));
+                        return new PredicateCondition<String, TitanElement>(key2String(key), pc.getPredicate(), pc.getValue());
+                    }
+                }));
+            }
         }
     }
 
-    private static final KeyCondition<String> convert(KeyCondition<TitanKey> condition) {
-        if (condition instanceof KeyAtom) {
-            KeyAtom<TitanKey> atom = (KeyAtom<TitanKey>) condition;
-            Relation relation = atom.getRelation();
-            TitanKey key = atom.getKey();
-            return KeyAtom.of(key2String(key),relation,atom.getCondition());
-        } else if (condition instanceof KeyNot) {
-            return KeyNot.of(convert(((KeyNot<TitanKey>)condition).getChild()));
-        } else if (condition instanceof KeyAnd || condition instanceof KeyOr) {
-            List<KeyCondition<String>> cond = Lists.newArrayList();
-            for (KeyCondition<TitanKey> c : condition.getChildren()) {
-                cond.add(convert(c));
-            }
-            if (condition instanceof KeyAnd)
-                return KeyAnd.of(cond.toArray(new KeyCondition[cond.size()]));
-            else
-                return KeyOr.of(cond.toArray(new KeyCondition[cond.size()]));
-        } else throw new IllegalArgumentException("Invalid condition: " + condition);
-    }
 
     /* ################################################
                 Utility Functions
     ################################################### */
+
+    private static final StaticBuffer relationID2ByteBuffer(RelationIdentifier rid) {
+        long[] longs = rid.getLongRepresentation();
+        Preconditions.checkArgument(longs.length==3);
+        WriteBuffer buffer = new WriteByteBuffer(24);
+        for (int i=0;i<3;i++) VariableLong.writePositive(buffer,longs[i]);
+        return buffer.getStaticBuffer();
+    }
+
+    private static final RelationIdentifier bytebuffer2RelationId(ReadBuffer b) {
+        long[] relationId = new long[3];
+        for (int i=0;i<3;i++) relationId[i]=VariableLong.readPositive(b);
+        return RelationIdentifier.get(relationId);
+    }
 
     private static final String element2String(TitanElement element) {
         if (element instanceof TitanVertex) return longID2Name(element.getID());
@@ -288,20 +334,9 @@ public class IndexSerializer {
         return LongEncoding.decode(name);
     }
 
-    public static final String EDGEINDEX_NAME = "edge";
-    public static final String VERTEXINDEX_NAME = "vertex";
-
-    private static final String getStoreName(StandardElementQuery query) {
-        switch (query.getType()) {
-            case VERTEX: return VERTEXINDEX_NAME;
-            case EDGE: return EDGEINDEX_NAME;
-            default: throw new IllegalArgumentException("Invalid type: " + query.getType());
-        }
-    }
-
     private static final String getStoreName(TitanElement element) {
-        if (element instanceof TitanVertex) return VERTEXINDEX_NAME;
-        else if (element instanceof TitanEdge) return EDGEINDEX_NAME;
+        if (element instanceof TitanVertex) return ElementType.VERTEX.getName();
+        else if (element instanceof TitanEdge) return ElementType.EDGE.getName();
         else throw new IllegalArgumentException("Invalid class: " + element.getClass());
     }
 

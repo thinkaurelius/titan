@@ -16,7 +16,8 @@ import com.thinkaurelius.titan.diskstorage.indexing.IndexMutation;
 import com.thinkaurelius.titan.diskstorage.indexing.IndexProvider;
 import com.thinkaurelius.titan.diskstorage.indexing.IndexQuery;
 import com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfiguration;
-import com.thinkaurelius.titan.graphdb.query.keycondition.*;
+import com.thinkaurelius.titan.graphdb.query.TitanPredicate;
+import com.thinkaurelius.titan.graphdb.query.condition.*;
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.StringUtils;
@@ -281,28 +282,18 @@ public class LuceneIndex implements IndexProvider {
         }
     }
 
-    private final Filter convertQuery(KeyCondition<String> condition) {
-        if (condition instanceof KeyAtom) {
-            KeyAtom<String> atom = (KeyAtom<String>) condition;
-            Object value = atom.getCondition();
+    private final Filter convertQuery(Condition<?> condition) {
+        if (condition instanceof PredicateCondition) {
+            PredicateCondition<String,?> atom = (PredicateCondition) condition;
+            Object value = atom.getValue();
             String key = atom.getKey();
-            Relation relation = atom.getRelation();
-            if (value instanceof Number || value instanceof Interval) {
-                Preconditions.checkArgument(relation instanceof Cmp,"Relation not supported on numeric types: " + relation);
-                if (relation==Cmp.INTERVAL) {
-                    Preconditions.checkArgument(value instanceof Interval && ((Interval)value).getStart() instanceof Number);
-                    Interval i = (Interval)value;
-                    if (i.getStart() instanceof Long || i.getStart() instanceof Integer) {
-                        return NumericRangeFilter.newLongRange(key,((Number)i.getStart()).longValue(),((Number)i.getEnd()).longValue(),i.startInclusive(),i.endInclusive());
-                    } else {
-                        return NumericRangeFilter.newDoubleRange(key,((Number)i.getStart()).doubleValue(),((Number)i.getEnd()).doubleValue(),i.startInclusive(),i.endInclusive());
-                    }
-                } else {
-                    Preconditions.checkArgument(value instanceof Number);
-                    return numericFilter(key,(Cmp)relation,(Number)value);
-                }
+            TitanPredicate titanPredicate = atom.getPredicate();
+            if (value instanceof Number) {
+                Preconditions.checkArgument(titanPredicate instanceof Cmp,"Relation not supported on numeric types: " + titanPredicate);
+                Preconditions.checkArgument(value instanceof Number);
+                return numericFilter(key,(Cmp) titanPredicate,(Number)value);
             } else if (value instanceof String) {
-                if (relation == Text.CONTAINS) {
+                if (titanPredicate == Text.CONTAINS) {
                     return new TermsFilter(new Term(key,((String)value).toLowerCase()));
 //                } else if (relation == Txt.PREFIX) {
 //                    return new PrefixFilter(new Term(key+STR_SUFFIX,(String)value));
@@ -312,26 +303,26 @@ public class LuceneIndex implements IndexProvider {
 //                    BooleanFilter q = new BooleanFilter();
 //                    q.add(new TermsFilter(new Term(key+STR_SUFFIX,(String)value)), BooleanClause.Occur.MUST_NOT);
 //                    return q;
-                } else throw new IllegalArgumentException("Relation is not supported for string value: " + relation);
+                } else throw new IllegalArgumentException("Relation is not supported for string value: " + titanPredicate);
             } else if (value instanceof Geoshape) {
-                Preconditions.checkArgument(relation==Geo.WITHIN,"Relation is not supported for geo value: " + relation);
+                Preconditions.checkArgument(titanPredicate ==Geo.WITHIN,"Relation is not supported for geo value: " + titanPredicate);
                 Shape shape = ((Geoshape)value).convert2Spatial4j();
                 SpatialArgs args = new SpatialArgs(SpatialOperation.IsWithin,shape);
                 return getSpatialStrategy(key).makeFilter(args);
             } else throw new IllegalArgumentException("Unsupported type: " + value);
-        } else if (condition instanceof KeyNot) {
+        } else if (condition instanceof Not) {
             BooleanFilter q = new BooleanFilter();
-            q.add(convertQuery(((KeyNot<String>)condition).getChild()), BooleanClause.Occur.MUST_NOT);
+            q.add(convertQuery(((Not)condition).getChild()), BooleanClause.Occur.MUST_NOT);
             return q;
-        } else if (condition instanceof KeyAnd) {
+        } else if (condition instanceof And) {
             BooleanFilter q = new BooleanFilter();
-            for (KeyCondition<String> c : condition.getChildren()) {
+            for (Condition c : condition.getChildren()) {
                 q.add(convertQuery(c), BooleanClause.Occur.MUST);
             }
             return q;
-        } else if (condition instanceof KeyOr) {
+        } else if (condition instanceof Or) {
             BooleanFilter q = new BooleanFilter();
-            for (KeyCondition<String> c : condition.getChildren()) {
+            for (Condition c : condition.getChildren()) {
                 q.add(convertQuery(c), BooleanClause.Occur.SHOULD);
             }
             return q;
@@ -344,14 +335,14 @@ public class LuceneIndex implements IndexProvider {
     }
 
     @Override
-    public boolean supports(Class<?> dataType, Relation relation) {
+    public boolean supports(Class<?> dataType, TitanPredicate titanPredicate) {
         if (Number.class.isAssignableFrom(dataType)) {
-            for (Cmp cmp : Cmp.values()) if (relation==cmp) return true;
+            if (titanPredicate instanceof Cmp) return true;
             return false;
         } else if (dataType == Geoshape.class) {
-            return relation== Geo.WITHIN;
+            return titanPredicate == Geo.WITHIN;
         } else if (dataType == String.class) {
-            return relation == Text.CONTAINS; // || relation == Txt.PREFIX || relation == Cmp.EQUAL || relation == Cmp.NOT_EQUAL;
+            return titanPredicate == Text.CONTAINS; // || relation == Txt.PREFIX || relation == Cmp.EQUAL || relation == Cmp.NOT_EQUAL;
         } else return false;
     }
 
