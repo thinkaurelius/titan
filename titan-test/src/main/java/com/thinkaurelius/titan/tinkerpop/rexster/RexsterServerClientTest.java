@@ -11,6 +11,7 @@ import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.XMLConfiguration;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.HashMap;
@@ -32,6 +33,9 @@ public abstract class RexsterServerClientTest extends TitanGraphTestCommon {
     public RexsterServerClientTest(Configuration config) {
         super(config);
         rexsterConfig = new XMLConfiguration();
+
+        // script engine is not defaulted by rexster.
+        rexsterConfig.addProperty("script-engines.script-engine.name", "gremlin-groovy");
     }
 
     @Before

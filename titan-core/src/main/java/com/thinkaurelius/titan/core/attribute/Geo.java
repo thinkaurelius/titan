@@ -1,7 +1,7 @@
 package com.thinkaurelius.titan.core.attribute;
 
 import com.google.common.base.Preconditions;
-import com.thinkaurelius.titan.graphdb.query.keycondition.Relation;
+import com.thinkaurelius.titan.graphdb.query.TitanPredicate;
 
 /**
  * Comparison relations for geographic shapes.
@@ -9,12 +9,12 @@ import com.thinkaurelius.titan.graphdb.query.keycondition.Relation;
  * @author Matthias Broecheler (me@matthiasb.com)
  */
 
-public enum Geo implements Relation {
+public enum Geo implements TitanPredicate {
 
     INTERSECT {
 
         @Override
-        public boolean satisfiesCondition(Object value, Object condition) {
+        public boolean evaluate(Object value, Object condition) {
             Preconditions.checkArgument(condition instanceof Geoshape);
             if (value==null) return false;
             Preconditions.checkArgument(value instanceof Geoshape);
@@ -25,13 +25,23 @@ public enum Geo implements Relation {
         public String toString() {
             return "intersect";
         }
+
+        @Override
+        public boolean hasNegation() {
+            return true;
+        }
+
+        @Override
+        public TitanPredicate negate() {
+            return DISJOINT;
+        }
     },
 
     DISJOINT {
 
 
         @Override
-        public boolean satisfiesCondition(Object value, Object condition) {
+        public boolean evaluate(Object value, Object condition) {
             Preconditions.checkArgument(condition instanceof Geoshape);
             if (value==null) return false;
             Preconditions.checkArgument(value instanceof Geoshape);
@@ -42,12 +52,22 @@ public enum Geo implements Relation {
         public String toString() {
             return "disjoint";
         }
+
+        @Override
+        public boolean hasNegation() {
+            return true;
+        }
+
+        @Override
+        public TitanPredicate negate() {
+            return INTERSECT;
+        }
     },
 
     WITHIN {
 
         @Override
-        public boolean satisfiesCondition(Object value, Object condition) {
+        public boolean evaluate(Object value, Object condition) {
             Preconditions.checkArgument(condition instanceof Geoshape);
             if (value==null) return false;
             Preconditions.checkArgument(value instanceof Geoshape);
@@ -58,6 +78,16 @@ public enum Geo implements Relation {
         public String toString() {
             return "within";
         }
+
+        @Override
+        public boolean hasNegation() {
+            return false;
+        }
+
+        @Override
+        public TitanPredicate negate() {
+            throw new UnsupportedOperationException();
+        }
     };
 
 
@@ -67,8 +97,14 @@ public enum Geo implements Relation {
     }
 
     @Override
-    public boolean isValidDataType(Class<?> clazz) {
+    public boolean isValidValueType(Class<?> clazz) {
         Preconditions.checkNotNull(clazz);
         return clazz.equals(Geoshape.class);
     }
+
+    @Override
+    public boolean isQNF() {
+        return true;
+    }
+
 }
