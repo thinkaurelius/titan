@@ -13,7 +13,8 @@ import com.thinkaurelius.titan.diskstorage.indexing.IndexMutation;
 import com.thinkaurelius.titan.diskstorage.indexing.IndexProvider;
 import com.thinkaurelius.titan.diskstorage.indexing.IndexQuery;
 import com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfiguration;
-import com.thinkaurelius.titan.graphdb.query.keycondition.*;
+import com.thinkaurelius.titan.graphdb.query.TitanPredicate;
+import com.thinkaurelius.titan.graphdb.query.condition.*;
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.lang.StringUtils;
 import org.elasticsearch.ElasticSearchInterruptedException;
@@ -305,34 +306,28 @@ public class ElasticSearchIndex implements IndexProvider {
         }  catch (Exception e) {  throw convert(e);  }
     }
 
-    public FilterBuilder getFilter(KeyCondition<String> condition) {
-        if (condition instanceof KeyAtom) {
-            KeyAtom<String> atom = (KeyAtom<String>) condition;
-            Object value = atom.getCondition();
+    public FilterBuilder getFilter(Condition<?> condition) {
+        if (condition instanceof PredicateCondition) {
+            PredicateCondition<String,?> atom = (PredicateCondition) condition;
+            Object value = atom.getValue();
             String key = atom.getKey();
-            Relation relation = atom.getRelation();
-            if (value instanceof Number || value instanceof Interval) {
-                Preconditions.checkArgument(relation instanceof Cmp,"Relation not supported on numeric types: " + relation);
-                Cmp numRel = (Cmp)relation;
-                if (numRel==Cmp.INTERVAL) {
-                    Preconditions.checkArgument(value instanceof Interval && ((Interval)value).getStart() instanceof Number);
-                    Interval i = (Interval)value;
-                    return FilterBuilders.rangeFilter(key).from(i.getStart()).to(i.getEnd()).includeLower(i.startInclusive()).includeUpper(i.endInclusive());
-                } else {
-                    Preconditions.checkArgument(value instanceof Number);
+            TitanPredicate titanPredicate = atom.getPredicate();
+            if (value instanceof Number) {
+                Preconditions.checkArgument(titanPredicate instanceof Cmp,"Relation not supported on numeric types: " + titanPredicate);
+                Cmp numRel = (Cmp) titanPredicate;
+                Preconditions.checkArgument(value instanceof Number);
 
-                    switch(numRel) {
-                        case EQUAL: return FilterBuilders.inFilter(key,value);
-                        case NOT_EQUAL: return FilterBuilders.notFilter(FilterBuilders.inFilter(key,value));
-                        case LESS_THAN: return FilterBuilders.rangeFilter(key).lt(value);
-                        case LESS_THAN_EQUAL: return FilterBuilders.rangeFilter(key).lte(value);
-                        case GREATER_THAN: return FilterBuilders.rangeFilter(key).gt(value);
-                        case GREATER_THAN_EQUAL: return FilterBuilders.rangeFilter(key).gte(value);
-                        default: throw new IllegalArgumentException("Unexpected relation: " + numRel);
-                    }
+                switch(numRel) {
+                    case EQUAL: return FilterBuilders.inFilter(key,value);
+                    case NOT_EQUAL: return FilterBuilders.notFilter(FilterBuilders.inFilter(key,value));
+                    case LESS_THAN: return FilterBuilders.rangeFilter(key).lt(value);
+                    case LESS_THAN_EQUAL: return FilterBuilders.rangeFilter(key).lte(value);
+                    case GREATER_THAN: return FilterBuilders.rangeFilter(key).gt(value);
+                    case GREATER_THAN_EQUAL: return FilterBuilders.rangeFilter(key).gte(value);
+                    default: throw new IllegalArgumentException("Unexpected relation: " + numRel);
                 }
             } else if (value instanceof String) {
-                if (relation == Text.CONTAINS) {
+                if (titanPredicate == Text.CONTAINS) {
                     return FilterBuilders.termFilter(key,((String)value).toLowerCase());
 //                } else if (relation == Txt.PREFIX) {
 //                    return new PrefixFilter(new Term(key+STR_SUFFIX,(String)value));
@@ -342,9 +337,9 @@ public class ElasticSearchIndex implements IndexProvider {
 //                    BooleanFilter q = new BooleanFilter();
 //                    q.add(new TermsFilter(new Term(key+STR_SUFFIX,(String)value)), BooleanClause.Occur.MUST_NOT);
 //                    return q;
-                } else throw new IllegalArgumentException("Relation is not supported for string value: " + relation);
+                } else throw new IllegalArgumentException("Relation is not supported for string value: " + titanPredicate);
             } else if (value instanceof Geoshape) {
-                Preconditions.checkArgument(relation==Geo.WITHIN,"Relation is not supported for geo value: " + relation);
+                Preconditions.checkArgument(titanPredicate ==Geo.WITHIN,"Relation is not supported for geo value: " + titanPredicate);
                 Geoshape shape = (Geoshape)value;
                 if (shape.getType()== Geoshape.Type.CIRCLE) {
                     Geoshape.Point center = shape.getPoint();
@@ -355,17 +350,17 @@ public class ElasticSearchIndex implements IndexProvider {
                     return FilterBuilders.geoBoundingBoxFilter(key).bottomRight(southwest.getLatitude(), northeast.getLongitude()).topLeft(northeast.getLatitude(), southwest.getLongitude());
                 } else throw new IllegalArgumentException("Unsupported or invalid search shape type: " + shape.getType());
             } else throw new IllegalArgumentException("Unsupported type: " + value);
-        } else if (condition instanceof KeyNot) {
-            return FilterBuilders.notFilter(getFilter(((KeyNot)condition).getChild()));
-        } else if (condition instanceof KeyAnd) {
+        } else if (condition instanceof Not) {
+            return FilterBuilders.notFilter(getFilter(((Not)condition).getChild()));
+        } else if (condition instanceof And) {
             AndFilterBuilder b = FilterBuilders.andFilter();
-            for (KeyCondition<String> c : condition.getChildren()) {
+            for (Condition c : condition.getChildren()) {
                 b.add(getFilter(c));
             }
             return b;
-        } else if (condition instanceof KeyOr) {
+        } else if (condition instanceof Or) {
             OrFilterBuilder b = FilterBuilders.orFilter();
-            for (KeyCondition<String> c : condition.getChildren()) {
+            for (Condition c : condition.getChildren()) {
                 b.add(getFilter(c));
             }
             return b;
@@ -396,14 +391,14 @@ public class ElasticSearchIndex implements IndexProvider {
     }
 
     @Override
-    public boolean supports(Class<?> dataType, Relation relation) {
+    public boolean supports(Class<?> dataType, TitanPredicate titanPredicate) {
         if (Number.class.isAssignableFrom(dataType)) {
-            if (relation instanceof Cmp) return true;
+            if (titanPredicate instanceof Cmp) return true;
             else return false;
         } else if (dataType == Geoshape.class) {
-            return relation== Geo.WITHIN;
+            return titanPredicate == Geo.WITHIN;
         } else if (dataType == String.class) {
-            return relation == Text.CONTAINS; // || relation == Txt.PREFIX || relation == Cmp.EQUAL || relation == Cmp.NOT_EQUAL;
+            return titanPredicate == Text.CONTAINS; // || relation == Txt.PREFIX || relation == Cmp.EQUAL || relation == Cmp.NOT_EQUAL;
         } else return false;
     }
 

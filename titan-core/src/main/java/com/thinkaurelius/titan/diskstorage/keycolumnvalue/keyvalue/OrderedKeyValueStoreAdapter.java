@@ -10,8 +10,8 @@ import com.thinkaurelius.titan.diskstorage.util.StaticArrayBuffer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.*;
 import javax.annotation.Nullable;
+import java.util.*;
 
 /**
  * Wraps a {@link OrderedKeyValueStore} and exposes it as a {@link KeyColumnValueStore}.
@@ -63,7 +63,7 @@ public class OrderedKeyValueStoreAdapter implements KeyColumnValueStore {
 
     @Override
     public List<List<Entry>> getSlice(List<StaticBuffer> keys, SliceQuery query, StoreTransaction txh) throws StorageException {
-        List<List<Entry>> results = new ArrayList<List<Entry>>();
+        List<List<Entry>> results = new ArrayList<List<Entry>>(keys.size());
 
         for (StaticBuffer key : keys) {
             results.add(getSlice(new KeySliceQuery(key, query), txh));

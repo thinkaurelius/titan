@@ -1,5 +1,6 @@
 package com.thinkaurelius.titan.graphdb.database;
 
+import com.carrotsearch.hppc.LongArrayList;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ListMultimap;
@@ -8,7 +9,7 @@ import com.thinkaurelius.titan.diskstorage.Backend;
 import com.thinkaurelius.titan.diskstorage.BackendTransaction;
 import com.thinkaurelius.titan.diskstorage.StaticBuffer;
 import com.thinkaurelius.titan.diskstorage.StorageException;
-import com.thinkaurelius.titan.diskstorage.indexing.IndexInformation;
+import com.thinkaurelius.titan.diskstorage.indexing.IndexQuery;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.Entry;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.KeySliceQuery;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.SliceQuery;
@@ -19,6 +20,7 @@ import com.thinkaurelius.titan.graphdb.blueprints.TitanFeatures;
 import com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfiguration;
 import com.thinkaurelius.titan.graphdb.database.idassigner.VertexIDAssigner;
 import com.thinkaurelius.titan.graphdb.database.idhandling.IDHandler;
+import com.thinkaurelius.titan.graphdb.database.serialize.AttributeHandling;
 import com.thinkaurelius.titan.graphdb.database.serialize.Serializer;
 import com.thinkaurelius.titan.graphdb.idmanagement.IDInspector;
 import com.thinkaurelius.titan.graphdb.idmanagement.IDManager;
@@ -26,7 +28,6 @@ import com.thinkaurelius.titan.graphdb.internal.InternalElement;
 import com.thinkaurelius.titan.graphdb.internal.InternalRelation;
 import com.thinkaurelius.titan.graphdb.internal.InternalType;
 import com.thinkaurelius.titan.graphdb.internal.InternalVertex;
-import com.thinkaurelius.titan.graphdb.query.StandardElementQuery;
 import com.thinkaurelius.titan.graphdb.relations.EdgeDirection;
 import com.thinkaurelius.titan.graphdb.transaction.StandardTitanTx;
 import com.thinkaurelius.titan.graphdb.transaction.TransactionConfig;
@@ -122,18 +123,20 @@ public class StandardTitanGraph extends TitanBlueprintsGraph {
         }
     }
 
-    public IndexInformation getIndexInformation(String indexName) {
-        IndexInformation indexinfo = backend.getIndexInformation().get(indexName);
-        Preconditions.checkArgument(indexinfo!=null,"Index is unknown or not configured: %s",indexName);
-        return indexinfo;
+    public IndexSerializer getIndexSerializer() {
+        return indexSerializer;
     }
 
     public IDInspector getIDInspector() {
-        return idManager;
+        return idManager.getIDInspector();
     }
 
     public EdgeSerializer getEdgeSerializer() {
         return edgeSerializer;
+    }
+
+    public AttributeHandling getAttributeHandling() {
+        return serializer;
     }
 
     public GraphDatabaseConfiguration getConfiguration() {
@@ -171,13 +174,23 @@ public class StandardTitanGraph extends TitanBlueprintsGraph {
     }
 
 
-    public List<Object> elementQuery(StandardElementQuery query, BackendTransaction tx) {
-        return indexSerializer.query(query,tx);
+    public List<Object> elementQuery(String indexName, IndexQuery query, BackendTransaction tx) {
+        return indexSerializer.query(indexName, query, tx);
     }
 
     public List<Entry> edgeQuery(long vid, SliceQuery query, BackendTransaction tx) {
         Preconditions.checkArgument(vid>0);
-        return tx.edgeStoreQuery(new KeySliceQuery(IDHandler.getKey(vid),query));
+        return tx.edgeStoreQuery(new KeySliceQuery(IDHandler.getKey(vid), query));
+    }
+
+    public List<List<Entry>> edgeMultiQuery(LongArrayList vids, SliceQuery query, BackendTransaction tx) {
+        Preconditions.checkArgument(vids!=null && !vids.isEmpty());
+        List<StaticBuffer> vertexIds = new ArrayList<StaticBuffer>(vids.size());
+        for (int i=0;i<vids.size();i++) {
+            Preconditions.checkArgument(vids.get(i)>0);
+            vertexIds.add(IDHandler.getKey(vids.get(i)));
+        }
+        return tx.edgeStoreMultiQuery(vertexIds, query);
     }
 
 
