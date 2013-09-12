@@ -11,11 +11,22 @@ import com.thinkaurelius.titan.diskstorage.StorageException;
 public interface StoreManager {
 
     /**
-     * Returns a transaction handle for a new transaction.
-     *
+     * Returns a transaction handle for a new transaction without set timestamp.
+     * @param consistencyLevel
      * @return New Transaction Handle
+     * @throws StorageException
      */
     public StoreTransaction beginTransaction(ConsistencyLevel consistencyLevel) throws StorageException;
+
+    /**
+     * Returns a transaction handle for a new transaction with set timestamp.
+     * @param consistencyLevel
+     * @param timestamp pre-defined timestamp for the newly created transaction
+     * @return New Transaction Handle
+     * @throws StorageException
+     */
+    public StoreTransaction beginTransaction(ConsistencyLevel consistencyLevel, Long timestamp)
+        throws StorageException;
 
     /**
      * Closes the Storage Manager and all databases that have been opened.

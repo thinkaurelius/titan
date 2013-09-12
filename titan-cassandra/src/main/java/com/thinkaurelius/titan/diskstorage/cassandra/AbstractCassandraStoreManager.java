@@ -116,7 +116,15 @@ public abstract class AbstractCassandraStoreManager extends DistributedStoreMana
 
     @Override
     public StoreTransaction beginTransaction(ConsistencyLevel level) {
-        return new CassandraTransaction(level, readConsistencyLevel, writeConsistencyLevel);
+        return beginTransaction(level, null);
+    }
+
+    @Override
+    public StoreTransaction beginTransaction(ConsistencyLevel level, Long timestamp) {
+        CassandraTransaction transaction = new CassandraTransaction(level, readConsistencyLevel,
+                                                                    writeConsistencyLevel,
+                                                                    timestamp);
+        return transaction;
     }
 
     @Override

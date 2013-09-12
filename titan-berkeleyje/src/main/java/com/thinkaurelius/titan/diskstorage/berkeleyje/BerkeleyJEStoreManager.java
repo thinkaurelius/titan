@@ -83,6 +83,13 @@ public class BerkeleyJEStoreManager extends LocalStoreManager implements Ordered
         return features;
     }
 
+    // This implementation ignores timestamp (present for interface compatibility)
+    @Override
+    public BerkeleyJETx beginTransaction(ConsistencyLevel level, Long timestamp)
+            throws StorageException {
+        return beginTransaction(level);
+    }
+
     @Override
     public BerkeleyJETx beginTransaction(ConsistencyLevel level) throws StorageException {
         try {

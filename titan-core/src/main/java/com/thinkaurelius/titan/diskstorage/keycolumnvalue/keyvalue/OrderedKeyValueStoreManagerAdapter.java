@@ -42,6 +42,13 @@ public class OrderedKeyValueStoreManagerAdapter implements KeyColumnValueStoreMa
         return manager.getFeatures();
     }
 
+    // This implementation ignores timestamp (present for interface compatibility)
+    @Override
+    public StoreTransaction beginTransaction(ConsistencyLevel level, Long timestamp)
+            throws StorageException {
+        return beginTransaction(level);
+    }
+
     @Override
     public StoreTransaction beginTransaction(ConsistencyLevel level) throws StorageException {
         return manager.beginTransaction(level);

@@ -245,6 +245,13 @@ public class HBaseStoreManager extends DistributedStoreManager implements KeyCol
         return new HBaseTransaction(level);
     }
 
+    //This implementation actually ignores timestamp (present for interface compatibility)
+    @Override
+    public StoreTransaction beginTransaction(ConsistencyLevel level, Long timestamp)
+            throws StorageException {
+        return beginTransaction(level);
+    }
+
 
     /**
      * Deletes the specified table with all its columns.

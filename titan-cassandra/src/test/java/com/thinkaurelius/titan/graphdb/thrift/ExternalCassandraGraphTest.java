@@ -2,11 +2,11 @@ package com.thinkaurelius.titan.graphdb.thrift;
 
 import com.thinkaurelius.titan.CassandraStorageSetup;
 import com.thinkaurelius.titan.diskstorage.cassandra.CassandraProcessStarter;
-import com.thinkaurelius.titan.graphdb.TitanGraphTest;
+import com.thinkaurelius.titan.graphdb.AbstractCassandraGraphTest;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 
-public class ExternalCassandraGraphTest extends TitanGraphTest {
+public class ExternalCassandraGraphTest extends AbstractCassandraGraphTest {
 
     public static CassandraProcessStarter ch = new CassandraProcessStarter();
 

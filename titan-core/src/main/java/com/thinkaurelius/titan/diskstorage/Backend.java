@@ -383,13 +383,24 @@ public class Backend {
     //3. Messaging queues
 
     /**
-     * Opens a new transaction against all registered backend system wrapped in one {@link BackendTransaction}.
-     *
-     * @return
+     * Opens a new transaction without set timestamp against all registered backend system
+     * wrapped in one {@link BackendTransaction}.
+     * @return BackendTransaction
      * @throws StorageException
      */
     public BackendTransaction beginTransaction() throws StorageException {
-        StoreTransaction tx = storeManager.beginTransaction(ConsistencyLevel.DEFAULT);
+        return beginTransaction(null);
+    }
+
+    /**
+     * Opens a new transaction with set timestamp against all registered backend system
+     * wrapped in one {@link BackendTransaction}.
+     *
+     * @return BackendTransaction
+     * @throws StorageException
+     */
+    public BackendTransaction beginTransaction(Long timestamp) throws StorageException {
+        StoreTransaction tx = storeManager.beginTransaction(ConsistencyLevel.DEFAULT, timestamp);
         if (bufferSize > 1) {
             assert storeManager.getFeatures().supportsBatchMutation();
             tx = new BufferTransaction(tx, storeManager, bufferSize, writeAttempts, persistAttemptWaittime);
@@ -398,7 +409,9 @@ public class Backend {
             if (storeFeatures.supportsTransactions()) {
                 //No transaction wrapping needed
             } else if (storeFeatures.supportsConsistentKeyOperations()) {
-                tx = new ExpectedValueCheckingTransaction(tx, storeManager.beginTransaction(ConsistencyLevel.KEY_CONSISTENT), readAttempts);
+                tx = new ExpectedValueCheckingTransaction(
+                    tx,  storeManager.beginTransaction(ConsistencyLevel.KEY_CONSISTENT, timestamp),
+                                                       readAttempts);
             }
         }
 

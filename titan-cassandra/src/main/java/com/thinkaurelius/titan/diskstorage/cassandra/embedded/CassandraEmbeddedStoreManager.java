@@ -8,6 +8,7 @@ import com.thinkaurelius.titan.diskstorage.StaticBuffer;
 import com.thinkaurelius.titan.diskstorage.StorageException;
 import com.thinkaurelius.titan.diskstorage.TemporaryStorageException;
 import com.thinkaurelius.titan.diskstorage.cassandra.AbstractCassandraStoreManager;
+import com.thinkaurelius.titan.diskstorage.cassandra.CassandraTransaction;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.Entry;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.KCVMutation;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.KeyColumnValueStore;
@@ -192,9 +193,21 @@ public class CassandraEmbeddedStoreManager extends AbstractCassandraStoreManager
     @Override
     public void mutateMany(Map<String, Map<StaticBuffer, KCVMutation>> mutations, StoreTransaction txh) throws StorageException {
         Preconditions.checkNotNull(mutations);
+        CassandraTransaction ctxh = getTx(txh);
 
-        long deletionTimestamp = TimeUtility.INSTANCE.getApproxNSSinceEpoch(false);
-        long additionTimestamp = TimeUtility.INSTANCE.getApproxNSSinceEpoch(true);
+        long deletionTimestamp;
+        long additionTimestamp;
+
+        if (ctxh.getTimestamp() == null) {
+            // If cassandra transaction timestamp not provided, use current time
+            deletionTimestamp = TimeUtility.INSTANCE.getApproxNSSinceEpoch(false);
+            additionTimestamp = TimeUtility.INSTANCE.getApproxNSSinceEpoch(true);
+        } else {
+            // Set the transaction timestamp according to transaction. Deletions get
+            // the earlier timestamp.
+            deletionTimestamp = ctxh.getTimestamp();
+            additionTimestamp = ctxh.getTimestamp() + 1;
+        }
 
         int size = 0;
         for (Map<StaticBuffer, KCVMutation> mutation : mutations.values()) size += mutation.size();

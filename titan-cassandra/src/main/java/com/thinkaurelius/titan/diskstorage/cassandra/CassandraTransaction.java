@@ -14,6 +14,7 @@ import com.thinkaurelius.titan.diskstorage.keycolumnvalue.StoreTransaction;
  * @author Dan LaRocque <dalaro@hopcount.org>
  */
 public class CassandraTransaction extends AbstractStoreTransaction {
+    private final Long timestamp;
 
     public enum Consistency {
         ONE, TWO, THREE, ANY, ALL, QUORUM, LOCAL_QUORUM, EACH_QUORUM;
@@ -71,7 +72,8 @@ public class CassandraTransaction extends AbstractStoreTransaction {
     private final Consistency readConsistency;
     private final Consistency writeConsistency;
 
-    public CassandraTransaction(ConsistencyLevel level, Consistency readConsistency, Consistency writeConsistency) {
+    public CassandraTransaction(ConsistencyLevel level, Consistency readConsistency,
+                                Consistency writeConsistency, Long timestamp) {
         super(level);
         if (level == ConsistencyLevel.KEY_CONSISTENT) {
             this.readConsistency = Consistency.QUORUM;
@@ -82,6 +84,18 @@ public class CassandraTransaction extends AbstractStoreTransaction {
             this.readConsistency = readConsistency;
             this.writeConsistency = writeConsistency;
         }
+        this.timestamp = timestamp;
+    }
+
+    /**
+     * Constructor setting transaction timestamp to null if not specified
+     * @param level
+     * @param readConsistency
+     * @param writeConsistency
+     */
+    public CassandraTransaction(ConsistencyLevel level, Consistency readConsistency,
+                                Consistency writeConsistency) {
+        this(level, readConsistency, writeConsistency, null);
     }
 
     public Consistency getReadConsistencyLevel() {
@@ -97,5 +111,11 @@ public class CassandraTransaction extends AbstractStoreTransaction {
         return (CassandraTransaction) txh;
     }
 
-
+    /**
+     * Returns transaction timestamp
+     * @return timestamp
+     */
+    public Long getTimestamp() {
+        return timestamp;
+    }
 }

@@ -45,6 +45,13 @@ public class InMemoryStoreManager implements KeyColumnValueStoreManager {
         features.hasLocalKeyPartition = false;
     }
 
+    // This implementation ignores timestamp (present for interface compatibility)
+    @Override
+    public StoreTransaction beginTransaction(ConsistencyLevel consistencyLevel, Long timestamp)
+            throws StorageException {
+        return beginTransaction(consistencyLevel);
+    }
+
     @Override
     public StoreTransaction beginTransaction(ConsistencyLevel consistencyLevel) throws StorageException {
         return new TransactionHandle(consistencyLevel);
