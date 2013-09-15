@@ -11,7 +11,11 @@ import com.thinkaurelius.titan.diskstorage.indexing.IndexMutation;
 import com.thinkaurelius.titan.diskstorage.indexing.IndexProvider;
 import com.thinkaurelius.titan.diskstorage.indexing.IndexQuery;
 import com.thinkaurelius.titan.diskstorage.solr.transform.GeoToWktConverter;
-import com.thinkaurelius.titan.graphdb.query.keycondition.*;
+import com.thinkaurelius.titan.graphdb.query.TitanPredicate;
+import com.thinkaurelius.titan.graphdb.query.condition.And;
+import com.thinkaurelius.titan.graphdb.query.condition.Condition;
+import com.thinkaurelius.titan.graphdb.query.condition.Not;
+import com.thinkaurelius.titan.graphdb.query.condition.PredicateCondition;
 import org.apache.commons.configuration.Configuration;
 import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.SolrServer;
@@ -39,6 +43,7 @@ public class SolrSearchIndex implements IndexProvider {
     private boolean isEmbeddedMode;
     private Logger log = LoggerFactory.getLogger(SolrSearchIndex.class);
     private float kilometersPerDegree = 111.12f;
+    private int totalDocsProcessed;
 
     /**
      * Builds a mapping between the core name and its respective Solr Server connection.
@@ -185,6 +190,7 @@ public class SolrSearchIndex implements IndexProvider {
             Collection<SolrInputDocument> newDocuments = new ArrayList<SolrInputDocument>();
             Collection<SolrInputDocument> updateDocuments = new ArrayList<SolrInputDocument>();
             boolean isLastBatch = false;
+            this.totalDocsProcessed = 0;
 
             for (Map.Entry<String, Map<String, IndexMutation>> stores : mutations.entrySet()) {
                 String coreName = stores.getKey();
@@ -253,6 +259,7 @@ public class SolrSearchIndex implements IndexProvider {
                         }
                     }
                     numProcessed++;
+                    totalDocsProcessed++;
                     if (numProcessed == stores.getValue().size()) {
                         isLastBatch = true;
                     }
@@ -300,6 +307,7 @@ public class SolrSearchIndex implements IndexProvider {
                     server.commit();
                 }
             } else {
+
                 server.add(documents);
                 server.commit();
                 documents.clear();
@@ -357,23 +365,24 @@ public class SolrSearchIndex implements IndexProvider {
         return result;
     }
 
-    public SolrQuery buildQuery(SolrQuery q, KeyCondition<String> condition) {
-        if (condition instanceof KeyAtom) {
-            KeyAtom<String> atom= (KeyAtom<String>) condition;
-            Object value = atom.getCondition();
+    public SolrQuery buildQuery(SolrQuery q, Condition<?> condition) {
+        if (condition instanceof PredicateCondition) {
+            PredicateCondition<String, ?> atom= (PredicateCondition<String, ?>) condition;
+            Object value = atom.getValue();
             String key = atom.getKey();
-            Relation relation = atom.getRelation();
+            TitanPredicate titanPredicate = atom.getPredicate();
 
-            if (value instanceof Number ||
-                value instanceof Interval) {
+            if (value instanceof Number
+                //|| value instanceof Interval
+                ) {
 
-                Preconditions.checkArgument(relation instanceof Cmp, "Relation not supported on numeric types: " + relation);
-                Cmp numRel = (Cmp) relation;
-                if (numRel == Cmp.INTERVAL) {
-                    Interval i = (Interval)value;
-                    q.addFilterQuery(key + ":[" + i.getStart() + " TO " + i.getEnd() + "]");
-                    return q;
-                } else {
+                Preconditions.checkArgument(titanPredicate instanceof Cmp, "Relation not supported on numeric types: " + titanPredicate);
+                Cmp numRel = (Cmp) titanPredicate;
+                //if (numRel == Cmp.INTERVAL) {
+                //    Interval i = (Interval)value;
+                //    q.addFilterQuery(key + ":[" + i.getStart() + " TO " + i.getEnd() + "]");
+                //    return q;
+                //} else {
                     Preconditions.checkArgument(value instanceof Number);
 
                     switch (numRel) {
@@ -399,16 +408,16 @@ public class SolrSearchIndex implements IndexProvider {
                             return q;
                         default: throw new IllegalArgumentException("Unexpected relation: " + numRel);
                     }
-                }
+                //}
             } else if (value instanceof String) {
-                if (relation == Text.CONTAINS) {
+                if (titanPredicate == Text.CONTAINS) {
                     //e.g. - if terms tomorrow and world were supplied, and fq=text:(tomorrow  world)
                     //sample data set would return 2 documents: one where text = Tomorrow is the World,
                     //and the second where text = Hello World
                     q.addFilterQuery(key + ":("+((String) value).toLowerCase()+")");
                     return q;
                 } else {
-                    throw new IllegalArgumentException("Relation is not supported for string value: " + relation);
+                    throw new IllegalArgumentException("Relation is not supported for string value: " + titanPredicate);
                 }
             } else if (value instanceof Geoshape) {
                 Geoshape geo = (Geoshape)value;
@@ -437,7 +446,7 @@ public class SolrSearchIndex implements IndexProvider {
                     return q;
                 }
             }
-        } else if (condition instanceof KeyNot) {
+        } else if (condition instanceof Not) {
             String[] filterConditions = q.getFilterQueries();
            for (String filterCondition : filterConditions) {
                 //if (filterCondition.contains(key)) {
@@ -446,8 +455,9 @@ public class SolrSearchIndex implements IndexProvider {
                 //}
             }
             return q;
-        } else if (condition instanceof KeyAnd) {
-            for (KeyCondition<String> c : condition.getChildren()) {
+        } else if (condition instanceof And) {
+
+            for (Condition c : condition.getChildren()) {
                 SolrQuery andCondition = new SolrQuery();
                 andCondition.setQuery("*:*");
                 andCondition =  buildQuery(andCondition, c);
@@ -533,17 +543,17 @@ public class SolrSearchIndex implements IndexProvider {
     }
 
     @Override
-    public boolean supports(Class<?> dataType, Relation relation) {
+    public boolean supports(Class<?> dataType, TitanPredicate titanPredicate) {
         if (Number.class.isAssignableFrom(dataType)) {
-            if (relation instanceof Cmp) {
+            if (titanPredicate instanceof Cmp) {
                 return true;
             } else {
                 return false;
             }
         } else if (dataType == Geoshape.class) {
-            return relation == Geo.WITHIN;
+            return titanPredicate == Geo.WITHIN;
         } else if (dataType == String.class) {
-            return relation == Text.CONTAINS;
+            return titanPredicate == Text.CONTAINS;
         } else {
             return false;
         }
