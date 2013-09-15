@@ -194,14 +194,14 @@ public abstract class IndexProviderTest {
         assertEquals(oldresultSize,result.size());
     }
 
-    private void initialize(String store) throws StorageException {
+    protected void initialize(String store) throws StorageException {
         if (index.supports(String.class)) index.register(store,"text",String.class,tx);
         if (index.supports(Long.class)) index.register(store,"time",Long.class,tx);
         if (index.supports(Double.class)) index.register(store,"weight",Double.class,tx);
         if (index.supports(Geoshape.class)) index.register(store,"location",Geoshape.class,tx);
     }
 
-    private void add(String store, String docid, Map<String,Object> doc, boolean isNew) {
+    protected void add(String store, String docid, Map<String,Object> doc, boolean isNew) {
         for (Map.Entry<String,Object> kv : doc.entrySet()) {
             if (index.supports(kv.getValue().getClass())) {
                 tx.add(store,docid,kv.getKey(),kv.getValue(),isNew);
@@ -209,7 +209,7 @@ public abstract class IndexProviderTest {
         }
     }
 
-    private void remove(String store, String docid, Map<String,Object> doc, boolean deleteAll) {
+    protected void remove(String store, String docid, Map<String,Object> doc, boolean deleteAll) {
         for (Map.Entry<String,Object> kv : doc.entrySet()) {
             if (index.supports(kv.getValue().getClass())) {
                 tx.delete(store,docid,kv.getKey(),deleteAll);
