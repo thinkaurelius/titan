@@ -46,11 +46,7 @@ public class AccumuloStoreManager extends DistributedStoreManager implements Key
 
     private static final Logger logger = LoggerFactory.getLogger(AccumuloStoreManager.class);
     // Default deleter, scanner, writer parameters 
-    private static final Authorizations DEFAULT_AUTHORIZATIONS = new Authorizations();
-    private static final Long DEFAULT_MAX_MEMORY = 50 * 1024 * 1024l;
-    private static final Long DEFAULT_MAX_LATENCY = 100l;
-    private static final Integer DEFAULT_MAX_QUERY_THREADS = 10;
-    private static final Integer DEFAULT_MAX_WRITE_THREADS = 10;
+    private static final Authorizations AUTHORIZATIONS_DEFAULT = new Authorizations();
     // Configuration namespace
     public static final String ACCUMULO_CONFIGURATION_NAMESPACE = "accumulo-config";
     // Configuration keys
@@ -64,7 +60,7 @@ public class AccumuloStoreManager extends DistributedStoreManager implements Key
     public static final int PORT_DEFAULT = 9160;
     public static final boolean CLIENT_SIDE_ITERATORS_DEFAULT = true;
     // Instance injector
-    public static AccumuloInstanceInjector instanceInjector = AccumuloInstanceInjector.ZOOKEEPER_INSTANCE_INJECTOR;
+    public static AccumuloInstanceFactory instanceFactory = AccumuloInstanceFactory.ZOOKEEPER_INSTANCE_FACTORY;
     // Instance variables
     private final String tableName;
     private final String instanceName;
@@ -75,8 +71,9 @@ public class AccumuloStoreManager extends DistributedStoreManager implements Key
     private final Instance instance;    // thread-safe
     private final Connector connector;  // thread-safe
     private final ConcurrentMap<String, AccumuloKeyColumnValueStore> openStores;
-    private final StoreFeatures features;   // immutable once created
-    private final AccumuloStoreConfiguration storeConfiguration;
+    private final StoreFeatures features;   // immutable at constructor exit
+    private final AccumuloBatchConfiguration batchConfiguration;    // immutable at constructor exit
+    private final AccumuloStoreConfiguration storeConfiguration;    // immutable at constructor exit
 
     public AccumuloStoreManager(Configuration config) throws StorageException {
         super(config, PORT_DEFAULT);
@@ -94,7 +91,7 @@ public class AccumuloStoreManager extends DistributedStoreManager implements Key
 
         clientSideIterators = accumuloConfig.getBoolean(CLIENT_SIDE_ITERATORS_KEY, CLIENT_SIDE_ITERATORS_DEFAULT);
 
-        instance = instanceInjector.getInstance(instanceName, zooKeepers);
+        instance = instanceFactory.getInstance(instanceName, zooKeepers);
 
         try {
             connector = instance.getConnector(username, password.getBytes());
@@ -118,7 +115,9 @@ public class AccumuloStoreManager extends DistributedStoreManager implements Key
         features.isDistributed = true;
         features.hasLocalKeyPartition = false;
 
-        storeConfiguration = new AccumuloStoreConfiguration(connector, tableName);
+        batchConfiguration = new AccumuloBatchConfiguration();
+        
+        storeConfiguration = new AccumuloStoreConfiguration(connector, tableName, batchConfiguration);
     }
 
     @Override
@@ -146,7 +145,8 @@ public class AccumuloStoreManager extends DistributedStoreManager implements Key
         AccumuloKeyColumnValueStore store = openStores.get(dbName);
 
         if (store == null) {
-            AccumuloKeyColumnValueStore newStore = new AccumuloKeyColumnValueStore(connector, tableName, dbName, clientSideIterators);
+            AccumuloKeyColumnValueStore newStore = new AccumuloKeyColumnValueStore(connector, tableName, dbName,
+                    batchConfiguration, clientSideIterators);
 
             store = openStores.putIfAbsent(dbName, newStore); // atomic so only one store dbName
 
@@ -155,7 +155,7 @@ public class AccumuloStoreManager extends DistributedStoreManager implements Key
                 store = newStore;
             }
         }
-
+        
         return store;
     }
 
@@ -167,8 +167,7 @@ public class AccumuloStoreManager extends DistributedStoreManager implements Key
         Collection<Mutation> actions = convertToActions(mutations, putTS, delTS);
 
         try {
-            BatchWriter writer = connector.createBatchWriter(tableName,
-                    DEFAULT_MAX_MEMORY, DEFAULT_MAX_LATENCY, DEFAULT_MAX_WRITE_THREADS);
+            BatchWriter writer = batchConfiguration.createBatchWriter(connector, tableName);
             try {
                 writer.addMutations(actions);
                 writer.flush();
@@ -280,8 +279,7 @@ public class AccumuloStoreManager extends DistributedStoreManager implements Key
         }
 
         try {
-            BatchDeleter deleter = connector.createBatchDeleter(tableName, DEFAULT_AUTHORIZATIONS,
-                    DEFAULT_MAX_QUERY_THREADS, DEFAULT_MAX_MEMORY, DEFAULT_MAX_LATENCY, DEFAULT_MAX_WRITE_THREADS);
+            BatchDeleter deleter = batchConfiguration.createBatchDeleter(connector, tableName, AUTHORIZATIONS_DEFAULT);
             deleter.setRanges(Collections.singletonList(new Range()));
             try {
                 deleter.delete();

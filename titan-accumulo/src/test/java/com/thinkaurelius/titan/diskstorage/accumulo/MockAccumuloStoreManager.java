@@ -10,20 +10,21 @@ import org.apache.accumulo.core.client.mock.MockInstance;
 import org.apache.commons.configuration.Configuration;
 
 /**
- *
+ * Store manager that injects Mock Accumulo instance.
+ * 
  * @author edeprit
  */
 public class MockAccumuloStoreManager extends AccumuloStoreManager {
-    
+
     static {
-        instanceInjector = new AccumuloInstanceInjector() {
+        instanceFactory = new AccumuloInstanceFactory() {
             @Override
             public Instance getInstance(String instanceName, String zooKeepers) {
                 return new MockInstance(instanceName);
-            }            
+            }
         };
     }
-    
+
     public MockAccumuloStoreManager(Configuration config) throws StorageException {
         super(config);
     }

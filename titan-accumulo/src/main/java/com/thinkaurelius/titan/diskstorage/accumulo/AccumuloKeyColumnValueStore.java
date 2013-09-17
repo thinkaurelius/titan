@@ -1,7 +1,6 @@
 package com.thinkaurelius.titan.diskstorage.accumulo;
 
 import com.google.common.base.Preconditions;
-import com.google.common.base.Predicate;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -25,8 +24,6 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.logging.Level;
-import javax.annotation.Nullable;
 import org.apache.accumulo.core.client.BatchScanner;
 import org.apache.accumulo.core.client.BatchWriter;
 import org.apache.accumulo.core.client.ClientSideIteratorScanner;
@@ -48,31 +45,15 @@ import org.apache.accumulo.core.security.Authorizations;
 import org.apache.hadoop.io.Text;
 
 /**
- * Experimental Accumulo store.
- * <p/>
- * This is not ready for production. It's pretty slow.
- * <p/>
- * Here are some areas that might need work:
- * <p/>
- * - batching? (consider HTable#batch, HTable#setAutoFlush(false) - tuning
- * HTable#setWriteBufferSize (?) - writing a server-side filter to replace
- * ColumnCountGetFilter, which drops all columns on the row where it reaches its
- * limit. This requires getSlice, currently, to impose its limit on the client
- * side. That obviously won't scale. - RowMutations for combining Puts+Deletes
- * (need a newer HBase than 0.92 for this) - (maybe) fiddle with
- * HTable#setRegionCachePrefetch and/or #prewarmRegionCache
- * <p/>
- * There may be other problem areas. These are just the ones of which I'm aware.
+ * Key-Column value store for Accumulo
+ *
+ * @author Etienne Deprit <edeprit@42six.com>
  */
 public class AccumuloKeyColumnValueStore implements KeyColumnValueStore {
 
     private static final Logger logger = LoggerFactory.getLogger(AccumuloKeyColumnValueStore.class);
     // Default deleter, scanner, writer parameters 
-    private static final Authorizations DEFAULT_AUTHORIZATIONS = new Authorizations();
-    private static final Long DEFAULT_MAX_MEMORY = 50 * 1024 * 1024l;
-    private static final Long DEFAULT_MAX_LATENCY = 100l;
-    private static final Integer DEFAULT_MAX_QUERY_THREADS = 10;
-    private static final Integer DEFAULT_MAX_WRITE_THREADS = 10;
+    private static final Authorizations AUTHORIZATIONS_DEFAULT = new Authorizations();
     // Instance variables
     private final Connector connector;  // thread-safe
     private final String tableName;
@@ -80,14 +61,17 @@ public class AccumuloKeyColumnValueStore implements KeyColumnValueStore {
     // This is columnFamily.getBytes()
     private final byte[] columnFamilyBytes;
     private final Text columnFamilyText;
+    private final AccumuloBatchConfiguration batchConfiguration;
     private final boolean clientSideIterators;
 
-    AccumuloKeyColumnValueStore(Connector connector, String tableName, String columnFamily, boolean clientSideIterators) {
+    AccumuloKeyColumnValueStore(Connector connector, String tableName, String columnFamily,
+            AccumuloBatchConfiguration batchConfiguration, boolean clientSideIterators) {
         this.connector = connector;
         this.tableName = tableName;
         this.columnFamily = columnFamily;
         this.columnFamilyBytes = columnFamily.getBytes();
         this.columnFamilyText = new Text(columnFamily);
+        this.batchConfiguration = batchConfiguration;
         this.clientSideIterators = clientSideIterators;
     }
 
@@ -104,7 +88,7 @@ public class AccumuloKeyColumnValueStore implements KeyColumnValueStore {
     public boolean containsKey(StaticBuffer key, StoreTransaction txh) throws StorageException {
         Scanner scanner;
         try {
-            scanner = connector.createScanner(tableName, DEFAULT_AUTHORIZATIONS);
+            scanner = connector.createScanner(tableName, AUTHORIZATIONS_DEFAULT);
         } catch (TableNotFoundException ex) {
             logger.error("Can't find Titan store " + tableName, ex);
             throw new PermanentStorageException(ex);
@@ -121,32 +105,13 @@ public class AccumuloKeyColumnValueStore implements KeyColumnValueStore {
     public List<Entry> getSlice(KeySliceQuery query, StoreTransaction txh) throws StorageException {
         Scanner scanner;
         try {
-            scanner = connector.createScanner(tableName, DEFAULT_AUTHORIZATIONS);
+            scanner = connector.createScanner(tableName, AUTHORIZATIONS_DEFAULT);
         } catch (TableNotFoundException ex) {
             logger.error("Can't find Titan store " + tableName, ex);
             throw new PermanentStorageException(ex);
         }
 
-        Text keyText = new Text(query.getKey().as(StaticBuffer.ARRAY_FACTORY));
-
-        Key startKey;
-        Key endKey;
-
-        if (query.getSliceStart().length() > 0) {
-            startKey = new Key(keyText, columnFamilyText,
-                    new Text(query.getSliceStart().as(StaticBuffer.ARRAY_FACTORY)));
-        } else {
-            startKey = new Key(keyText, columnFamilyText);
-        }
-
-        if (query.getSliceEnd().length() > 0) {
-            endKey = new Key(keyText, columnFamilyText,
-                    new Text(query.getSliceEnd().as(StaticBuffer.ARRAY_FACTORY)));
-        } else {
-            endKey = new Key(keyText, columnFamilyText);
-        }
-
-        scanner.setRange(new Range(startKey, true, endKey, false));
+        scanner.setRange(getRange(query));
         if (query.getLimit() < scanner.getBatchSize()) {
             scanner.setBatchSize(query.getLimit());
         }
@@ -171,7 +136,7 @@ public class AccumuloKeyColumnValueStore implements KeyColumnValueStore {
     public List<List<Entry>> getSlice(List<StaticBuffer> keys, SliceQuery query, StoreTransaction txh) throws StorageException {
         BatchScanner scanner;
         try {
-            scanner = connector.createBatchScanner(tableName, DEFAULT_AUTHORIZATIONS, DEFAULT_MAX_QUERY_THREADS);
+            scanner = batchConfiguration.createBatchScanner(connector, tableName, AUTHORIZATIONS_DEFAULT);
         } catch (TableNotFoundException ex) {
             logger.error("Can't find Titan store " + tableName, ex);
             throw new PermanentStorageException(ex);
@@ -184,24 +149,7 @@ public class AccumuloKeyColumnValueStore implements KeyColumnValueStore {
 
         Collection<Range> ranges = Lists.newArrayList();
         for (Text key : keysText) {
-            Key startKey;
-            Key endKey;
-
-            if (query.getSliceStart().length() > 0) {
-                startKey = new Key(key, columnFamilyText,
-                        new Text(query.getSliceStart().as(StaticBuffer.ARRAY_FACTORY)));
-            } else {
-                startKey = new Key(key, columnFamilyText);
-            }
-
-            if (query.getSliceEnd().length() > 0) {
-                endKey = new Key(key, columnFamilyText,
-                        new Text(query.getSliceEnd().as(StaticBuffer.ARRAY_FACTORY)));
-            } else {
-                endKey = new Key(key, columnFamilyText);
-            }
-
-            ranges.add(new Range(startKey, true, endKey, false));
+            ranges.add(getRange(key, query));
         }
 
         scanner.setRanges(ranges);
@@ -247,8 +195,7 @@ public class AccumuloKeyColumnValueStore implements KeyColumnValueStore {
         }
 
         try {
-            BatchWriter writer = connector.createBatchWriter(tableName,
-                    DEFAULT_MAX_MEMORY, DEFAULT_MAX_LATENCY, DEFAULT_MAX_WRITE_THREADS);
+            BatchWriter writer = batchConfiguration.createBatchWriter(connector, tableName);
             try {
                 writer.addMutations(batch);
                 writer.flush();
@@ -342,86 +289,62 @@ public class AccumuloKeyColumnValueStore implements KeyColumnValueStore {
 
     @Override
     public RecordIterator<StaticBuffer> getKeys(StoreTransaction txh) throws StorageException {
-        final BatchScanner scanner;
-
-        try {
-            scanner = connector.createBatchScanner(tableName,
-                    DEFAULT_AUTHORIZATIONS, DEFAULT_MAX_QUERY_THREADS);
-        } catch (TableNotFoundException ex) {
-            logger.error("Can't find Titan store " + tableName, ex);
-            throw new PermanentStorageException(ex);
-        }
-
-        scanner.setRanges(Collections.singletonList(new Range()));
-
-        scanner.fetchColumnFamily(new Text(columnFamily));
-
-        IteratorSetting firstRowKeyIterator = new IteratorSetting(10, "firstRowKeyIter", FirstEntryInRowIterator.class);
-        scanner.addScanIterator(firstRowKeyIterator);
-
-        return new RecordIterator<StaticBuffer>() {
-            private final Iterator<Map.Entry<Key, Value>> results = scanner.iterator();
-
-            @Override
-            public boolean hasNext() throws StorageException {
-                return results.hasNext();
-            }
-
-            @Override
-            public StaticBuffer next() throws StorageException {
-                return new StaticArrayBuffer(results.next().getKey().getRow().getBytes());
-            }
-
-            @Override
-            public void close() throws StorageException {
-                scanner.close();
-            }
-        };
+        return executeKeySliceQuery(null, true);
     }
 
     @Override
     public KeyIterator getKeys(KeyRangeQuery query, StoreTransaction txh) throws StorageException {
-        return executeKeySliceQuery(query.getKeyStart(), query.getKeyEnd(), query);
+        return executeKeySliceQuery(query.getKeyStart(), query.getKeyEnd(), query, false);
     }
 
     @Override
     public KeyIterator getKeys(SliceQuery query, StoreTransaction txh) throws StorageException {
-        return executeKeySliceQuery(null, null, query);
+        return executeKeySliceQuery(query, false);
+    }
+
+    private KeyIterator executeKeySliceQuery(SliceQuery columnSlice, boolean keysOnly) throws StorageException {
+        return executeKeySliceQuery(null, null, columnSlice, keysOnly);
     }
 
     private KeyIterator executeKeySliceQuery(StaticBuffer startKey, StaticBuffer endKey,
-            SliceQuery columnSlice) throws StorageException {
+            SliceQuery columnSlice, boolean keysOnly) throws StorageException {
 
-        Scanner scanner = getKeySliceScanner(startKey, endKey, columnSlice);
+        Scanner scanner = getKeySliceScanner(startKey, endKey, columnSlice, keysOnly);
 
         return new RowKeyIterator(scanner);
     }
 
-    private Scanner getKeySliceScanner(StaticBuffer startKey, StaticBuffer endKey, SliceQuery columnSlice) throws StorageException {
-        Range range = getRange(startKey, endKey);
+    private Scanner getKeySliceScanner(StaticBuffer startKey, StaticBuffer endKey,
+            SliceQuery columnSlice, boolean keysOnly) throws StorageException {
 
         Scanner scanner;
         try {
-            scanner = connector.createScanner(tableName, DEFAULT_AUTHORIZATIONS);
+            scanner = connector.createScanner(tableName, AUTHORIZATIONS_DEFAULT);
 
         } catch (TableNotFoundException ex) {
             logger.error("Can't find Titan store " + tableName, ex);
             throw new PermanentStorageException(ex);
         }
 
+        Range range = getRange(startKey, endKey);
         scanner.setRange(range);
         scanner.fetchColumnFamily(columnFamilyText);
 
         IteratorSetting columnSliceIterator = null;
         if (columnSlice != null) {
             columnSliceIterator = getColumnSliceIterator(columnSlice);
+
+            if (columnSliceIterator != null) {
+                if (clientSideIterators) {
+                    scanner = new ClientSideIteratorScanner(scanner);
+                }
+                scanner.addScanIterator(columnSliceIterator);
+            }
         }
 
-        if (columnSliceIterator != null) {
-            if (clientSideIterators) {
-                scanner = new ClientSideIteratorScanner(scanner);
-            }
-            scanner.addScanIterator(columnSliceIterator);
+        if (keysOnly) {
+            IteratorSetting firstRowKeyIterator = new IteratorSetting(15, "firstRowKeyIter", FirstEntryInRowIterator.class);
+            scanner.addScanIterator(firstRowKeyIterator);
         }
 
         return scanner;
@@ -442,6 +365,32 @@ public class AccumuloKeyColumnValueStore implements KeyColumnValueStore {
         return new Range(startRow, true, endRow, false);
     }
 
+    private Range getRange(KeySliceQuery query) {
+        Text key = new Text(query.getKey().as(StaticBuffer.ARRAY_FACTORY));
+        return getRange(key, query);
+    }
+
+    private Range getRange(Text key, SliceQuery query) {
+        Key startKey;
+        Key endKey;
+
+        if (query.getSliceStart().length() > 0) {
+            startKey = new Key(key, columnFamilyText,
+                    new Text(query.getSliceStart().as(StaticBuffer.ARRAY_FACTORY)));
+        } else {
+            startKey = new Key(key, columnFamilyText);
+        }
+
+        if (query.getSliceEnd().length() > 0) {
+            endKey = new Key(key, columnFamilyText,
+                    new Text(query.getSliceEnd().as(StaticBuffer.ARRAY_FACTORY)));
+        } else {
+            endKey = new Key(key, columnFamilyText);
+        }
+
+        return new Range(startKey, true, endKey, false);
+    }
+
     private IteratorSetting getColumnSliceIterator(SliceQuery sliceQuery) {
         IteratorSetting is = null;
 
@@ -449,14 +398,14 @@ public class AccumuloKeyColumnValueStore implements KeyColumnValueStore {
         byte[] maxColumn = sliceQuery.getSliceEnd().as(StaticBuffer.ARRAY_FACTORY);
 
         if (minColumn.length > 0 || maxColumn.length > 0) {
-            is = new IteratorSetting(5, "columnRangeIter", ColumnRangeFilter.class);
+            is = new IteratorSetting(10, "columnRangeIter", ColumnRangeFilter.class);
             ColumnRangeFilter.setRange(is, minColumn, true, maxColumn, false);
         }
 
         return is;
     }
 
-    private class RowKeyIterator implements KeyIterator {
+    private static class RowKeyIterator implements KeyIterator {
 
         RowIterator rows;
         PeekingIterator<Map.Entry<Key, Value>> currentRow;
@@ -470,8 +419,6 @@ public class AccumuloKeyColumnValueStore implements KeyColumnValueStore {
         @Override
         public RecordIterator<Entry> getEntries() {
             RecordIterator<Entry> rowIter = new RecordIterator<Entry>() {
-                boolean isClosed = false;
-
                 @Override
                 public boolean hasNext() throws StorageException {
                     ensureOpen();
@@ -492,14 +439,7 @@ public class AccumuloKeyColumnValueStore implements KeyColumnValueStore {
 
                 @Override
                 public void close() throws StorageException {
-                    isClosed = true;
-                    currentRow = null;
-                }
-
-                private void ensureOpen() {
-                    if (isClosed) {
-                        throw new IllegalStateException("Iterator has been closed.");
-                    }
+                    isClosed = true; // same semantics as in-memory implementation in Titan core
                 }
             };
 

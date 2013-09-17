@@ -4,7 +4,6 @@ import com.thinkaurelius.titan.AccumuloStorageSetup;
 import com.thinkaurelius.titan.core.TitanFactory;
 import com.thinkaurelius.titan.diskstorage.StorageException;
 import com.thinkaurelius.titan.diskstorage.accumulo.AccumuloStoreManager;
-import com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfiguration;
 import com.tinkerpop.blueprints.Graph;
 
 import java.io.IOException;

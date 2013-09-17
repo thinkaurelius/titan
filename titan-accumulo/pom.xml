@@ -53,7 +53,7 @@
                         <artifactId>maven-surefire-plugin</artifactId>
                         <version>2.12.1</version>
                         <configuration>
-                            <argLine>-Xms256m -Xmx2G</argLine>
+                            <argLine>-Xms256m -Xmx3G</argLine>
                             <includes>
                                 <include>**/*Test.java</include>
                             </includes>
@@ -84,6 +84,24 @@
             </testResource>
         </testResources>
         <plugins>
+            <plugin>
+                <artifactId>maven-jar-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>only-iterator</id>
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+                        <phase>package</phase>
+                        <configuration>
+                            <classifier>only-iterator</classifier>
+                            <includes>
+                                <exclude>org/apache/accumulo/core/iterators/user/*</exclude>
+                            </includes>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
             <plugin>
                 <artifactId>maven-dependency-plugin</artifactId>
                 <version>2.7</version>

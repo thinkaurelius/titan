@@ -33,26 +33,26 @@ import org.slf4j.LoggerFactory;
 public class AccumuloStoreConfiguration {
 
     private static final Logger logger = LoggerFactory.getLogger(AccumuloStoreConfiguration.class);
-    // Default deleter, scanner, writer parameters 
-    private static final Long MAX_MEMORY_DEFAULT = 50 * 1024 * 1024l;
-    private static final Long MAX_LATENCY_DEFAULT = 100l;
-    private static final Integer MAX_WRITE_THREADS_DEFAULT = 10;
     // Configuration defaults
     private static final String ROW_ID_DEFAULT = "";
     private static final String COL_FAMILY_DEFAULT = "_properties";
+    private static final Authorizations AUTHORIZATIONS_DEFAULT = new Authorizations();
     // Instance variables
     private final Connector connector;  // thread-safe
     private final String tableName;
+    private final AccumuloBatchConfiguration batchConfiguration;
     private final Text rowIdText;
     private final Text colFamilyText;
 
-    public AccumuloStoreConfiguration(Connector connector, String tableName) {
-        this(connector, tableName, ROW_ID_DEFAULT, COL_FAMILY_DEFAULT);
+    public AccumuloStoreConfiguration(Connector connector, String tableName, AccumuloBatchConfiguration batchConfiguration) {
+        this(connector, tableName, batchConfiguration, ROW_ID_DEFAULT, COL_FAMILY_DEFAULT);
     }
 
-    public AccumuloStoreConfiguration(Connector connector, String tableName, String rowId, String colFamily) {
+    public AccumuloStoreConfiguration(Connector connector, String tableName,
+            AccumuloBatchConfiguration batchConfiguration, String rowId, String colFamily) {
         this.connector = connector;
         this.tableName = tableName;
+        this.batchConfiguration = batchConfiguration;
         this.rowIdText = new Text(rowId);
         this.colFamilyText = new Text(colFamily);
     }
@@ -62,7 +62,7 @@ public class AccumuloStoreConfiguration {
 
         Scanner scanner;
         try {
-            scanner = connector.createScanner(tableName, new Authorizations());
+            scanner = connector.createScanner(tableName, AUTHORIZATIONS_DEFAULT);
         } catch (TableNotFoundException ex) {
             logger.error("Can't find Titan table " + tableName, ex);
             throw new PermanentStorageException(ex);
@@ -82,9 +82,7 @@ public class AccumuloStoreConfiguration {
 
     public void setConfigurationProperty(String key, String value) throws StorageException {
         try {
-            BatchWriter writer = connector.createBatchWriter(tableName,
-                    MAX_MEMORY_DEFAULT, MAX_LATENCY_DEFAULT, MAX_WRITE_THREADS_DEFAULT);
-
+            BatchWriter writer = batchConfiguration.createBatchWriter(connector, tableName);
             try {
                 Mutation mutation = new Mutation(rowIdText);
                 mutation.put(colFamilyText, new Text(key), new Value(value.getBytes()));
