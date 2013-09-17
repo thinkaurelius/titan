@@ -12,8 +12,6 @@ import com.thinkaurelius.titan.diskstorage.keycolumnvalue.KeyColumnValueStoreMan
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.StoreFeatures;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.StoreTransaction;
 import com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfiguration;
-import static com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfiguration.STORAGE_BATCH_DEFAULT;
-import static com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfiguration.STORAGE_BATCH_KEY;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -29,7 +27,6 @@ import org.apache.accumulo.core.client.Instance;
 import org.apache.accumulo.core.client.MutationsRejectedException;
 import org.apache.accumulo.core.client.TableExistsException;
 import org.apache.accumulo.core.client.TableNotFoundException;
-import org.apache.accumulo.core.client.ZooKeeperInstance;
 import org.apache.accumulo.core.client.admin.TableOperations;
 import org.apache.accumulo.core.data.Mutation;
 import org.apache.accumulo.core.data.Range;
@@ -66,6 +63,8 @@ public class AccumuloStoreManager extends DistributedStoreManager implements Key
     public static final String TABLE_NAME_DEFAULT = "titan";
     public static final int PORT_DEFAULT = 9160;
     public static final boolean CLIENT_SIDE_ITERATORS_DEFAULT = true;
+    // Instance injector
+    public static AccumuloInstanceInjector instanceInjector = AccumuloInstanceInjector.ZOOKEEPER_INSTANCE_INJECTOR;
     // Instance variables
     private final String tableName;
     private final String instanceName;
@@ -92,11 +91,11 @@ public class AccumuloStoreManager extends DistributedStoreManager implements Key
 
         username = accumuloConfig.getString(ACCUMULO_USER_KEY);
         password = accumuloConfig.getString(ACCUMULO_PASSWORD_KEY);
-        
+
         clientSideIterators = accumuloConfig.getBoolean(CLIENT_SIDE_ITERATORS_KEY, CLIENT_SIDE_ITERATORS_DEFAULT);
 
-        instance = createInstance(instanceName, zooKeepers);
-        
+        instance = instanceInjector.getInstance(instanceName, zooKeepers);
+
         try {
             connector = instance.getConnector(username, password.getBytes());
         } catch (AccumuloException ex) {
@@ -120,10 +119,6 @@ public class AccumuloStoreManager extends DistributedStoreManager implements Key
         features.hasLocalKeyPartition = false;
 
         storeConfiguration = new AccumuloStoreConfiguration(connector, tableName);
-    }
-
-    protected Instance createInstance(String instanceName, String zooKeepers) {
-        return new ZooKeeperInstance(instanceName, zooKeepers);
     }
 
     @Override

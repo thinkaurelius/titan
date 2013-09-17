@@ -15,12 +15,16 @@ import org.apache.commons.configuration.Configuration;
  */
 public class MockAccumuloStoreManager extends AccumuloStoreManager {
     
-    public MockAccumuloStoreManager(Configuration config) throws StorageException {
-        super(config);
+    static {
+        instanceInjector = new AccumuloInstanceInjector() {
+            @Override
+            public Instance getInstance(String instanceName, String zooKeepers) {
+                return new MockInstance(instanceName);
+            }            
+        };
     }
     
-    @Override
-    protected Instance createInstance(String instanceName, String zooKeepers) {
-        return new MockInstance(instanceName);
+    public MockAccumuloStoreManager(Configuration config) throws StorageException {
+        super(config);
     }
 }
