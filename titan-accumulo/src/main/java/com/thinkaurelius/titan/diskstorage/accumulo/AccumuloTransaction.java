@@ -9,7 +9,7 @@ import com.thinkaurelius.titan.diskstorage.keycolumnvalue.ConsistencyLevel;
  * to HBase, which lets us check for user errors like passing a Cassandra
  * transaction into a HBase method.
  *
- * @author Dan LaRocque <dalaro@hopcount.org>
+ * @author Etienne Deprit <edeprit@42six.com>
  */
 public class AccumuloTransaction extends AbstractStoreTransaction {
 

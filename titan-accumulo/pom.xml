@@ -4,7 +4,7 @@
     <parent>
         <groupId>com.thinkaurelius.titan</groupId>
         <artifactId>titan</artifactId>
-        <version>0.3.1</version>
+        <version>0.4.0-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
     <artifactId>titan-accumulo</artifactId>
@@ -14,12 +14,12 @@
         <dependency>
             <groupId>com.thinkaurelius.titan</groupId>
             <artifactId>titan-core</artifactId>
-            <version>${titan.version}</version>
+            <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>com.thinkaurelius.titan</groupId>
             <artifactId>titan-test</artifactId>
-            <version>${titan.version}</version>
+            <version>${project.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -28,14 +28,20 @@
             <version>1.4.3</version>
         </dependency>
         <dependency>
-            <groupId>org.apache.zookeeper</groupId>
-            <artifactId>zookeeper</artifactId>
-            <version>3.4.3</version>
+            <groupId>org.apache.accumulo</groupId>
+            <artifactId>accumulo-start</artifactId>
+            <version>1.4.3</version>
+            <exclusions>
+                <exclusion>
+                    <artifactId>commons-logging-api</artifactId>
+                    <groupId>commons-logging</groupId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.apache.hadoop</groupId>
             <artifactId>hadoop-core</artifactId>
-            <version>1.0.3</version>
+            <version>1.0.4</version>
         </dependency>
     </dependencies>
     <profiles>
@@ -47,7 +53,7 @@
                         <artifactId>maven-surefire-plugin</artifactId>
                         <version>2.12.1</version>
                         <configuration>
-                            <argLine>-Xms256m -Xmx1024m</argLine>
+                            <argLine>-Xms256m -Xmx2G</argLine>
                             <includes>
                                 <include>**/*Test.java</include>
                             </includes>
@@ -98,9 +104,8 @@
             </plugin>
             <plugin>
                 <artifactId>maven-surefire-plugin</artifactId>
-                <version>2.12.1</version>
                 <configuration>
-                    <argLine>-Xms256m -Xmx756m</argLine>
+                    <argLine>-Xms256m -Xmx1G ${jacoco.opts}</argLine>
                     <excludes>
                         <!-- Excluded because these take too long to run and require a lot of memory - see comprehensive profile -->
                         <exclude>**/*PerformanceTest.java</exclude>
@@ -108,39 +113,18 @@
                     </excludes>
                 </configuration>
             </plugin>
+            <!-- Plugin declarations for code coverage -->
             <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-surefire-report-plugin</artifactId>
+                <artifactId>maven-resources-plugin</artifactId>
             </plugin>
             <plugin>
-                <artifactId>maven-assembly-plugin</artifactId>
-                <version>2.4</version>
-                <executions>
-                    <execution>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>attached</goal>
-                        </goals>
-                    </execution>
-                </executions>
-                <configuration>
-                    <attach>false</attach>
-                    <descriptors>
-                        <descriptor>src/assembly/distribution.xml</descriptor>
-                    </descriptors>
-                    <finalName>${project.artifactId}-${project.version}</finalName>
-                    <outputDirectory>target</outputDirectory>
-                    <workDirectory>target/assembly/work</workDirectory>
-                    <tarLongFileMode>warn</tarLongFileMode>
-                    <archiverConfig>
-                        <fileMode>420</fileMode>
-                        <!-- 420(dec) = 644(oct) -->
-                        <directoryMode>493</directoryMode>
-                        <!-- 493(dec) = 755(oct) -->
-                        <defaultDirectoryMode>493</defaultDirectoryMode>
-                    </archiverConfig>
-                </configuration>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
             </plugin>
+            <plugin>
+                <artifactId>maven-antrun-plugin</artifactId>
+            </plugin>
+            <!-- End plugin declarations for code coverage -->
         </plugins>
     </build>
 </project>

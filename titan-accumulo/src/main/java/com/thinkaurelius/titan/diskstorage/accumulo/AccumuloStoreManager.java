@@ -1,10 +1,8 @@
 package com.thinkaurelius.titan.diskstorage.accumulo;
 
-import com.thinkaurelius.titan.diskstorage.accumulo.util.MutablePair;
 import com.thinkaurelius.titan.diskstorage.PermanentStorageException;
 import com.thinkaurelius.titan.diskstorage.StaticBuffer;
 import com.thinkaurelius.titan.diskstorage.StorageException;
-import com.thinkaurelius.titan.diskstorage.accumulo.util.AccumuloStorageConfiguration;
 import com.thinkaurelius.titan.diskstorage.common.DistributedStoreManager;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.ConsistencyLevel;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.Entry;
@@ -14,10 +12,11 @@ import com.thinkaurelius.titan.diskstorage.keycolumnvalue.KeyColumnValueStoreMan
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.StoreFeatures;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.StoreTransaction;
 import com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfiguration;
-import java.util.ArrayList;
+import static com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfiguration.STORAGE_BATCH_DEFAULT;
+import static com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfiguration.STORAGE_BATCH_KEY;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -41,42 +40,44 @@ import org.apache.hadoop.io.Text;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
 /**
- * Storage Manager for HBase
+ * Storage Manager for Accumulo
  *
- * @author Dan LaRocque <dalaro@hopcount.org>
+ * @author Etienne Deprit <edeprit@42six.com>
  */
 public class AccumuloStoreManager extends DistributedStoreManager implements KeyColumnValueStoreManager {
 
     private static final Logger logger = LoggerFactory.getLogger(AccumuloStoreManager.class);
-    // Configuration namespace
-    public static final String ACCUMULO_CONFIGURATION_NAMESPACE = "accumulo-config";
     // Default deleter, scanner, writer parameters 
     private static final Authorizations DEFAULT_AUTHORIZATIONS = new Authorizations();
     private static final Long DEFAULT_MAX_MEMORY = 50 * 1024 * 1024l;
     private static final Long DEFAULT_MAX_LATENCY = 100l;
     private static final Integer DEFAULT_MAX_QUERY_THREADS = 10;
     private static final Integer DEFAULT_MAX_WRITE_THREADS = 10;
+    // Configuration namespace
+    public static final String ACCUMULO_CONFIGURATION_NAMESPACE = "accumulo-config";
     // Configuration keys
     public static final String ACCUMULO_INTSANCE_KEY = "instance";
     public static final String ACCUMULO_USER_KEY = "username";
     public static final String ACCUMULO_PASSWORD_KEY = "password";
     public static final String TABLE_NAME_KEY = "tablename";
+    public static final String CLIENT_SIDE_ITERATORS_KEY = "client-side-iterators";
     // Configuration defaults
     public static final String TABLE_NAME_DEFAULT = "titan";
     public static final int PORT_DEFAULT = 9160;
+    public static final boolean CLIENT_SIDE_ITERATORS_DEFAULT = true;
     // Instance variables
     private final String tableName;
     private final String instanceName;
     private final String zooKeepers;
     private final String username;
     private final String password;
-    private final Instance instance;
-    private final Connector connector;
+    private final boolean clientSideIterators;
+    private final Instance instance;    // thread-safe
+    private final Connector connector;  // thread-safe
     private final ConcurrentMap<String, AccumuloKeyColumnValueStore> openStores;
-    private final StoreFeatures features;
-    private final AccumuloStorageConfiguration storageConfig;
+    private final StoreFeatures features;   // immutable once created
+    private final AccumuloStoreConfiguration storeConfiguration;
 
     public AccumuloStoreManager(Configuration config) throws StorageException {
         super(config, PORT_DEFAULT);
@@ -91,15 +92,18 @@ public class AccumuloStoreManager extends DistributedStoreManager implements Key
 
         username = accumuloConfig.getString(ACCUMULO_USER_KEY);
         password = accumuloConfig.getString(ACCUMULO_PASSWORD_KEY);
+        
+        clientSideIterators = accumuloConfig.getBoolean(CLIENT_SIDE_ITERATORS_KEY, CLIENT_SIDE_ITERATORS_DEFAULT);
 
         instance = createInstance(instanceName, zooKeepers);
+        
         try {
             connector = instance.getConnector(username, password.getBytes());
         } catch (AccumuloException ex) {
-            logger.error(ex.getMessage(), ex);
+            logger.error("Accumulo failure", ex);
             throw new PermanentStorageException(ex.getMessage(), ex);
         } catch (AccumuloSecurityException ex) {
-            logger.error(ex.getMessage(), ex);
+            logger.error("User doesn't have permission to connect", ex);
             throw new PermanentStorageException(ex.getMessage(), ex);
         }
 
@@ -114,21 +118,27 @@ public class AccumuloStoreManager extends DistributedStoreManager implements Key
         features.isKeyOrdered = false;
         features.isDistributed = true;
         features.hasLocalKeyPartition = false;
-        
-        storageConfig = new AccumuloStorageConfiguration(connector, tableName);
+
+        storeConfiguration = new AccumuloStoreConfiguration(connector, tableName);
     }
-    
+
     protected Instance createInstance(String instanceName, String zooKeepers) {
-        return new ZooKeeperInstance(instanceName, zooKeepers);    
+        return new ZooKeeperInstance(instanceName, zooKeepers);
+    }
+
+    @Override
+    public String getName() {
+        return tableName;
     }
 
     @Override
     public String toString() {
-        return "accumulo[" + tableName + "@" + super.toString() + "]";
+        return "accumulo[" + getName() + "@" + super.toString() + "]";
     }
 
     @Override
     public void close() {
+        openStores.clear();
     }
 
     @Override
@@ -137,118 +147,15 @@ public class AccumuloStoreManager extends DistributedStoreManager implements Key
     }
 
     @Override
-    public void mutateMany(Map<String, Map<StaticBuffer, KCVMutation>> mutations,
-            StoreTransaction txh) throws StorageException {
-        final long delTS = System.currentTimeMillis();
-        final long putTS = delTS + 1;
-
-        Map<StaticBuffer, MutablePair<Mutation, Mutation>> commandsPerKey = convertToCommands(mutations, putTS, delTS);
-
-
-        List<Mutation> batch = new ArrayList<Mutation>(commandsPerKey.size()); // actual batch operation
-        // convert sorted commands into representation required for 'batch' operation
-        for (MutablePair<Mutation, Mutation> commands : commandsPerKey.values()) {
-            if (commands.getFirst() != null) {
-                batch.add(commands.getFirst());
-            }
-
-            if (commands.getSecond() != null) {
-                batch.add(commands.getSecond());
-            }
-        }
-
-        try {
-            BatchWriter writer = connector.createBatchWriter(tableName,
-                    DEFAULT_MAX_MEMORY, DEFAULT_MAX_LATENCY, DEFAULT_MAX_WRITE_THREADS);
-            try {
-                writer.addMutations(batch);
-                writer.flush();
-            } catch (MutationsRejectedException ex) {
-                logger.error(ex.getMessage(), ex);
-                throw new PermanentStorageException(ex);
-            } finally {
-                if (writer != null) {
-                    try {
-                        writer.close();
-                    } catch (MutationsRejectedException ex) {
-                        logger.warn(ex.getMessage(), ex);
-                    }
-                }
-            }
-        } catch (TableNotFoundException ex) {
-            logger.error(ex.getMessage(), ex);
-            throw new PermanentStorageException(ex);
-        }
-
-        waitUntil(putTS);
-    }
-
-    /**
-     * Convert Titan internal Mutation representation into Accumulo native
-     * commands.
-     *
-     * @param mutations Mutations to convert into Accumulo commands.
-     * @param putTimestamp The timestamp to use for Put mutations.
-     * @param delTimestamp The timestamp to use for Delete mutations.
-     *
-     * @return Commands sorted by key converted from Titan internal
-     * representation.
-     */
-    private static Map<StaticBuffer, MutablePair<Mutation, Mutation>> convertToCommands(Map<String, Map<StaticBuffer, KCVMutation>> mutations,
-            final long putTimestamp, final long delTimestamp) {
-        Map<StaticBuffer, MutablePair<Mutation, Mutation>> commandsPerKey =
-                new HashMap<StaticBuffer, MutablePair<Mutation, Mutation>>();
-
-        for (Map.Entry<String, Map<StaticBuffer, KCVMutation>> entry : mutations.entrySet()) {
-            Text cfName = new Text(entry.getKey().getBytes());
-
-            for (Map.Entry<StaticBuffer, KCVMutation> m : entry.getValue().entrySet()) {
-                StaticBuffer key = m.getKey();
-                KCVMutation mutation = m.getValue();
-
-                MutablePair<Mutation, Mutation> commands = commandsPerKey.get(key);
-
-                if (commands == null) {
-                    commands = new MutablePair<Mutation, Mutation>(null, null);
-                    commandsPerKey.put(key, commands);
-                }
-
-                if (mutation.hasDeletions()) {
-                    if (commands.getSecond() == null) {
-                        commands.setSecond(new Mutation(new Text(key.as(StaticBuffer.ARRAY_FACTORY))));
-                    }
-
-                    for (StaticBuffer b : mutation.getDeletions()) {
-                        commands.getSecond().putDelete(cfName, new Text(b.as(StaticBuffer.ARRAY_FACTORY)), delTimestamp);
-                    }
-                }
-
-                if (mutation.hasAdditions()) {
-                    if (commands.getFirst() == null) {
-                        commands.setFirst(new Mutation(new Text(key.as(StaticBuffer.ARRAY_FACTORY))));
-                    }
-
-                    for (Entry e : mutation.getAdditions()) {
-                        commands.getFirst().put(cfName, new Text(e.getArrayColumn()),
-                                putTimestamp, new Value(e.getArrayValue()));
-                    }
-                }
-            }
-        }
-
-        return commandsPerKey;
-    }
-
-    @Override
     public KeyColumnValueStore openDatabase(String dbName) throws StorageException {
         AccumuloKeyColumnValueStore store = openStores.get(dbName);
 
         if (store == null) {
-            AccumuloKeyColumnValueStore newStore = new AccumuloKeyColumnValueStore(connector, tableName, dbName);
+            AccumuloKeyColumnValueStore newStore = new AccumuloKeyColumnValueStore(connector, tableName, dbName, clientSideIterators);
 
-            store = openStores.putIfAbsent(dbName, newStore); // nothing bad happens if we loose to other thread
+            store = openStores.putIfAbsent(dbName, newStore); // atomic so only one store dbName
 
-            if (store == null) { // ensure that CF exists only first time somebody tries to open it
+            if (store == null) { // ensure that column family exists on first open
                 ensureColumnFamilyExists(tableName, dbName);
                 store = newStore;
             }
@@ -257,25 +164,104 @@ public class AccumuloStoreManager extends DistributedStoreManager implements Key
         return store;
     }
 
+    @Override
+    public void mutateMany(Map<String, Map<StaticBuffer, KCVMutation>> mutations, StoreTransaction txh) throws StorageException {
+        final long delTS = System.currentTimeMillis();
+        final long putTS = delTS + 1;
+
+        Collection<Mutation> actions = convertToActions(mutations, putTS, delTS);
+
+        try {
+            BatchWriter writer = connector.createBatchWriter(tableName,
+                    DEFAULT_MAX_MEMORY, DEFAULT_MAX_LATENCY, DEFAULT_MAX_WRITE_THREADS);
+            try {
+                writer.addMutations(actions);
+                writer.flush();
+            } catch (MutationsRejectedException ex) {
+                logger.error("Can't write mutations to Titan store " + tableName, ex);
+                throw new PermanentStorageException(ex);
+            } finally {
+                try {
+                    writer.close();
+                } catch (MutationsRejectedException ex) {
+                    logger.error("Can't write mutations to Titan store " + tableName, ex);
+                    throw new PermanentStorageException(ex);
+                }
+            }
+        } catch (TableNotFoundException ex) {
+            logger.error("Can't find Titan store " + tableName, ex);
+            throw new PermanentStorageException(ex);
+        }
+
+        waitUntil(putTS);
+    }
+
+    /**
+     * Convert Titan internal Mutation representation into Accumulo native
+     * mutations.
+     *
+     * @param mutations Mutations to convert into Accumulo actions.
+     * @param putTimestamp The timestamp to use for put mutations.
+     * @param delTimestamp The timestamp to use for delete mutations.
+     *
+     * @return Mutations converted from Titan internal representation.
+     */
+    private static Collection<Mutation> convertToActions(Map<String, Map<StaticBuffer, KCVMutation>> mutations,
+            final long putTimestamp, final long delTimestamp) {
+
+        Map<StaticBuffer, Mutation> actionsPerKey = new HashMap<StaticBuffer, Mutation>();
+
+        for (Map.Entry<String, Map<StaticBuffer, KCVMutation>> entry : mutations.entrySet()) {
+            Text colFamily = new Text(entry.getKey().getBytes());
+
+            for (Map.Entry<StaticBuffer, KCVMutation> m : entry.getValue().entrySet()) {
+                StaticBuffer key = m.getKey();
+                KCVMutation mutation = m.getValue();
+
+                Mutation commands = actionsPerKey.get(key);
+
+                if (commands == null) {
+                    commands = new Mutation(new Text(key.as(StaticBuffer.ARRAY_FACTORY)));
+                    actionsPerKey.put(key, commands);
+                }
+
+                if (mutation.hasDeletions()) {
+                    for (StaticBuffer del : mutation.getDeletions()) {
+                        commands.putDelete(colFamily, new Text(del.as(StaticBuffer.ARRAY_FACTORY)), delTimestamp);
+                    }
+                }
+
+                if (mutation.hasAdditions()) {
+                    for (Entry add : mutation.getAdditions()) {
+                        commands.put(colFamily, new Text(add.getArrayColumn()), putTimestamp, new Value(add.getArrayValue()));
+                    }
+                }
+            }
+        }
+
+        return actionsPerKey.values();
+    }
+
+    private void ensureColumnFamilyExists(String tableName, String columnFamily) throws StorageException {
+        ensureTableExists(tableName);
+        // Option to set locality groups here
+    }
+
     private void ensureTableExists(String tableName) throws StorageException {
         TableOperations operations = connector.tableOperations();
         if (!operations.exists(tableName)) {
             try {
                 operations.create(tableName);
             } catch (AccumuloException ex) {
-                logger.error(ex.getMessage(), ex);
+                logger.error("Accumulo failure", ex);
                 throw new PermanentStorageException(ex);
             } catch (AccumuloSecurityException ex) {
-                logger.error(ex.getMessage(), ex);
+                logger.error("User doesn't have permission to create Titan store" + tableName, ex);
                 throw new PermanentStorageException(ex);
             } catch (TableExistsException ex) {
-                logger.warn("Should never throw this exception!", ex);
+                // Concurrent creation of table, this thread lost race
             }
         }
-    }
-
-    private void ensureColumnFamilyExists(String tableName, String columnFamily) throws StorageException {
-        ensureTableExists(tableName);
     }
 
     @Override
@@ -284,19 +270,20 @@ public class AccumuloStoreManager extends DistributedStoreManager implements Key
     }
 
     /**
-     * Deletes the specified table with all its columns. ATTENTION: Invoking
-     * this method will delete the table if it exists and therefore causes data
-     * loss.
+     * Delete all key/value pairs in the specified table.
+     *
+     * ATTENTION: Invoking this method causes data loss.
      */
     @Override
     public void clearStorage() throws StorageException {
         TableOperations operations = connector.tableOperations();
 
-        // first of all, check if table exists, if not - we are done
+        // Check if table exists, if not we are done
         if (!operations.exists(tableName)) {
-            logger.debug("clearStorage() called before table {} was created, skipping.", tableName);
+            logger.warn("clearStorage() called before table {} created, skipping.", tableName);
             return;
         }
+
         try {
             BatchDeleter deleter = connector.createBatchDeleter(tableName, DEFAULT_AUTHORIZATIONS,
                     DEFAULT_MAX_QUERY_THREADS, DEFAULT_MAX_MEMORY, DEFAULT_MAX_LATENCY, DEFAULT_MAX_WRITE_THREADS);
@@ -304,26 +291,26 @@ public class AccumuloStoreManager extends DistributedStoreManager implements Key
             try {
                 deleter.delete();
             } catch (MutationsRejectedException ex) {
-                logger.error(ex.getMessage(), ex);
+                logger.error("Can't write mutations to " + tableName, ex);
                 throw new PermanentStorageException(ex);
             } finally {
                 deleter.close();
             }
 
         } catch (TableNotFoundException ex) {
-            logger.error(ex.getMessage(), ex);
+            logger.error("Can't find Titan table " + tableName, ex);
             throw new PermanentStorageException(ex);
         }
     }
 
     @Override
     public String getConfigurationProperty(String key) throws StorageException {
-        return storageConfig.getConfigurationProperty(key);
+        return storeConfiguration.getConfigurationProperty(key);
     }
 
     @Override
     public void setConfigurationProperty(String key, String value) throws StorageException {
-        storageConfig.setConfigurationProperty(key,value);
+        storeConfiguration.setConfigurationProperty(key, value);
     }
 
     private static void waitUntil(long until) {
