@@ -21,7 +21,6 @@ import com.thinkaurelius.titan.diskstorage.util.StaticArrayBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import org.apache.accumulo.core.client.BatchScanner;
@@ -142,20 +141,15 @@ public class AccumuloKeyColumnValueStore implements KeyColumnValueStore {
             throw new PermanentStorageException(ex);
         }
 
-        List<Text> keysText = Lists.newArrayList();
-        for (StaticBuffer key : keys) {
-            keysText.add(new Text(key.as(StaticBuffer.ARRAY_FACTORY)));
-        }
-
         Collection<Range> ranges = Lists.newArrayList();
-        for (Text key : keysText) {
+        for (StaticBuffer key : keys) {
             ranges.add(getRange(key, query));
         }
 
         scanner.setRanges(ranges);
 
-        Map<Text, List<Entry>> entries = Maps.newHashMap();
-        for (Text key : keysText) {
+        Map<StaticBuffer, List<Entry>> entries = Maps.newHashMap();
+        for (StaticBuffer key : keys) {
             entries.put(key, Lists.<Entry>newArrayList());
         }
 
@@ -165,7 +159,7 @@ public class AccumuloKeyColumnValueStore implements KeyColumnValueStore {
                 break;
             }
 
-            Text key = kv.getKey().getRow();
+            StaticBuffer key = new StaticArrayBuffer(kv.getKey().getRow().getBytes());
 
             byte[] colQual = kv.getKey().getColumnQualifier().getBytes();
             byte[] value = kv.getValue().get();
@@ -174,9 +168,11 @@ public class AccumuloKeyColumnValueStore implements KeyColumnValueStore {
             entries.get(key).add(entry);
             count++;
         }
+        
+        scanner.close();
 
         List<List<Entry>> results = Lists.newArrayList();
-        for (Text key : keysText) {
+        for (StaticBuffer key : keys) {
             results.add(entries.get(key));
         }
 
@@ -366,26 +362,27 @@ public class AccumuloKeyColumnValueStore implements KeyColumnValueStore {
     }
 
     private Range getRange(KeySliceQuery query) {
-        Text key = new Text(query.getKey().as(StaticBuffer.ARRAY_FACTORY));
-        return getRange(key, query);
+        return getRange(query.getKey(), query);
     }
 
-    private Range getRange(Text key, SliceQuery query) {
+    private Range getRange(StaticBuffer key, SliceQuery query) {
+        Text row = new Text(key.as(StaticBuffer.ARRAY_FACTORY));
+        
         Key startKey;
         Key endKey;
 
         if (query.getSliceStart().length() > 0) {
-            startKey = new Key(key, columnFamilyText,
+            startKey = new Key(row, columnFamilyText,
                     new Text(query.getSliceStart().as(StaticBuffer.ARRAY_FACTORY)));
         } else {
-            startKey = new Key(key, columnFamilyText);
+            startKey = new Key(row, columnFamilyText);
         }
 
         if (query.getSliceEnd().length() > 0) {
-            endKey = new Key(key, columnFamilyText,
+            endKey = new Key(row, columnFamilyText,
                     new Text(query.getSliceEnd().as(StaticBuffer.ARRAY_FACTORY)));
         } else {
-            endKey = new Key(key, columnFamilyText);
+            endKey = new Key(row, columnFamilyText);
         }
 
         return new Range(startKey, true, endKey, false);
