@@ -45,7 +45,7 @@ import org.slf4j.LoggerFactory;
 public class AccumuloStoreManager extends DistributedStoreManager implements KeyColumnValueStoreManager {
 
     private static final Logger logger = LoggerFactory.getLogger(AccumuloStoreManager.class);
-    // Default deleter, scanner, writer parameters 
+    // Default parameters 
     private static final Authorizations AUTHORIZATIONS_DEFAULT = new Authorizations();
     // Configuration namespace
     public static final String ACCUMULO_CONFIGURATION_NAMESPACE = "accumulo-config";

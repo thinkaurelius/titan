@@ -1,4 +1,4 @@
-package org.apache.accumulo.core.iterators.user;
+package com.thinkaurelius.titan.diskstorage.accumulo.iterators;
 
 import java.io.IOException;
 import java.util.ArrayList;

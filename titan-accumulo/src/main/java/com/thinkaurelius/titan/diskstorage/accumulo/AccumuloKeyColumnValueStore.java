@@ -1,9 +1,10 @@
 package com.thinkaurelius.titan.diskstorage.accumulo;
 
+import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Collections2;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.google.common.collect.PeekingIterator;
 import com.thinkaurelius.titan.diskstorage.PermanentStorageException;
 import com.thinkaurelius.titan.diskstorage.StaticBuffer;
@@ -19,11 +20,9 @@ import com.thinkaurelius.titan.diskstorage.keycolumnvalue.StoreTransaction;
 import com.thinkaurelius.titan.diskstorage.util.RecordIterator;
 import com.thinkaurelius.titan.diskstorage.util.StaticArrayBuffer;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import org.apache.accumulo.core.client.BatchScanner;
 import org.apache.accumulo.core.client.BatchWriter;
 import org.apache.accumulo.core.client.ClientSideIteratorScanner;
 import org.slf4j.Logger;
@@ -39,7 +38,14 @@ import org.apache.accumulo.core.data.Mutation;
 import org.apache.accumulo.core.data.Range;
 import org.apache.accumulo.core.data.Value;
 import org.apache.accumulo.core.iterators.FirstEntryInRowIterator;
-import org.apache.accumulo.core.iterators.user.ColumnRangeFilter;
+import com.thinkaurelius.titan.diskstorage.accumulo.iterators.ColumnRangeFilter;
+import java.util.Collection;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.logging.Level;
 import org.apache.accumulo.core.security.Authorizations;
 import org.apache.hadoop.io.Text;
 
@@ -51,13 +57,13 @@ import org.apache.hadoop.io.Text;
 public class AccumuloKeyColumnValueStore implements KeyColumnValueStore {
 
     private static final Logger logger = LoggerFactory.getLogger(AccumuloKeyColumnValueStore.class);
-    // Default deleter, scanner, writer parameters 
+    // Default parameters 
+    private static final int NUM_THREADS_DEFAULT = Runtime.getRuntime().availableProcessors();
     private static final Authorizations AUTHORIZATIONS_DEFAULT = new Authorizations();
     // Instance variables
     private final Connector connector;  // thread-safe
     private final String tableName;
     private final String columnFamily;
-    // This is columnFamily.getBytes()
     private final byte[] columnFamilyBytes;
     private final Text columnFamilyText;
     private final AccumuloBatchConfiguration batchConfiguration;
@@ -116,67 +122,49 @@ public class AccumuloKeyColumnValueStore implements KeyColumnValueStore {
         }
 
         int count = 1;
-        List<Entry> entries = new ArrayList<Entry>();
-        for (Map.Entry<Key, Value> entry : scanner) {
-            if (count > query.getLimit()) {
-                break;
-            }
-
-            byte[] colQual = entry.getKey().getColumnQualifier().getBytes();
-            byte[] value = entry.getValue().get();
-            entries.add(StaticBufferEntry.of(new StaticArrayBuffer(colQual), new StaticArrayBuffer(value)));
-            count++;
-        }
-
-        return entries;
-    }
-
-    @Override
-    public List<List<Entry>> getSlice(List<StaticBuffer> keys, SliceQuery query, StoreTransaction txh) throws StorageException {
-        BatchScanner scanner;
-        try {
-            scanner = batchConfiguration.createBatchScanner(connector, tableName, AUTHORIZATIONS_DEFAULT);
-        } catch (TableNotFoundException ex) {
-            logger.error("Can't find Titan store " + tableName, ex);
-            throw new PermanentStorageException(ex);
-        }
-
-        Collection<Range> ranges = Lists.newArrayList();
-        for (StaticBuffer key : keys) {
-            ranges.add(getRange(key, query));
-        }
-
-        scanner.setRanges(ranges);
-
-        Map<StaticBuffer, List<Entry>> entries = Maps.newHashMap();
-        for (StaticBuffer key : keys) {
-            entries.put(key, Lists.<Entry>newArrayList());
-        }
-
-        int count = 1;
+        List<Entry> slice = new ArrayList<Entry>();
         for (Map.Entry<Key, Value> kv : scanner) {
             if (count > query.getLimit()) {
                 break;
             }
-
-            StaticBuffer key = new StaticArrayBuffer(kv.getKey().getRow().getBytes());
-
-            byte[] colQual = kv.getKey().getColumnQualifier().getBytes();
-            byte[] value = kv.getValue().get();
-            Entry entry = StaticBufferEntry.of(new StaticArrayBuffer(colQual), new StaticArrayBuffer(value));
-
-            entries.get(key).add(entry);
+            slice.add(getEntry(kv));
             count++;
         }
-        
-        scanner.close();
 
-        List<List<Entry>> results = Lists.newArrayList();
-        for (StaticBuffer key : keys) {
-            results.add(entries.get(key));
+        return slice;
+    }
+
+    @Override
+    public List<List<Entry>> getSlice(List<StaticBuffer> keys, final SliceQuery query, final StoreTransaction txh) throws StorageException {
+        List<Callable<List<Entry>>> tasks = Lists.newArrayList();
+        for (final StaticBuffer key : keys) {
+            tasks.add(new Callable<List<Entry>>() {
+                @Override
+                public List<Entry> call() throws Exception {
+                    return getSlice(new KeySliceQuery(key, query), txh);
+                }
+            });
         }
 
-        return results;
+        ExecutorService executor = Executors.newFixedThreadPool(NUM_THREADS_DEFAULT);
+        try {
+            List<Future<List<Entry>>> futures = executor.invokeAll(tasks);
+
+            List<List<Entry>> slices = Lists.newArrayList();
+            for (Future<List<Entry>> future : futures) {
+                slices.add(future.get());
+            }
+
+            return slices;
+        } catch (InterruptedException ex) {
+            logger.error("Interrupted getSlice on Titan store " + tableName, ex);
+            throw new PermanentStorageException(ex);
+        } catch (ExecutionException ex) {
+            logger.error("Error executing getSlice on Titan store " + tableName, ex);
+            throw new PermanentStorageException(ex.getCause());
+        } finally {
+            executor.shutdown();
+        }
     }
 
     @Override
@@ -346,6 +334,12 @@ public class AccumuloKeyColumnValueStore implements KeyColumnValueStore {
         return scanner;
     }
 
+    private static Entry getEntry(Map.Entry<Key, Value> keyValue) {
+        byte[] colQual = keyValue.getKey().getColumnQualifier().getBytes();
+        byte[] value = keyValue.getValue().get();
+        return StaticBufferEntry.of(new StaticArrayBuffer(colQual), new StaticArrayBuffer(value));
+    }
+
     private Range getRange(StaticBuffer startKey, StaticBuffer endKey) {
         Text startRow = null;
         Text endRow = null;
@@ -367,7 +361,7 @@ public class AccumuloKeyColumnValueStore implements KeyColumnValueStore {
 
     private Range getRange(StaticBuffer key, SliceQuery query) {
         Text row = new Text(key.as(StaticBuffer.ARRAY_FACTORY));
-        
+
         Key startKey;
         Key endKey;
 
@@ -426,12 +420,7 @@ public class AccumuloKeyColumnValueStore implements KeyColumnValueStore {
                 public Entry next() throws StorageException {
                     ensureOpen();
                     Map.Entry<Key, Value> kv = currentRow.next();
-
-                    byte[] colQual = kv.getKey().getColumnQualifier().getBytes();
-                    byte[] value = kv.getValue().get();
-                    Entry entry = StaticBufferEntry.of(new StaticArrayBuffer(colQual), new StaticArrayBuffer(value));
-
-                    return entry;
+                    return getEntry(kv);
                 }
 
                 @Override
