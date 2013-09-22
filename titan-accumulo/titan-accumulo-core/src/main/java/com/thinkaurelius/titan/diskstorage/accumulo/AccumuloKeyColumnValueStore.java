@@ -6,6 +6,7 @@ import com.google.common.collect.PeekingIterator;
 import com.thinkaurelius.titan.diskstorage.PermanentStorageException;
 import com.thinkaurelius.titan.diskstorage.StaticBuffer;
 import com.thinkaurelius.titan.diskstorage.StorageException;
+import com.thinkaurelius.titan.diskstorage.TemporaryStorageException;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.Entry;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.KeyColumnValueStore;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.KeyIterator;
@@ -157,7 +158,7 @@ public class AccumuloKeyColumnValueStore implements KeyColumnValueStore {
                 writer.flush();
             } catch (MutationsRejectedException ex) {
                 logger.error("Can't write mutations to Titan store " + tableName, ex);
-                throw new PermanentStorageException(ex);
+                throw new TemporaryStorageException(ex);
             } finally {
                 try {
                     writer.close();

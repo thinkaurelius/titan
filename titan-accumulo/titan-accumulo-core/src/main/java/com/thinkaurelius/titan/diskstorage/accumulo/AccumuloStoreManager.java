@@ -3,6 +3,7 @@ package com.thinkaurelius.titan.diskstorage.accumulo;
 import com.thinkaurelius.titan.diskstorage.PermanentStorageException;
 import com.thinkaurelius.titan.diskstorage.StaticBuffer;
 import com.thinkaurelius.titan.diskstorage.StorageException;
+import com.thinkaurelius.titan.diskstorage.TemporaryStorageException;
 import com.thinkaurelius.titan.diskstorage.common.DistributedStoreManager;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.ConsistencyLevel;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.Entry;
@@ -176,7 +177,7 @@ public class AccumuloStoreManager extends DistributedStoreManager implements Key
                 deleter.delete();
             } catch (MutationsRejectedException ex) {
                 logger.error("Can't write mutations to " + tableName, ex);
-                throw new PermanentStorageException(ex);
+                throw new TemporaryStorageException(ex);
             } finally {
                 deleter.close();
             }
@@ -216,13 +217,13 @@ public class AccumuloStoreManager extends DistributedStoreManager implements Key
                 writer.flush();
             } catch (MutationsRejectedException ex) {
                 logger.error("Can't write mutations to Titan store " + tableName, ex);
-                throw new PermanentStorageException(ex);
+                throw new TemporaryStorageException(ex);
             } finally {
                 try {
                     writer.close();
                 } catch (MutationsRejectedException ex) {
                     logger.error("Can't write mutations to Titan store " + tableName, ex);
-                    throw new PermanentStorageException(ex);
+                    throw new TemporaryStorageException(ex);
                 }
             }
         } catch (TableNotFoundException ex) {

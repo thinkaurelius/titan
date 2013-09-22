@@ -8,6 +8,7 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
     <artifactId>titan-accumulo-iterators</artifactId>
+    <name>Titan-Accumulo: Graph Database Iterators</name>
     <dependencies>
         <dependency>
             <groupId>org.apache.accumulo</groupId>

@@ -37,6 +37,7 @@
         <module>titan-dist-berkeleyje</module>
         <module>titan-dist-cassandra</module>
         <module>titan-dist-hbase</module>
+        <module>titan-dist-accumulo</module>
     </modules>
 
     <properties>

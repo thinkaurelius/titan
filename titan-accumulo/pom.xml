@@ -13,8 +13,7 @@
     <url>http://thinkaurelius.github.com/titan/</url>
     
     <modules>
-        <module>titan-accumulo-core</module>
         <module>titan-accumulo-iterators</module>
-    </modules>
-    
+        <module>titan-accumulo-core</module>
+    </modules>  
 </project>
