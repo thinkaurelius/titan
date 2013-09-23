@@ -193,18 +193,21 @@ public class Backend {
                 @Override
                 public String call() throws Exception {
                     String version = storeManager.getConfigurationProperty(TITAN_BACKEND_VERSION);
-                    if (!TitanConstants.VERSION.equals(version) && (version == null ||
-                            (TitanConstants.COMPATIBLE_VERSIONS.contains(version)))) {
+                    if (version == null) {
                         storeManager.setConfigurationProperty(TITAN_BACKEND_VERSION, TitanConstants.VERSION);
                         version = TitanConstants.VERSION;
                     }
                     return version;
                 }
+
                 @Override
-                public String toString() { return "ConfigurationRead"; }
+                public String toString() {
+                    return "ConfigurationRead";
+                }
             }, config.getLong(SETUP_WAITTIME_KEY, SETUP_WAITTIME_DEFAULT));
-            if (!TitanConstants.VERSION.equals(version)) {
-                throw new TitanException("StorageBackend is incompatible with Titan version: " + TitanConstants.VERSION + " vs. " + version);
+            Preconditions.checkState(version != null, "Could not read version from storage backend");
+            if (!TitanConstants.VERSION.equals(version) && !TitanConstants.COMPATIBLE_VERSIONS.contains(version)) {
+                throw new TitanException("StorageBackend version is incompatible with current Titan version: " + version + " vs. " + TitanConstants.VERSION);
             }
         } catch (StorageException e) {
             throw new TitanException("Could not initialize backend", e);
@@ -291,6 +294,7 @@ public class Backend {
 
     /**
      * Returns the configured {@link IDAuthority}.
+     *
      * @return
      */
     public IDAuthority getIDAuthority() {
@@ -350,7 +354,7 @@ public class Backend {
 
     /**
      * Clears the storage of all registered backend data providers. This includes backend storage engines and index providers.
-     *
+     * <p/>
      * IMPORTANT: Clearing storage means that ALL data will be lost and cannot be recovered.
      *
      * @throws StorageException
