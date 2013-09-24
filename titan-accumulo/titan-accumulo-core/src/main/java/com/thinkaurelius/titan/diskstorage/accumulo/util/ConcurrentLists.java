@@ -58,7 +58,7 @@ public class ConcurrentLists {
             return transform(fromList, function, executor);
         } finally {
             if (executor != null) {
-                executor.shutdown();
+                executor.shutdownNow();
             }
         }
     }
