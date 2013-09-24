@@ -27,14 +27,22 @@ public class GeoToWktConverterTest {
         assertTrue(GeoToWktConverter.isTitanPoint(p3));
         assertTrue(GeoToWktConverter.isTitanPoint(p4));
 
-        String wkt1 = "POINT(35.4 48.9)";
-        String wkt2 = "POINT(35.4 48.9)";
-        String wkt3 = "POINT(-35.4 48.9)";
-        String wkt4 = "POINT(35.4 -48.9)";
-        assertEquals(wkt1, GeoToWktConverter.convertToWktPoint(p1));
-        assertEquals(wkt2, GeoToWktConverter.convertToWktPoint(p2));
-        assertEquals(wkt3, GeoToWktConverter.convertToWktPoint(p3));
-        assertEquals(wkt4, GeoToWktConverter.convertToWktPoint(p4));
+        String wkt1 = "POINT(48.9 35.4)";
+        String actualWkt1 = GeoToWktConverter.convertToWktPoint(p1);
+
+        String wkt2 = "POINT(48.9 35.4)";
+        String actualWkt2 = GeoToWktConverter.convertToWktPoint(p2);
+
+        String wkt3 = "POINT(48.9 -35.4)";
+        String actualWkt3 = GeoToWktConverter.convertToWktPoint(p3);
+
+        String wkt4 = "POINT(-48.9 35.4)";
+        String actualWkt4 = GeoToWktConverter.convertToWktPoint(p4);
+
+        assertEquals(wkt1, actualWkt1);
+        assertEquals(wkt2, actualWkt2);
+        assertEquals(wkt3, actualWkt3);
+        assertEquals(wkt4, actualWkt4);
 
     }
 }
