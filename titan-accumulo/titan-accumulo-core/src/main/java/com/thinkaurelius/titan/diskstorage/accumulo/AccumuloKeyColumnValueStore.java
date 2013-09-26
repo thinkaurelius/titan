@@ -355,7 +355,7 @@ public class AccumuloKeyColumnValueStore implements KeyColumnValueStore {
         return new Range(startKey, true, endKey, false);
     }
 
-    private IteratorSetting getColumnSliceIterator(SliceQuery sliceQuery) {
+    public static IteratorSetting getColumnSliceIterator(SliceQuery sliceQuery) {
         IteratorSetting is = null;
 
         byte[] minColumn = sliceQuery.getSliceStart().as(StaticBuffer.ARRAY_FACTORY);
