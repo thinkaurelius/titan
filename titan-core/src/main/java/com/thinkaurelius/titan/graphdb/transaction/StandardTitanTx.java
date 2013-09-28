@@ -886,12 +886,23 @@ public class StandardTitanTx extends TitanBlueprintsTransaction {
      * ------------------------------------ Transaction State ------------------------------------
      */
 
+    /**
+     * Save modified relations in the backend so they will be persisted when
+     * txHandle is committed.
+     * @param added Relations added in this transaction.
+     * @param deleted Relations deleted in this transaction.
+     */
+    protected void saveModifiedRelations(Collection<InternalRelation> added,
+                                         Collection<InternalRelation> deleted) {
+        graph.save(added, deleted, this);
+    }
+
     @Override
     public synchronized void commit() {
         Preconditions.checkArgument(isOpen(), "The transaction has already been closed");
         try {
             if (hasModifications()) {
-                graph.save(addedRelations.getAll(), deletedRelations.values(), this);
+                saveModifiedRelations(addedRelations.getAll(), deletedRelations.values());
             }
             txHandle.commit();
         } catch (Exception e) {
