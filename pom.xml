@@ -20,6 +20,7 @@
         <module>titan-test</module>
         <module>titan-berkeleyje</module>
         <module>titan-cassandra</module>
+        <module>titan-cassandra-cql</module>
         <module>titan-persistit</module>
         <module>titan-hbase</module>
         <module>titan-es</module>
