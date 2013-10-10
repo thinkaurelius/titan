@@ -691,6 +691,7 @@
                 <module>titan-hazelcast</module>
                 <module>titan-all</module>
                 <module>titan-dist</module>
+                <module>titan-rexster</module>
             </modules>
         </profile>
 
