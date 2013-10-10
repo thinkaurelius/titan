@@ -17,7 +17,7 @@ public class SolrSearchConstants {
     public static final String SOLR_DEFAULT_KEY_FIELD = "docid";
 
     //Embedded config settings
-    public static final String SOLR_CORE_NAMES = "solr.embedded.coreNames";
+    public static final String SOLR_CORE_NAMES = "solr.core.names";
     public static final String SOLR_EMBEDDED_DEFAULT_CORE_NAME = "titan";
     public static final String SOLR_HOME = "solr.solr.home";
 
