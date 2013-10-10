@@ -85,7 +85,7 @@ public class AstyanaxOrderedKeyColumnValueStore implements KeyColumnValueStore {
     @Override
     public List<Entry> getSlice(KeySliceQuery query, StoreTransaction txh) throws StorageException {
         ByteBuffer key = query.getKey().asByteBuffer();
-        List<Entry> slice = getNamesSlice(Arrays.asList(query.getKey()), query, txh).get(key.duplicate());
+        List<Entry> slice = getNamesSlice(Arrays.asList(query.getKey()), query, txh).get(key);
         return (slice == null) ? Collections.<Entry>emptyList() : slice;
     }
 
@@ -120,16 +120,16 @@ public class AstyanaxOrderedKeyColumnValueStore implements KeyColumnValueStore {
          *
          */
         RowSliceQuery rq = keyspace.prepareQuery(columnFamily)
-                                   .setConsistencyLevel(getTx(txh).getReadConsistencyLevel().getAstyanaxConsistency())
-                                   .withRetryPolicy(retryPolicy.duplicate())
-                                   .getKeySlice(requestKeys);
+                .setConsistencyLevel(getTx(txh).getReadConsistencyLevel().getAstyanaxConsistency())
+                .withRetryPolicy(retryPolicy.duplicate())
+                .getKeySlice(requestKeys);
 
         // Thank you, Astyanax, for making builder pattern useful :(
         int limit = ((query.hasLimit()) ? query.getLimit() : Integer.MAX_VALUE - 1);
         rq.withColumnRange(query.getSliceStart().asByteBuffer(),
-                           query.getSliceEnd().asByteBuffer(),
-                           false,
-                           limit + 1);
+                query.getSliceEnd().asByteBuffer(),
+                false,
+                limit + 1);
 
         OperationResult<Rows<ByteBuffer, ByteBuffer>> r;
         try {
@@ -146,7 +146,7 @@ public class AstyanaxOrderedKeyColumnValueStore implements KeyColumnValueStore {
 
         for (Row<ByteBuffer, ByteBuffer> row : rows) {
             assert result.get(row.getKey()) == null;
-            result.put(row.getKey().duplicate(), excludeLastColumn(row, lastColumn, limit));
+            result.put(row.getKey(), excludeLastColumn(row, lastColumn, limit));
         }
 
         return result;
@@ -192,11 +192,6 @@ public class AstyanaxOrderedKeyColumnValueStore implements KeyColumnValueStore {
     }
 
     @Override
-    public RecordIterator<StaticBuffer> getKeys(StoreTransaction txh) throws StorageException {
-        return getKeys((SliceQuery) null, txh);
-    }
-
-    @Override
     public KeyIterator getKeys(@Nullable SliceQuery sliceQuery, StoreTransaction txh) throws StorageException {
         if (storeManager.getPartitioner() != Partitioner.RANDOM)
             throw new PermanentStorageException("This operation is only allowed when random partitioner (md5 or murmur3) is used.");
@@ -206,35 +201,35 @@ public class AstyanaxOrderedKeyColumnValueStore implements KeyColumnValueStore {
         if (sliceQuery != null) {
             int limit = (sliceQuery.hasLimit()) ? sliceQuery.getLimit() : Integer.MAX_VALUE;
             allRowsQuery.withColumnRange(sliceQuery.getSliceStart().asByteBuffer(),
-                                         sliceQuery.getSliceEnd().asByteBuffer(),
-                                         false,
-                                         limit);
+                    sliceQuery.getSliceEnd().asByteBuffer(),
+                    false,
+                    limit);
         }
 
         Rows<ByteBuffer, ByteBuffer> result;
         try {
             /* Note: we need to fetch columns for each row as well to remove "range ghosts" */
             OperationResult op = allRowsQuery.setRowLimit(storeManager.getPageSize()) // pre-fetch that many rows at a time
-                                             .setConcurrencyLevel(1) // one execution thread for fetching portion of rows
-                                             .setExceptionCallback(new ExceptionCallback() {
-                                                 private int retries = 0;
+                    .setConcurrencyLevel(1) // one execution thread for fetching portion of rows
+                    .setExceptionCallback(new ExceptionCallback() {
+                        private int retries = 0;
 
-                                                 @Override
-                                                 public boolean onException(ConnectionException e) {
-                                                     try {
-                                                         return retries > 2; // make 3 re-tries
-                                                     } finally {
-                                                         retries++;
-                                                     }
-                                                 }
-                                             }).execute();
+                        @Override
+                        public boolean onException(ConnectionException e) {
+                            try {
+                                return retries > 2; // make 3 re-tries
+                            } finally {
+                                retries++;
+                            }
+                        }
+                    }).execute();
 
             result = ((OperationResult<Rows<ByteBuffer, ByteBuffer>>) op).getResult();
         } catch (ConnectionException e) {
             throw new PermanentStorageException(e);
         }
 
-        return new RowIterator(result, sliceQuery);
+        return new RowIterator(result.iterator(), sliceQuery);
     }
 
     @Override
@@ -251,21 +246,26 @@ public class AstyanaxOrderedKeyColumnValueStore implements KeyColumnValueStore {
         int limit = (query.hasLimit()) ? query.getLimit() : Integer.MAX_VALUE;
 
         RowSliceQuery rowSlice = keyspace.prepareQuery(columnFamily)
-                                         .setConsistencyLevel(getTx(txh).getReadConsistencyLevel().getAstyanaxConsistency())
-                                         .withRetryPolicy(retryPolicy.duplicate())
-                                         .getKeyRange(start, end, null, null, Integer.MAX_VALUE);
+                .setConsistencyLevel(getTx(txh).getReadConsistencyLevel().getAstyanaxConsistency())
+                .withRetryPolicy(retryPolicy.duplicate())
+                .getKeyRange(start, end, null, null, Integer.MAX_VALUE);
 
         // Astyanax is bad at builder pattern :(
         rowSlice.withColumnRange(query.getSliceStart().asByteBuffer(),
-                                 query.getSliceEnd().asByteBuffer(),
-                                 false,
-                                 limit);
-
+                query.getSliceEnd().asByteBuffer(),
+                false,
+                limit);
+        
+        // Omit final the query's keyend from the result, if present in result
+        final Rows<ByteBuffer, ByteBuffer> r;
         try {
-            return new RowIterator(((OperationResult<Rows<ByteBuffer, ByteBuffer>>) rowSlice.execute()).getResult(), query);
+             r = ((OperationResult<Rows<ByteBuffer, ByteBuffer>>) rowSlice.execute()).getResult();
         } catch (ConnectionException e) {
             throw new TemporaryStorageException(e);
         }
+        Iterator<Row<ByteBuffer, ByteBuffer>> i =
+                Iterators.filter(r.iterator(), new KeySkipPredicate(query.getKeyEnd().asByteBuffer()));
+        return new RowIterator(i, query);
     }
 
     @Override
@@ -284,6 +284,20 @@ public class AstyanaxOrderedKeyColumnValueStore implements KeyColumnValueStore {
             return (row != null) && row.getColumns().size() > 0;
         }
     }
+    
+    private static class KeySkipPredicate implements Predicate<Row<ByteBuffer, ByteBuffer>> {
+        
+        private final ByteBuffer skip;
+        
+        public KeySkipPredicate(ByteBuffer skip) {
+            this.skip = skip;
+        }
+
+        @Override
+        public boolean apply(@Nullable Row<ByteBuffer, ByteBuffer> row) {
+            return (row != null) && !row.getKey().equals(skip);
+        }
+    }
 
     private static class RowIterator implements KeyIterator {
         private final Iterator<Row<ByteBuffer, ByteBuffer>> rows;
@@ -291,8 +305,8 @@ public class AstyanaxOrderedKeyColumnValueStore implements KeyColumnValueStore {
         private final SliceQuery sliceQuery;
         private boolean isClosed;
 
-        public RowIterator(Rows<ByteBuffer, ByteBuffer> rows, SliceQuery sliceQuery) {
-            this.rows = Iterators.filter(rows.iterator(), new KeyIterationPredicate());
+        public RowIterator(Iterator<Row<ByteBuffer, ByteBuffer>> rowIter, SliceQuery sliceQuery) {
+            this.rows = Iterators.filter(rowIter, new KeyIterationPredicate());
             this.sliceQuery = sliceQuery;
         }
 
@@ -305,39 +319,44 @@ public class AstyanaxOrderedKeyColumnValueStore implements KeyColumnValueStore {
 
             return new RecordIterator<Entry>() {
                 private final Iterator<Entry> columns = excludeLastColumn(currentRow,
-                                                                          sliceQuery.getSliceEnd().asByteBuffer(),
-                                                                          sliceQuery.hasLimit()
-                                                                                  ? sliceQuery.getLimit()
-                                                                                  : Integer.MAX_VALUE)
-                                                                          .iterator();
+                        sliceQuery.getSliceEnd().asByteBuffer(),
+                        sliceQuery.hasLimit()
+                                ? sliceQuery.getLimit()
+                                : Integer.MAX_VALUE)
+                        .iterator();
 
                 @Override
-                public boolean hasNext() throws StorageException {
+                public boolean hasNext() {
                     ensureOpen();
                     return columns.hasNext();
                 }
 
                 @Override
-                public Entry next() throws StorageException {
+                public Entry next() {
                     ensureOpen();
                     return columns.next();
                 }
 
                 @Override
-                public void close() throws StorageException {
+                public void close() {
                     isClosed = true;
+                }
+                
+                @Override
+                public void remove() {
+                    throw new UnsupportedOperationException();
                 }
             };
         }
 
         @Override
-        public boolean hasNext() throws StorageException {
+        public boolean hasNext() {
             ensureOpen();
             return rows.hasNext();
         }
 
         @Override
-        public StaticBuffer next() throws StorageException {
+        public StaticBuffer next() {
             ensureOpen();
 
             currentRow = rows.next();
@@ -345,8 +364,13 @@ public class AstyanaxOrderedKeyColumnValueStore implements KeyColumnValueStore {
         }
 
         @Override
-        public void close() throws StorageException {
+        public void close() {
             isClosed = true;
+        }
+        
+        @Override
+        public void remove() {
+            throw new UnsupportedOperationException();
         }
 
         private void ensureOpen() {

@@ -3,10 +3,13 @@ package com.thinkaurelius.titan.diskstorage;
 import com.carrotsearch.junitbenchmarks.BenchmarkRule;
 import com.carrotsearch.randomizedtesting.RandomizedTest;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.*;
+import com.thinkaurelius.titan.testcategory.PerformanceTests;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.TestRule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,6 +21,7 @@ import java.util.List;
  * @author Matthias Broecheler (me@matthiasb.com)
  */
 
+@Category({ PerformanceTests.class })
 public abstract class KeyColumnValueStorePerformance {
 
     private Logger log = LoggerFactory.getLogger(KeyColumnValueStoreTest.class);
@@ -42,7 +46,11 @@ public abstract class KeyColumnValueStorePerformance {
     public void open() throws StorageException {
         manager = openStorageManager();
         store = manager.openDatabase(storeName);
-        tx = manager.beginTransaction(ConsistencyLevel.DEFAULT);
+        tx = startTx();
+    }
+
+    public StoreTransaction startTx() throws StorageException {
+        return manager.beginTransaction(new StoreTxConfig());
     }
 
     public void clopen() throws StorageException {
@@ -65,15 +73,16 @@ public abstract class KeyColumnValueStorePerformance {
 
     @Test
     public void addRecords() throws StorageException {
-        for (int r = 0;r<numRows;r++) {
+        for (int r = 0; r < numRows; r++) {
             int numCols = 10;
             List<Entry> entries = new ArrayList<Entry>();
-            for (int c = 0; c<numCols; c++ ) {
-                entries.add(new StaticBufferEntry(KeyValueStoreUtil.getBuffer(c+1),KeyValueStoreUtil.getBuffer(c+r+2)));
+            for (int c = 0; c < numCols; c++) {
+                entries.add(new StaticBufferEntry(KeyValueStoreUtil.getBuffer(c + 1), KeyValueStoreUtil.getBuffer(c + r + 2)));
             }
-            store.mutate(KeyValueStoreUtil.getBuffer(r+1), entries, KeyColumnValueStore.NO_DELETIONS, tx);
+            store.mutate(KeyValueStoreUtil.getBuffer(r + 1), entries, KeyColumnValueStore.NO_DELETIONS, tx);
         }
-        tx.commit(); tx=null;
+        tx.commit();
+        tx = null;
     }
 
 }

@@ -15,7 +15,7 @@ import java.util.concurrent.Callable;
 /**
  * Buffers mutations against multiple {@link KeyColumnValueStore} from the same storage backend for increased
  * write performance. The buffer size (i.e. number of mutations after which to flush) is configurable.
- *
+ * <p/>
  * A BufferTransaction also attempts to flush multiple times in the event of temporary storage failures for increased
  * write robustness.
  *
@@ -99,9 +99,12 @@ public class BufferTransaction implements StoreTransaction {
                     manager.mutateMany(mutations, tx);
                     return true;
                 }
+
                 @Override
-                public String toString() { return "BufferMutation"; }
-            },mutationAttempts,attemptWaitTime);
+                public String toString() {
+                    return "BufferMutation";
+                }
+            }, mutationAttempts, attemptWaitTime);
             clear();
         }
     }
@@ -116,7 +119,7 @@ public class BufferTransaction implements StoreTransaction {
     @Override
     public void commit() throws StorageException {
         flushInternal();
-        tx.flush();
+        tx.commit();
     }
 
     @Override
@@ -126,7 +129,7 @@ public class BufferTransaction implements StoreTransaction {
     }
 
     @Override
-    public ConsistencyLevel getConsistencyLevel() {
-        return tx.getConsistencyLevel();
+    public StoreTxConfig getConfiguration() {
+        return tx.getConfiguration();
     }
 }

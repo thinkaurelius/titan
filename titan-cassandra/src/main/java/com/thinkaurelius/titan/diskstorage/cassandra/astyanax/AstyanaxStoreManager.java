@@ -30,8 +30,11 @@ import com.thinkaurelius.titan.diskstorage.cassandra.astyanax.locking.AstyanaxRe
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.Entry;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.KCVMutation;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.StoreTransaction;
-import com.thinkaurelius.titan.diskstorage.util.TimeUtility;
 
+import org.apache.cassandra.dht.IPartitioner;
+import org.apache.cassandra.dht.Token;
+import org.apache.cassandra.exceptions.ConfigurationException;
+import org.apache.cassandra.utils.FBUtilities;
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
@@ -65,7 +68,7 @@ public class AstyanaxStoreManager extends AbstractCassandraStoreManager {
      */
     public static final int MAX_CONNECTIONS_PER_HOST_DEFAULT = 32;
     public static final String MAX_CONNECTIONS_PER_HOST_KEY = "max-connections-per-host";
-    
+
     /**
      * Maximum open connections allowed in the pool (counting all hosts).
      * <p/>
@@ -73,7 +76,7 @@ public class AstyanaxStoreManager extends AbstractCassandraStoreManager {
      */
     public static final int MAX_CONNECTIONS_DEFAULT = -1;
     public static final String MAX_CONNECTIONS_KEY = "max-connections";
-    
+
     /**
      * Maximum number of operations allowed per connection before the connection is closed.
      * <p/>
@@ -127,9 +130,9 @@ public class AstyanaxStoreManager extends AbstractCassandraStoreManager {
 
     static {
         PROPERTIES_CF = new ColumnFamily<String, String>(SYSTEM_PROPERTIES_CF,
-                                                         StringSerializer.get(),
-                                                         StringSerializer.get(),
-                                                         StringSerializer.get());
+                StringSerializer.get(),
+                StringSerializer.get(),
+                StringSerializer.get());
     }
 
     private final String clusterName;
@@ -185,6 +188,19 @@ public class AstyanaxStoreManager extends AbstractCassandraStoreManager {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
+    public IPartitioner<? extends Token<?>> getCassandraPartitioner() throws StorageException {
+        Cluster cl = clusterContext.getClient();
+        try {
+            return FBUtilities.newPartitioner(cl.describePartitioner());
+        } catch (ConnectionException e) {
+            throw new TemporaryStorageException(e);
+        } catch (ConfigurationException e) {
+            throw new PermanentStorageException(e);
+        }
+    }
+
+    @Override
     public String toString() {
         return "astyanax" + super.toString();
     }
@@ -207,25 +223,25 @@ public class AstyanaxStoreManager extends AbstractCassandraStoreManager {
             return store;
         }
     }
-    
+
     public AstyanaxRecipeLocker openLocker(String cfName) throws StorageException {
-        
+
         ColumnFamily<ByteBuffer, String> cf = new ColumnFamily<ByteBuffer, String>(
                 cfName,
                 ByteBufferSerializer.get(),
                 StringSerializer.get());
-        
+
         return new AstyanaxRecipeLocker.Builder(keyspaceContext.getClient(), cf).build();
     }
 
     @Override
     public void mutateMany(Map<String, Map<StaticBuffer, KCVMutation>> batch, StoreTransaction txh) throws StorageException {
         MutationBatch m = keyspaceContext.getClient().prepareMutationBatch()
-                                                     .setConsistencyLevel(getTx(txh).getWriteConsistencyLevel().getAstyanaxConsistency())
-                                                     .withRetryPolicy(retryPolicy.duplicate());
+                .setConsistencyLevel(getTx(txh).getWriteConsistencyLevel().getAstyanaxConsistency())
+                .withRetryPolicy(retryPolicy.duplicate());
 
-        final long delTS = TimeUtility.INSTANCE.getApproxNSSinceEpoch(false);
-        final long addTS = TimeUtility.INSTANCE.getApproxNSSinceEpoch(true);
+        final Timestamp timestamp = getTimestamp(txh);
+
 
         for (Map.Entry<String, Map<StaticBuffer, KCVMutation>> batchentry : batch.entrySet()) {
             String storeName = batchentry.getKey();
@@ -242,7 +258,7 @@ public class AstyanaxStoreManager extends AbstractCassandraStoreManager {
 
                 if (titanMutation.hasDeletions()) {
                     ColumnListMutation<ByteBuffer> dels = m.withRow(columnFamily, ent.getKey().asByteBuffer());
-                    dels.setTimestamp(delTS);
+                    dels.setTimestamp(timestamp.deletionTime);
 
                     for (StaticBuffer b : titanMutation.getDeletions())
                         dels.deleteColumn(b.asByteBuffer());
@@ -250,7 +266,7 @@ public class AstyanaxStoreManager extends AbstractCassandraStoreManager {
 
                 if (titanMutation.hasAdditions()) {
                     ColumnListMutation<ByteBuffer> upds = m.withRow(columnFamily, ent.getKey().asByteBuffer());
-                    upds.setTimestamp(addTS);
+                    upds.setTimestamp(timestamp.additionTime);
 
                     for (Entry e : titanMutation.getAdditions())
                         upds.putColumn(e.getColumn().asByteBuffer(), e.getValue().asByteBuffer());
@@ -305,14 +321,16 @@ public class AstyanaxStoreManager extends AbstractCassandraStoreManager {
                         cl.makeColumnFamilyDefinition()
                                 .setName(name)
                                 .setKeyspace(keySpaceName)
-                                .setComparatorType(comparator)
-                                .setCompressionOptions(
-                                		new ImmutableMap.Builder<String, String>()
-                                			.put("sstable_compression", "SnappyCompressor")
-                                			.put("chunk_length_kb", "64")
-                                			.build()
-                                );
-                cl.addColumnFamily(cfDef);
+                                .setComparatorType(comparator);
+                
+                ImmutableMap.Builder<String, String> compressionOptions = new ImmutableMap.Builder<String, String>();
+
+                if (compressionEnabled) {
+                    compressionOptions.put("sstable_compression", compressionClass)
+                                      .put("chunk_length_kb", Integer.toString(compressionChunkSizeKB));
+                }
+                
+                cl.addColumnFamily(cfDef.setCompressionOptions(compressionOptions.build()));
             }
         } catch (ConnectionException e) {
             throw new TemporaryStorageException(e);
@@ -337,33 +355,33 @@ public class AstyanaxStoreManager extends AbstractCassandraStoreManager {
                 config.getString(
                         NODE_DISCOVERY_TYPE_KEY,
                         NODE_DISCOVERY_TYPE_DEFAULT));
-        
+
         final int maxConnections =
                 config.getInt(
                         MAX_CONNECTIONS_KEY,
                         MAX_CONNECTIONS_DEFAULT);
-        
+
         final int maxOperationsPerConnection =
-        		config.getInt(
+                config.getInt(
                         MAX_OPERATIONS_PER_CONNECTION_KEY,
                         MAX_OPERATIONS_PER_CONNECTION_DEFAULT);
-        
+
         ConnectionPoolConfigurationImpl cpool =
-        		new ConnectionPoolConfigurationImpl(usedFor + "TitanConnectionPool")
-        			.setPort(port)
-        			.setMaxOperationsPerConnection(maxOperationsPerConnection)
-        			.setMaxConnsPerHost(maxConnsPerHost)
-        			.setRetryBackoffStrategy(new FixedRetryBackoffStrategy(1000, 5000)) // TODO configuration
-        			.setSocketTimeout(connectionTimeout)
-        			.setConnectTimeout(connectionTimeout)
-        			.setSeeds(StringUtils.join(hostnames,","));
-        
+                new ConnectionPoolConfigurationImpl(usedFor + "TitanConnectionPool")
+                        .setPort(port)
+                        .setMaxOperationsPerConnection(maxOperationsPerConnection)
+                        .setMaxConnsPerHost(maxConnsPerHost)
+                        .setRetryBackoffStrategy(new FixedRetryBackoffStrategy(1000, 5000)) // TODO configuration
+                        .setSocketTimeout(connectionTimeout)
+                        .setConnectTimeout(connectionTimeout)
+                        .setSeeds(StringUtils.join(hostnames, ","));
+
         AstyanaxConfigurationImpl aconf =
                 new AstyanaxConfigurationImpl()
-                    .setConnectionPoolType(poolType)
-                    .setDiscoveryType(discType)
-                    .setTargetCassandraVersion("1.2");
-        
+                        .setConnectionPoolType(poolType)
+                        .setDiscoveryType(discType)
+                        .setTargetCassandraVersion("1.2");
+
         if (0 < maxConnections) {
             cpool.setMaxConns(maxConnections);
         }
@@ -466,14 +484,14 @@ public class AstyanaxStoreManager extends AbstractCassandraStoreManager {
 
             OperationResult<Column<String>> result =
                     keyspaceContext.getClient().prepareQuery(PROPERTIES_CF)
-                                               .setConsistencyLevel(ConsistencyLevel.CL_QUORUM)
-                                               .withRetryPolicy(retryPolicy.duplicate())
-                                               .getKey(SYSTEM_PROPERTIES_KEY).getColumn(key)
-                                               .execute();
+                            .setConsistencyLevel(ConsistencyLevel.CL_QUORUM)
+                            .withRetryPolicy(retryPolicy.duplicate())
+                            .getKey(SYSTEM_PROPERTIES_KEY).getColumn(key)
+                            .execute();
 
             return result.getResult().getStringValue();
         } catch (NotFoundException e) {
-                return null;
+            return null;
         } catch (ConnectionException e) {
             throw new PermanentStorageException(e);
         }
@@ -487,33 +505,33 @@ public class AstyanaxStoreManager extends AbstractCassandraStoreManager {
             Keyspace ks = keyspaceContext.getClient();
 
             OperationResult<Void> result = ks.prepareColumnMutation(PROPERTIES_CF, SYSTEM_PROPERTIES_KEY, key)
-                                                    .setConsistencyLevel(ConsistencyLevel.CL_QUORUM)
-                                                    .putValue(value, null)
-                                                    .execute();
+                    .setConsistencyLevel(ConsistencyLevel.CL_QUORUM)
+                    .putValue(value, null)
+                    .execute();
 
             result.getResult();
         } catch (ConnectionException e) {
             throw new PermanentStorageException(e);
         }
     }
-    
+
     @Override
     public Map<String, String> getCompressionOptions(String cf) throws StorageException {
         try {
             Keyspace k = keyspaceContext.getClient();
-        
+
             KeyspaceDefinition kdef = k.describeKeyspace();
-        
+
             if (null == kdef) {
                 throw new PermanentStorageException("Keyspace " + kdef + " is undefined");
             }
-        
+
             ColumnFamilyDefinition cfdef = kdef.getColumnFamily(cf);
-        
+
             if (null == cfdef) {
                 throw new PermanentStorageException("Column family " + cf + " is undefined");
             }
-        
+
             return cfdef.getCompressionOptions();
         } catch (ConnectionException e) {
             throw new PermanentStorageException(e);

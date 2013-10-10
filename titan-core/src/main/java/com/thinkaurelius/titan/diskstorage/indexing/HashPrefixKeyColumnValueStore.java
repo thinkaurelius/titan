@@ -7,6 +7,7 @@ import com.thinkaurelius.titan.diskstorage.keycolumnvalue.*;
 import com.thinkaurelius.titan.diskstorage.util.RecordIterator;
 import com.thinkaurelius.titan.diskstorage.util.StaticArrayBuffer;
 
+import java.io.IOException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
@@ -37,14 +38,14 @@ public class HashPrefixKeyColumnValueStore implements KeyColumnValueStore {
     private final StaticBuffer prefixKey(StaticBuffer key) {
         try {
             MessageDigest m = MessageDigest.getInstance(algorithm);
-            for (int i=0;i<key.length();i++) m.update(key.getByte(i));
+            for (int i = 0; i < key.length(); i++) m.update(key.getByte(i));
             byte[] hash = m.digest();
-            byte[] newKey = new byte[numPrefixBytes+key.length()];
+            byte[] newKey = new byte[numPrefixBytes + key.length()];
             for (int i = 0; i < numPrefixBytes; i++) {
-                newKey[i]=hash[i];
+                newKey[i] = hash[i];
             }
-            for (int i=0;i<key.length();i++) {
-                newKey[numPrefixBytes+i]=key.getByte(i);
+            for (int i = 0; i < key.length(); i++) {
+                newKey[numPrefixBytes + i] = key.getByte(i);
             }
             return new StaticArrayBuffer(newKey);
         } catch (NoSuchAlgorithmException e) {
@@ -53,7 +54,7 @@ public class HashPrefixKeyColumnValueStore implements KeyColumnValueStore {
     }
 
     private StaticBuffer truncateKey(StaticBuffer key) {
-        return key.subrange(numPrefixBytes,key.length()-numPrefixBytes);
+        return key.subrange(numPrefixBytes, key.length() - numPrefixBytes);
     }
 
     @Override
@@ -63,7 +64,7 @@ public class HashPrefixKeyColumnValueStore implements KeyColumnValueStore {
 
     @Override
     public List<Entry> getSlice(KeySliceQuery query, StoreTransaction txh) throws StorageException {
-        KeySliceQuery prefixQuery = new KeySliceQuery(prefixKey(query.getKey()),query);
+        KeySliceQuery prefixQuery = new KeySliceQuery(prefixKey(query.getKey()), query);
         return store.getSlice(prefixQuery, txh);
     }
 
@@ -89,30 +90,8 @@ public class HashPrefixKeyColumnValueStore implements KeyColumnValueStore {
     }
 
     @Override
-    public RecordIterator<StaticBuffer> getKeys(StoreTransaction txh) throws StorageException {
-        final RecordIterator<StaticBuffer> keys = store.getKeys(txh);
-        return new RecordIterator<StaticBuffer>() {
-
-            @Override
-            public boolean hasNext() throws StorageException {
-                return keys.hasNext();
-            }
-
-            @Override
-            public StaticBuffer next() throws StorageException {
-                return truncateKey(keys.next());
-            }
-
-            @Override
-            public void close() throws StorageException {
-                keys.close();
-            }
-        };
-    }
-
-    @Override
     public KeyIterator getKeys(KeyRangeQuery keyQuery, StoreTransaction txh) throws StorageException {
-        throw new UnsupportedOperationException("getKeys(KeyRangeQuery) is not supported in hash prefixed mode.");
+        throw new UnsupportedOperationException("getKeys(KeyRangeQuery, StoreTransaction) is not supported in hash prefixed mode.");
     }
 
     @Override
@@ -148,18 +127,23 @@ public class HashPrefixKeyColumnValueStore implements KeyColumnValueStore {
         }
 
         @Override
-        public boolean hasNext() throws StorageException {
+        public boolean hasNext() {
             return rows.hasNext();
         }
 
         @Override
-        public StaticBuffer next() throws StorageException {
+        public StaticBuffer next() {
             return truncateKey(rows.next());
         }
 
         @Override
-        public void close() throws StorageException {
+        public void close() throws IOException {
             rows.close();
+        }
+
+        @Override
+        public void remove() {
+            throw new UnsupportedOperationException();
         }
     }
 }

@@ -9,6 +9,7 @@ import com.thinkaurelius.titan.diskstorage.common.LocalStoreManager;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.ConsistencyLevel;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.StoreFeatures;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.StoreTransaction;
+import com.thinkaurelius.titan.diskstorage.keycolumnvalue.StoreTxConfig;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.keyvalue.KVMutation;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.keyvalue.OrderedKeyValueStoreManager;
 import com.thinkaurelius.titan.diskstorage.util.FileStorageConfiguration;
@@ -30,9 +31,9 @@ public class BerkeleyJEStoreManager extends LocalStoreManager implements Ordered
 
     private final Map<String, BerkeleyJEKeyValueStore> stores;
 
-    private Environment environment;
-    private final StoreFeatures features;
-    private final FileStorageConfiguration storageConfig;
+    protected Environment environment;
+    protected final StoreFeatures features;
+    protected final FileStorageConfiguration storageConfig;
 
     public BerkeleyJEStoreManager(Configuration configuration) throws StorageException {
         super(configuration);
@@ -44,7 +45,8 @@ public class BerkeleyJEStoreManager extends LocalStoreManager implements Ordered
         initialize(cachePercentage);
 
         features = new StoreFeatures();
-        features.supportsScan = true;
+        features.supportsOrderedScan = true;
+        features.supportsUnorderedScan = false;
         features.supportsBatchMutation = false;
         features.supportsTransactions = true;
         features.supportsConsistentKeyOperations = false;
@@ -53,7 +55,7 @@ public class BerkeleyJEStoreManager extends LocalStoreManager implements Ordered
         features.isDistributed = false;
         features.hasLocalKeyPartition = false;
 
-        storageConfig=new FileStorageConfiguration(directory);
+        storageConfig = new FileStorageConfiguration(directory);
     }
 
     private void initialize(int cachePercent) throws StorageException {
@@ -84,13 +86,13 @@ public class BerkeleyJEStoreManager extends LocalStoreManager implements Ordered
     }
 
     @Override
-    public BerkeleyJETx beginTransaction(ConsistencyLevel level) throws StorageException {
+    public BerkeleyJETx beginTransaction(final StoreTxConfig config) throws StorageException {
         try {
             Transaction tx = null;
             if (transactional) {
                 tx = environment.beginTransaction(null, null);
             }
-            return new BerkeleyJETx(tx, level);
+            return new BerkeleyJETx(tx, config);
         } catch (DatabaseException e) {
             throw new PermanentStorageException("Could not start BerkeleyJE transaction", e);
         }
@@ -178,7 +180,7 @@ public class BerkeleyJEStoreManager extends LocalStoreManager implements Ordered
 
     @Override
     public void setConfigurationProperty(String key, String value) throws StorageException {
-        storageConfig.setConfigurationProperty(key,value);
+        storageConfig.setConfigurationProperty(key, value);
     }
 
     @Override

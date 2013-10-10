@@ -2,6 +2,12 @@
 target/
 .idea/
 *.iml
+/bin/
+/conf/
+/db/
+/ext/
+/lib/
+/log/
 # When executing tests in alphabetical order, Maven generates temporary
 # files with names like this:
 #
@@ -26,6 +32,8 @@ titan-hbase/src/test/titan-zookeeper-test/*
 # Backup files created by `mvn versions:update-child-modules`
 # http://mojo.codehaus.org/versions-maven-plugin/update-child-modules-mojo.html
 titan-*/pom.xml.versionsBackup
+# JUnitBenchmarks output
+/titan-*/jub.*.xml
 # .deb/.rpm packaging folders
 /debian/
 /redhat/
