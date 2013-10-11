@@ -213,7 +213,8 @@ public class AccumuloKeyColumnValueStore implements KeyColumnValueStore {
     }
 
     /**
-     * Convert Titan {@code Entry} modifications entries into Accumulo put {@code Mutation}.
+     * Convert Titan {@code Entry} modifications entries into Accumulo put
+     * {@code Mutation}.
      *
      * @param colFamily Name of column family for modifications
      * @param key Row key
@@ -278,8 +279,6 @@ public class AccumuloKeyColumnValueStore implements KeyColumnValueStore {
             throw new PermanentStorageException(ex);
         }
 
-        Range range = getRange(startKey, endKey);
-        scanner.setRange(range);
         scanner.fetchColumnFamily(columnFamilyText);
 
         IteratorSetting columnSliceIterator = null;
@@ -298,6 +297,9 @@ public class AccumuloKeyColumnValueStore implements KeyColumnValueStore {
             IteratorSetting firstRowKeyIterator = new IteratorSetting(15, "firstRowKeyIter", FirstEntryInRowIterator.class);
             scanner.addScanIterator(firstRowKeyIterator);
         }
+
+        Range range = getRange(startKey, endKey);
+        scanner.setRange(range);
 
         return scanner;
     }
@@ -395,7 +397,7 @@ public class AccumuloKeyColumnValueStore implements KeyColumnValueStore {
                 public void close() {
                     isClosed = true; // same semantics as in-memory implementation in Titan core
                 }
-                
+
                 @Override
                 public void remove() {
                     throw new UnsupportedOperationException();
@@ -424,7 +426,7 @@ public class AccumuloKeyColumnValueStore implements KeyColumnValueStore {
             rows = null;
             currentRow = null;
         }
-        
+
         @Override
         public void remove() {
             throw new UnsupportedOperationException();
