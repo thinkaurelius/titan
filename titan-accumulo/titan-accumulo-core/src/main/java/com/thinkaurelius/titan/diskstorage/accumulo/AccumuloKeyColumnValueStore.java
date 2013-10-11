@@ -245,11 +245,6 @@ public class AccumuloKeyColumnValueStore implements KeyColumnValueStore {
     }
 
     @Override
-    public RecordIterator<StaticBuffer> getKeys(StoreTransaction txh) throws StorageException {
-        return executeKeySliceQuery(null, true);
-    }
-
-    @Override
     public KeyIterator getKeys(KeyRangeQuery query, StoreTransaction txh) throws StorageException {
         return executeKeySliceQuery(query.getKeyStart(), query.getKeyEnd(), query, false);
     }
@@ -384,21 +379,26 @@ public class AccumuloKeyColumnValueStore implements KeyColumnValueStore {
         public RecordIterator<Entry> getEntries() {
             RecordIterator<Entry> rowIter = new RecordIterator<Entry>() {
                 @Override
-                public boolean hasNext() throws StorageException {
+                public boolean hasNext() {
                     ensureOpen();
                     return currentRow.hasNext();
                 }
 
                 @Override
-                public Entry next() throws StorageException {
+                public Entry next() {
                     ensureOpen();
                     Map.Entry<Key, Value> kv = currentRow.next();
                     return getEntry(kv);
                 }
 
                 @Override
-                public void close() throws StorageException {
+                public void close() {
                     isClosed = true; // same semantics as in-memory implementation in Titan core
+                }
+                
+                @Override
+                public void remove() {
+                    throw new UnsupportedOperationException();
                 }
             };
 
@@ -406,23 +406,28 @@ public class AccumuloKeyColumnValueStore implements KeyColumnValueStore {
         }
 
         @Override
-        public boolean hasNext() throws StorageException {
+        public boolean hasNext() {
             ensureOpen();
             return rows.hasNext();
         }
 
         @Override
-        public StaticBuffer next() throws StorageException {
+        public StaticBuffer next() {
             ensureOpen();
             currentRow = Iterators.peekingIterator(rows.next());
             return new StaticArrayBuffer(currentRow.peek().getKey().getRow().getBytes());
         }
 
         @Override
-        public void close() throws StorageException {
+        public void close() {
             isClosed = true;
             rows = null;
             currentRow = null;
+        }
+        
+        @Override
+        public void remove() {
+            throw new UnsupportedOperationException();
         }
 
         private void ensureOpen() {

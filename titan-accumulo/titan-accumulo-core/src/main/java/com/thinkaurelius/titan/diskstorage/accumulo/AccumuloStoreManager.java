@@ -12,6 +12,7 @@ import com.thinkaurelius.titan.diskstorage.keycolumnvalue.KeyColumnValueStore;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.KeyColumnValueStoreManager;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.StoreFeatures;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.StoreTransaction;
+import com.thinkaurelius.titan.diskstorage.keycolumnvalue.StoreTxConfig;
 import com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfiguration;
 import java.util.Collection;
 import java.util.Collections;
@@ -107,7 +108,8 @@ public class AccumuloStoreManager extends DistributedStoreManager implements Key
         openStores = new ConcurrentHashMap<String, AccumuloKeyColumnValueStore>();
 
         features = new StoreFeatures();
-        features.supportsScan = true;
+        features.supportsOrderedScan = true;
+        features.supportsUnorderedScan = true;
         features.supportsBatchMutation = true;
         features.supportsTransactions = false;
         features.supportsConsistentKeyOperations = true;
@@ -197,10 +199,10 @@ public class AccumuloStoreManager extends DistributedStoreManager implements Key
     public void setConfigurationProperty(String key, String value) throws StorageException {
         storeConfiguration.setConfigurationProperty(key, value);
     }
-    
+
     @Override
-    public StoreTransaction beginTransaction(ConsistencyLevel level) throws StorageException {
-        return new AccumuloTransaction(level);
+    public StoreTransaction beginTransaction(final StoreTxConfig config) throws StorageException {
+        return new AccumuloTransaction(config);
     }
 
     @Override
