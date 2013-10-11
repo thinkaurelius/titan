@@ -2,14 +2,15 @@ package com.thinkaurelius.titan.diskstorage.cassandra;
 
 import java.util.Map;
 
+import com.google.common.base.Preconditions;
 import com.thinkaurelius.titan.core.TitanException;
 import com.thinkaurelius.titan.diskstorage.StorageException;
 import com.thinkaurelius.titan.diskstorage.common.DistributedStoreManager;
-import com.thinkaurelius.titan.diskstorage.keycolumnvalue.ConsistencyLevel;
-import com.thinkaurelius.titan.diskstorage.keycolumnvalue.KeyColumnValueStoreManager;
-import com.thinkaurelius.titan.diskstorage.keycolumnvalue.StoreFeatures;
-import com.thinkaurelius.titan.diskstorage.keycolumnvalue.StoreTransaction;
+import com.thinkaurelius.titan.diskstorage.keycolumnvalue.*;
+import com.thinkaurelius.titan.diskstorage.util.TimeUtility;
+
 import org.apache.cassandra.dht.IPartitioner;
+import org.apache.cassandra.dht.Token;
 import org.apache.commons.configuration.Configuration;
 
 /**
@@ -27,7 +28,8 @@ public abstract class AbstractCassandraStoreManager extends DistributedStoreMana
         }
 
         public static Partitioner getPartitioner(String className) {
-            if (className.endsWith("RandomPartitioner") || className.endsWith("Murmur3Partitioner")) return Partitioner.RANDOM;
+            if (className.endsWith("RandomPartitioner") || className.endsWith("Murmur3Partitioner"))
+                return Partitioner.RANDOM;
             else if (className.endsWith("ByteOrderedPartitioner")) return Partitioner.BYTEORDER;
             else throw new IllegalArgumentException("Unsupported partitioner: " + className);
         }
@@ -42,13 +44,41 @@ public abstract class AbstractCassandraStoreManager extends DistributedStoreMana
     /**
      * THRIFT_FRAME_SIZE_IN_MB should be appropriately set when server-side Thrift counterpart was changed,
      * because otherwise client wouldn't be able to accept read/write frames from server as incorrectly sized.
-     *
+     * <p/>
      * HEADS UP: setting max message size proved itself hazardous to be set on the client, only server needs that
      * kind of protection.
-     *
+     * <p/>
      * Note: property is sized in megabytes for user convenience (defaults are 15MB by cassandra.yaml).
      */
     public static final String THRIFT_FRAME_SIZE_MB = "cassandra.thrift.frame_size_mb";
+
+    /**
+     * This flag would be checked on first Titan run when Keyspace and CFs required
+     * for operation are created. If this flag is set to "true" Snappy
+     * compression mechanism would be used.  Default is "true" (see DEFAULT_COMPRESSION_FLAG).
+     */
+    public static final String ENABLE_COMPRESSION_KEY = "compression.enabled";
+    public static final boolean DEFAULT_COMPRESSION_FLAG = true;
+
+    /**
+     * This property allows to set appropriate initial compression chunk_size (in kilobytes) when compression is enabled,
+     * Default: 64 (see DEFAULT_COMPRESSION_CHUNK_SIZE), should be positive 2^n.
+     */
+    public static final String COMPRESSION_CHUNKS_SIZE_KEY = "compression.chunk_length_kb";
+    public static final int DEFAULT_COMPRESSION_CHUNK_SIZE = 64;
+    
+    /**
+     * Controls the Cassandra sstable_compression for CFs created by Titan.
+     * <p>
+     * If a CF already exists, then Titan will not modify its compressor
+     * configuration. Put another way, this setting only affects a CF that Titan
+     * created because it didn't already exist.
+     * <p>
+     * Default: {@literal #DEFAULT_COMPRESSOR}
+     */
+    public static final String COMPRESSION_KEY = "compression.sstable_compression";
+    public static final String DEFAULT_COMPRESSION = "SnappyCompressor";
+
 
     public static final int THRIFT_DEFAULT_FRAME_SIZE = 15;
 
@@ -93,8 +123,12 @@ public abstract class AbstractCassandraStoreManager extends DistributedStoreMana
 
     private StoreFeatures features = null;
 
-    protected static final String SYSTEM_PROPERTIES_CF  = "system_properties";
+    protected static final String SYSTEM_PROPERTIES_CF = "system_properties";
     protected static final String SYSTEM_PROPERTIES_KEY = "general";
+
+    protected final boolean compressionEnabled;
+    protected final int compressionChunkSizeKB;
+    protected final String compressionClass;
 
     public AbstractCassandraStoreManager(Configuration storageConfig) {
         super(storageConfig, PORT_DEFAULT);
@@ -110,13 +144,19 @@ public abstract class AbstractCassandraStoreManager extends DistributedStoreMana
                 WRITE_CONSISTENCY_LEVEL_KEY, WRITE_CONSISTENCY_LEVEL_DEFAULT));
 
         this.thriftFrameSize = storageConfig.getInt(THRIFT_FRAME_SIZE_MB, THRIFT_DEFAULT_FRAME_SIZE) * 1024 * 1024;
+        
+        this.compressionEnabled = storageConfig.getBoolean(ENABLE_COMPRESSION_KEY, DEFAULT_COMPRESSION_FLAG);
+        this.compressionChunkSizeKB = storageConfig.getInt(COMPRESSION_CHUNKS_SIZE_KEY, DEFAULT_COMPRESSION_CHUNK_SIZE);
+        this.compressionClass = storageConfig.getString(COMPRESSION_KEY, DEFAULT_COMPRESSION);
     }
 
     public abstract Partitioner getPartitioner() throws StorageException;
-
+    
+    public abstract IPartitioner<? extends Token<?>> getCassandraPartitioner() throws StorageException;
+    
     @Override
-    public StoreTransaction beginTransaction(ConsistencyLevel level) {
-        return new CassandraTransaction(level, readConsistencyLevel, writeConsistencyLevel);
+    public StoreTransaction beginTransaction(final StoreTxConfig config) {
+        return new CassandraTransaction(config, readConsistencyLevel, writeConsistencyLevel);
     }
 
     @Override
@@ -128,7 +168,6 @@ public abstract class AbstractCassandraStoreManager extends DistributedStoreMana
     public StoreFeatures getFeatures() {
         if (features == null) {
             features = new StoreFeatures();
-            features.supportsScan = true;
             features.supportsBatchMutation = true;
             features.supportsTransactions = false;
             features.supportsConsistentKeyOperations = true;
@@ -141,16 +180,21 @@ public abstract class AbstractCassandraStoreManager extends DistributedStoreMana
             } catch (StorageException e) {
                 throw new TitanException("Could not connect to Cassandra to read partitioner information. Please check the connection", e);
             }
-            features.supportsScan = true;
             if (partitioner == Partitioner.RANDOM) {
                 features.isKeyOrdered = false;
                 features.hasLocalKeyPartition = false;
+                features.supportsOrderedScan = false;
+                features.supportsUnorderedScan = true;
             } else if (partitioner == Partitioner.BYTEORDER) {
                 features.isKeyOrdered = true;
                 features.hasLocalKeyPartition = false;
+                features.supportsOrderedScan = true;
+                features.supportsUnorderedScan = false;
             } else if (partitioner == Partitioner.LOCALBYTEORDER) {
                 features.isKeyOrdered = true;
                 features.hasLocalKeyPartition = true;
+                features.supportsOrderedScan = true;
+                features.supportsUnorderedScan = false;
             } else throw new IllegalArgumentException("Unrecognized partitioner: " + partitioner);
         }
         return features;
@@ -162,17 +206,38 @@ public abstract class AbstractCassandraStoreManager extends DistributedStoreMana
      * map returned by
      * {@link org.apache.cassandra.thrift.CfDef#getCompression_options()}, even
      * for implementations of this method that don't use Thrift.
-     * 
-     * @param cf
-     *            the name of the column family for which to return compression
-     *            options
+     *
+     * @param cf the name of the column family for which to return compression
+     *           options
      * @return map of compression option names to compression option values
-     * @throws StorageException
-     *             if reading from Cassandra fails
+     * @throws StorageException if reading from Cassandra fails
      */
     public abstract Map<String, String> getCompressionOptions(String cf) throws StorageException;
-    
+
     public String getName() {
         return getClass().getSimpleName() + keySpaceName;
+    }
+
+    protected Timestamp getTimestamp(StoreTransaction txh) {
+        long time;
+        if (txh.getConfiguration().hasTimestamp()) {
+            time = (txh.getConfiguration().getTimestamp());
+        } else {
+            time = TimeUtility.INSTANCE.getApproxNSSinceEpoch();
+        }
+        time = time & 0xFFFFFFFFFFFFFFFEL; //remove last bit
+        return new Timestamp(time | 1L, time);
+    }
+
+    public static class Timestamp {
+        public final long additionTime;
+        public final long deletionTime;
+
+        public Timestamp(long additionTime, long deletionTime) {
+            Preconditions.checkArgument(0 < deletionTime, "Negative time: %s", deletionTime);
+            Preconditions.checkArgument(deletionTime < additionTime, "%s vs %s", deletionTime, additionTime);
+            this.additionTime = additionTime;
+            this.deletionTime = deletionTime;
+        }
     }
 }

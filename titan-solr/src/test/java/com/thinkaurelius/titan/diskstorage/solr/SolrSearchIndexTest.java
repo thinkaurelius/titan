@@ -49,8 +49,8 @@ public class SolrSearchIndexTest extends IndexProviderTest {
 //        config.setProperty(SOLR_CLOUD_COLLECTION, "store");
 
         //Common settings needed in all modes
-        config.setProperty(SOLR_CORE_NAMES, "store,store1,store2,store3");
-        config.setProperty(SOLR_KEY_FIELD_NAMES, "store=document_id,store1=document_id,store2=document_id,store3=document_id");
+        config.setProperty(SOLR_CORE_NAMES, "edge,vertex");
+        config.setProperty(SOLR_KEY_FIELD_NAMES, "edge=document_id,vertex=document_id");
 
         return config;
     }
@@ -60,7 +60,7 @@ public class SolrSearchIndexTest extends IndexProviderTest {
     {
         this.openIndex().clearStorage();;
 
-        String[] stores = new String[] { "store1" };
+        String[] stores = new String[] { "vertex" };
 
         Map<String,Object> doc1 = getDocument("Hello world",1001,5.2, Geoshape.point(48.0, 0.0));
         Map<String,Object> doc2 = getDocument("Tomorrow is the world",1010,8.5,Geoshape.point(49.0,1.0));

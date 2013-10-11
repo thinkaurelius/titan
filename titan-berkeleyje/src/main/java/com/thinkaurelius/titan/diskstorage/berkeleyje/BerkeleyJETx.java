@@ -8,6 +8,7 @@ import com.thinkaurelius.titan.diskstorage.PermanentStorageException;
 import com.thinkaurelius.titan.diskstorage.StorageException;
 import com.thinkaurelius.titan.diskstorage.common.AbstractStoreTransaction;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.ConsistencyLevel;
+import com.thinkaurelius.titan.diskstorage.keycolumnvalue.StoreTxConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -21,8 +22,8 @@ public class BerkeleyJETx extends AbstractStoreTransaction {
     private Transaction tx;
     private List<Cursor> openCursors = new ArrayList<Cursor>();
 
-    public BerkeleyJETx(Transaction t, ConsistencyLevel level) {
-        super(level);
+    public BerkeleyJETx(Transaction t, StoreTxConfig config) {
+        super(config);
         tx = t;
     }
 
@@ -31,7 +32,7 @@ public class BerkeleyJETx extends AbstractStoreTransaction {
     }
 
     void registerCursor(Cursor cursor) {
-        Preconditions.checkArgument(cursor!=null);
+        Preconditions.checkArgument(cursor != null);
         synchronized (openCursors) {
             //TODO: attempt to remove closed cursors if there are too many
             openCursors.add(cursor);
@@ -46,6 +47,7 @@ public class BerkeleyJETx extends AbstractStoreTransaction {
 
     @Override
     public synchronized void rollback() throws StorageException {
+        super.rollback();
         if (tx == null) return;
         try {
             closeOpenIterators();
@@ -58,6 +60,7 @@ public class BerkeleyJETx extends AbstractStoreTransaction {
 
     @Override
     public synchronized void commit() throws StorageException {
+        super.commit();
         if (tx == null) return;
         try {
             closeOpenIterators();

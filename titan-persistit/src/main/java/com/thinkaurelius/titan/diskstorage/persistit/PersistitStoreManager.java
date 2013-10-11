@@ -2,11 +2,9 @@ package com.thinkaurelius.titan.diskstorage.persistit;
 
 import java.io.File;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Map;
 import java.util.Properties;
 
-import org.apache.commons.configuration.BaseConfiguration;
 import org.apache.commons.configuration.Configuration;
 
 import com.persistit.Exchange;
@@ -16,9 +14,9 @@ import com.persistit.exception.PersistitException;
 import com.thinkaurelius.titan.diskstorage.PermanentStorageException;
 import com.thinkaurelius.titan.diskstorage.StorageException;
 import com.thinkaurelius.titan.diskstorage.common.LocalStoreManager;
-import com.thinkaurelius.titan.diskstorage.keycolumnvalue.ConsistencyLevel;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.StoreFeatures;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.StoreTransaction;
+import com.thinkaurelius.titan.diskstorage.keycolumnvalue.StoreTxConfig;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.keyvalue.KVMutation;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.keyvalue.OrderedKeyValueStoreManager;
 import com.thinkaurelius.titan.diskstorage.util.FileStorageConfiguration;
@@ -27,42 +25,30 @@ import com.thinkaurelius.titan.util.system.IOUtils;
 
 /**
  * @todo: confirm that the initial sessions created on store startup are not hanging around forever
- *
  */
 public class PersistitStoreManager extends LocalStoreManager implements OrderedKeyValueStoreManager {
 
     private final Map<String, PersistitKeyValueStore> stores;
     private final FileStorageConfiguration storageConfig;
-    private static final StoreFeatures features = new StoreFeatures();
+
     final static String VOLUME_NAME = "titan";
     final static String BUFFER_COUNT_KEY = "buffercount";
     final static Integer BUFFER_COUNT_DEFAULT = 5000;
 
-    static {
-        features.supportsTransactions = true;
-        features.isDistributed = false;
+    private final Persistit db;
+    private final Properties properties;
+    protected final StoreFeatures features = getDefaultFeatures();
 
-        //@todo: figure out what these do, Copied from Berkeley for now
-        features.supportsScan = true;
-        features.supportsBatchMutation = false;
-        features.supportsConsistentKeyOperations = false;
-        features.supportsLocking = true;
-        features.isKeyOrdered = true;
-        features.hasLocalKeyPartition = false;
-    }
-
-    private Persistit db;
-    private Properties properties;
 
     public PersistitStoreManager(Configuration configuration) throws StorageException {
         super(configuration);
-        
+
         stores = new HashMap<String, PersistitKeyValueStore>();
 
         // read config and setup
         String datapath = configuration.getString(GraphDatabaseConfiguration.STORAGE_DIRECTORY_KEY);
         Integer bufferCount = configuration.getInt(BUFFER_COUNT_KEY, BUFFER_COUNT_DEFAULT);
-        
+
         properties = new Properties();
         properties.put("datapath", datapath);
 
@@ -80,9 +66,9 @@ public class PersistitStoreManager extends LocalStoreManager implements OrderedK
             db = new Persistit(properties);
             db.initialize();
         } catch (PersistitException ex) {
-            throw new PermanentStorageException(ex.toString());
+            throw new PermanentStorageException(ex);
         }
-        
+
         storageConfig = new FileStorageConfiguration(directory);
     }
 
@@ -96,7 +82,7 @@ public class PersistitStoreManager extends LocalStoreManager implements OrderedK
             return stores.get(name);
         }
 
-        PersistitTransaction tx = new PersistitTransaction(db, ConsistencyLevel.DEFAULT);
+        PersistitTransaction tx = new PersistitTransaction(db, new StoreTxConfig());
         PersistitKeyValueStore store = new PersistitKeyValueStore(name, this, db);
         tx.commit();
         stores.put(name, store);
@@ -124,7 +110,7 @@ public class PersistitStoreManager extends LocalStoreManager implements OrderedK
             try {
                 db.close(true);
             } catch (PersistitException ex) {
-                throw new PermanentStorageException(ex.toString());
+                throw new PermanentStorageException(ex);
             }
         }
     }
@@ -135,9 +121,9 @@ public class PersistitStoreManager extends LocalStoreManager implements OrderedK
      * @return New Transaction Handle
      */
     @Override
-    public PersistitTransaction beginTransaction(ConsistencyLevel level) throws StorageException {
+    public PersistitTransaction beginTransaction(final StoreTxConfig config) throws StorageException {
         //all Exchanges created by a thread share the same transaction context
-        return new PersistitTransaction(db, level);
+        return new PersistitTransaction(db, config);
     }
 
     @Override
@@ -147,7 +133,7 @@ public class PersistitStoreManager extends LocalStoreManager implements OrderedK
 
     @Override
     public void clearStorage() throws StorageException {
-        for(String key : stores.keySet()) {
+        for (String key : stores.keySet()) {
             PersistitKeyValueStore store = stores.remove(key);
             store.clear();
         }
@@ -158,7 +144,7 @@ public class PersistitStoreManager extends LocalStoreManager implements OrderedK
             volume = db.getVolume(VOLUME_NAME);
             treeNames = volume.getTreeNames();
         } catch (PersistitException ex) {
-            throw new PermanentStorageException(ex.toString());
+            throw new PermanentStorageException(ex);
 
         }
 
@@ -167,7 +153,7 @@ public class PersistitStoreManager extends LocalStoreManager implements OrderedK
                 Exchange ex = new Exchange(db, volume, treeName, false);
                 ex.removeTree();
             } catch (PersistitException ex) {
-                throw new PermanentStorageException(ex.toString());
+                throw new PermanentStorageException(ex);
             }
 
         }
@@ -182,11 +168,29 @@ public class PersistitStoreManager extends LocalStoreManager implements OrderedK
 
     @Override
     public void setConfigurationProperty(final String key, final String value) throws StorageException {
-        storageConfig.setConfigurationProperty(key,value);
+        storageConfig.setConfigurationProperty(key, value);
     }
-    
+
     @Override
     public String getName() {
         return getClass().getSimpleName() + ":" + directory.toString();
+    }
+
+    private StoreFeatures getDefaultFeatures() {
+        StoreFeatures features = new StoreFeatures();
+
+        features.supportsTransactions = true;
+        features.isDistributed = false;
+
+        //@todo: figure out what these do, Copied from Berkeley for now
+        features.supportsOrderedScan = true;
+        features.supportsUnorderedScan = false;
+        features.supportsBatchMutation = false;
+        features.supportsConsistentKeyOperations = false;
+        features.supportsLocking = true;
+        features.isKeyOrdered = true;
+        features.hasLocalKeyPartition = false;
+
+        return features;
     }
 }

@@ -12,7 +12,7 @@ import com.thinkaurelius.titan.graphdb.serializer.SpecialInt;
 import com.thinkaurelius.titan.graphdb.serializer.SpecialIntSerializer;
 import com.tinkerpop.blueprints.Direction;
 import com.tinkerpop.blueprints.Edge;
-import com.tinkerpop.blueprints.Query;
+import com.tinkerpop.blueprints.Compare;
 import com.tinkerpop.blueprints.Vertex;
 import org.apache.commons.configuration.Configuration;
 import org.junit.Test;
@@ -46,6 +46,9 @@ public abstract class TitanGraphTest extends TitanGraphTestCommon {
         clopen();
         long nid = n1.getID();
         assertTrue(tx.containsVertex(nid));
+        assertTrue(tx.containsVertex(weight.getID()));
+        assertFalse(tx.containsVertex(nid + 64));
+        assertFalse(tx.containsVertex(weight.getID() + 64));
         assertTrue(tx.containsType("weight"));
         weight = tx.getPropertyKey("weight");
         assertEquals(weight.getDataType(), Double.class);
@@ -69,38 +72,45 @@ public abstract class TitanGraphTest extends TitanGraphTestCommon {
 
         clopen();
 
-        TitanLabel friend = tx.makeType().name("friend").directed().vertexUnique(Direction.OUT).makeEdgeLabel();
+        TitanLabel friend = tx.makeLabel("friend").directed().manyToMany().make();
 
-        TitanKey id = tx.makeType().name("uid").vertexUnique(Direction.OUT).graphUnique().indexed(Vertex.class).dataType(String.class).makePropertyKey();
+        TitanKey id = tx.makeKey("uid").single().unique().indexed(Vertex.class).dataType(String.class).make();
 
-        TitanKey weight = tx.makeType().name("weight").vertexUnique(Direction.OUT).dataType(Double.class).makePropertyKey();
+        TitanKey weight = tx.makeKey("weight").single().dataType(Double.class).make();
 
-        TitanKey someid = tx.makeType().name("someid").vertexUnique(Direction.OUT).dataType(Object.class).indexed(Vertex.class).makePropertyKey();
+        TitanKey someid = tx.makeKey("someid").single().dataType(Object.class).indexed(Vertex.class).make();
 
 
-        TitanKey boolval = tx.makeType().name("boolval").dataType(Boolean.class).vertexUnique(Direction.OUT).makePropertyKey();
+        TitanKey boolval = tx.makeKey("boolval").dataType(Boolean.class).single().make();
 
-        TitanKey sint = tx.makeType().name("int").dataType(SpecialInt.class).vertexUnique(Direction.OUT).makePropertyKey();
+        TitanKey sint = tx.makeKey("int").dataType(SpecialInt.class).single().make();
 
-        TitanLabel link = tx.makeType().name("link").unidirected().makeEdgeLabel();
+        TitanLabel link = tx.makeLabel("link").unidirected().make();
 
-        TitanLabel connect = tx.makeType().name("connect").signature(id, weight).vertexUnique(Direction.OUT, TypeMaker.UniquenessConsistency.NO_LOCK).makeEdgeLabel();
+        TitanLabel connect = tx.makeLabel("connect").signature(id, weight).manyToOne(TypeMaker.UniquenessConsistency.NO_LOCK).make();
 
-        TitanLabel parent = tx.makeType().name("parent").vertexUnique(Direction.OUT).makeEdgeLabel();
+        TitanLabel parent = tx.makeLabel("parent").manyToOne().sortKey(weight).make();
+        assertTrue(parent.isUnique(OUT));
+        TitanLabel child = tx.makeLabel("child").oneToMany().make();
+        assertTrue(child.isUnique(IN));
+        TitanLabel spouse = tx.makeLabel("spouse").oneToOne().make();
+        assertTrue(spouse.isUnique(IN));
+        assertTrue(spouse.isUnique(OUT));
+
 
         try {
-            tx.makeType().name("pint").dataType(int.class).makePropertyKey();
+            tx.makeKey("pint").dataType(int.class).make();
             fail();
         } catch (IllegalArgumentException e) {
         }
 
         try {
-            tx.makeType().name("number").dataType(Number.class).vertexUnique(Direction.OUT).makePropertyKey();
+            tx.makeKey("number").dataType(Number.class).single().make();
             fail();
         } catch (IllegalArgumentException e) {
         }
 
-        TitanKey arrType = tx.makeType().name("barr").dataType(byte[].class).vertexUnique(Direction.OUT).makePropertyKey();
+        TitanKey arrType = tx.makeKey("barr").dataType(byte[].class).single().make();
 
         clopen();
 
@@ -120,8 +130,8 @@ public abstract class TitanGraphTest extends TitanGraphTestCommon {
         assertFalse(friend.isUnidirected());
         assertTrue(friend.isEdgeLabel());
         assertFalse(friend.isPropertyKey());
-        assertTrue(friend.isUnique(Direction.OUT));
-        assertTrue(((InternalType) friend).uniqueLock(Direction.OUT));
+        assertFalse(friend.isUnique(Direction.OUT));
+        assertFalse(((InternalType) friend).uniqueLock(Direction.OUT));
         assertFalse(((InternalType) friend).isHidden());
 
         connect = tx.getEdgeLabel("connect");
@@ -146,35 +156,30 @@ public abstract class TitanGraphTest extends TitanGraphTestCommon {
 
         //Failures
         try {
-            tx.makeType().name("fid").makePropertyKey();
+            tx.makeKey("fid").make();
             fail();
         } catch (IllegalArgumentException e) {
         }
         try {
-            tx.makeType().name("link").unidirected().makeEdgeLabel();
+            tx.makeLabel("link").unidirected().make();
             fail();
         } catch (IllegalArgumentException e) {
         }
-        tx.makeType().name("test").makeEdgeLabel();
+        tx.makeLabel("test").make();
         try {
-            tx.makeType().makeEdgeLabel();
-            fail();
-        } catch (IllegalArgumentException e) {
-        }
-        try {
-            tx.makeType().name("link2").unidirected().
-                    primaryKey(id, weight).signature(id).makeEdgeLabel();
+            tx.makeLabel("link2").unidirected().
+                    sortKey(id, weight).signature(id).make();
             fail();
         } catch (IllegalArgumentException e) {
         }
 //        try {
-//            tx.makeType().name("link2").unidirected().
-//                    primaryKey(id, weight).makeEdgeLabel();
+//            tx.makeLabel("link2").unidirected().
+//                    sortKey(id, weight).make();
 //            fail();
 //        } catch (IllegalArgumentException e) {
 //        }
-        tx.makeType().name("link2").unidirected().
-                primaryKey(id, weight).makeEdgeLabel();
+        tx.makeLabel("link2").unidirected().
+                sortKey(id, weight).make();
 
         // Data types and serialization
         TitanVertex v = tx.addVertex();
@@ -200,16 +205,42 @@ public abstract class TitanGraphTest extends TitanGraphTestCommon {
         TitanVertex v12 = tx.addVertex(), v13 = tx.addVertex();
         v12.setProperty("uid", "v12");
         v13.setProperty("uid", "v13");
-        v12.addEdge("parent", v1);
-        v13.addEdge("parent", v1);
+        v12.addEdge("parent", v1).setProperty("weight", 3.5);
+        v13.addEdge("parent", v1).setProperty("weight", 10.5);
         try {
             v12.addEdge("parent", v13);
             fail();
         } catch (IllegalArgumentException e) {
         }
-        assertEquals(2, Iterables.size(v1.getEdges(IN, "parent")));
-        assertEquals(1, Iterables.size(v12.getEdges(OUT, "parent")));
-        assertEquals(1, Iterables.size(v13.getEdges(OUT, "parent")));
+        assertEquals(2, Iterables.size(v1.query().direction(IN).labels("parent").edges()));
+        assertEquals(1, Iterables.size(v1.query().direction(IN).labels("parent").has("weight", Compare.GREATER_THAN, 10.0).edges()));
+        assertEquals(1, Iterables.size(v12.query().direction(OUT).labels("parent").has("weight").edges()));
+        assertEquals(1, Iterables.size(v12.query().direction(OUT).labels("parent").has("weight", Compare.GREATER_THAN, 3).edges()));
+        assertEquals(1, Iterables.size(v13.query().direction(OUT).labels("parent").has("weight").edges()));
+
+        v1.addEdge("child", v12);
+        v1.addEdge("child", v13);
+        try {
+            v13.addEdge("child", v12);
+            fail();
+        } catch (IllegalArgumentException e) {
+        }
+
+        v1.addEdge("spouse", v12);
+        try {
+            v13.addEdge("spouse", v12);
+            fail();
+        } catch (IllegalArgumentException e) {
+        }
+        try {
+            v1.addEdge("spouse", v13);
+            fail();
+        } catch (IllegalArgumentException e) {
+        }
+
+        v1.addEdge("connect", v12);
+        Edge edge = Iterables.getOnlyElement(v1.getEdges(OUT, "connect"));
+        assertEquals(0, edge.getPropertyKeys().size());
 
         clopen();
 
@@ -220,8 +251,15 @@ public abstract class TitanGraphTest extends TitanGraphTestCommon {
         assertEquals(v1, Iterables.getOnlyElement(tx.getVertices(id, "v1")));
 
         v12 = (TitanVertex) tx.getVertex(v12);
-        assertEquals(2, Iterables.size(v1.getEdges(IN, "parent")));
-        assertEquals(1, Iterables.size(v12.getEdges(OUT, "parent")));
+        v13 = (TitanVertex) tx.getVertex(v13);
+        assertEquals(2, Iterables.size(v1.query().direction(IN).labels("parent").edges()));
+        assertEquals(1, Iterables.size(v1.query().direction(IN).labels("parent").has("weight", Compare.GREATER_THAN, 10.0).edges()));
+        assertEquals(1, Iterables.size(v12.query().direction(OUT).labels("parent").has("weight").edges()));
+        assertEquals(1, Iterables.size(v12.query().direction(OUT).labels("parent").has("weight", Compare.GREATER_THAN, 3).edges()));
+        assertEquals(1, Iterables.size(v13.query().direction(OUT).labels("parent").has("weight").edges()));
+
+        edge = Iterables.getOnlyElement(v1.getEdges(OUT, "connect"));
+        assertEquals(0, edge.getPropertyKeys().size());
 
 
         // Verify vertex in current transaction
@@ -241,6 +279,7 @@ public abstract class TitanGraphTest extends TitanGraphTestCommon {
         assertEquals(v2, Iterables.getOnlyElement(tx.getVertices(id, "v2")));
 
         clopen();
+
 
         v = tx.addVertex();
         v.setProperty("uid", "unique1");
@@ -272,7 +311,7 @@ public abstract class TitanGraphTest extends TitanGraphTestCommon {
         }
 
         newTx();
-        tx.makeType().name("domain").graphUnique().indexed(Vertex.class).dataType(String.class).makePropertyKey();
+        tx.makeKey("domain").unique().indexed(Vertex.class).dataType(String.class).make();
         v1 = tx.addVertex();
         try {
             v1.setProperty("domain", "unique1");
@@ -285,7 +324,7 @@ public abstract class TitanGraphTest extends TitanGraphTestCommon {
         newTx();
 
 
-        tx.makeType().name("domain").graphUnique().indexed(Vertex.class).dataType(String.class).makePropertyKey();
+        tx.makeKey("domain").unique().indexed(Vertex.class).dataType(String.class).make();
         v1 = tx.addVertex();
         v1.addProperty("domain", "unique1");
         try {
@@ -300,7 +339,7 @@ public abstract class TitanGraphTest extends TitanGraphTestCommon {
         }
         newTx();
 
-        tx.makeType().name("domain").graphUnique().indexed(Vertex.class).dataType(String.class).makePropertyKey();
+        tx.makeKey("domain").unique().indexed(Vertex.class).dataType(String.class).make();
         clopen();
         v1 = tx.addVertex();
         v1.addProperty("domain", "unique1");
@@ -356,7 +395,7 @@ public abstract class TitanGraphTest extends TitanGraphTestCommon {
     }
 
     @Test
-    public void testMultivaluedVertexPropertyRemoval() {
+    public void testMultivaluedVertexProperty() {
 
         /*
          * Constant test data
@@ -364,57 +403,72 @@ public abstract class TitanGraphTest extends TitanGraphTestCommon {
          * The values list below must have at least two elements. The string
          * literals were chosen arbitrarily and have no special significance.
          */
-        final String pname = "foo";
+        final String foo = "foo", bar = "bar";
         final List<String> values =
                 ImmutableList.of("four", "score", "and", "seven");
         assertTrue("Values list must have multiple elements for this test to make sense",
                 2 <= values.size());
 
         // Create property with name pname and a vertex
-        TitanKey key = makeNonUniqueStringPropertyKey(pname);
+        makeNonUniqueStringPropertyKey(foo);
+        makeNonUniqueStringPropertyKey(bar);
+        newTx();
         TitanVertex v = tx.addVertex();
 
         // Insert prop values
         for (String s : values) {
-            v.addProperty(key, s);
+            v.addProperty(foo, s);
+            v.addProperty(bar, s);
         }
 
         //Verify correct number of properties
-        assertEquals(values.size(), Iterables.size(v.getProperties(key)));
+        assertEquals(values.size(), Iterables.size(v.getProperties(foo)));
+
+        assertEquals(1, Iterables.size(tx.query().has(foo, values.get(1)).vertices()));
+        assertEquals(1, Iterables.size(tx.query().has(foo, values.get(3)).vertices()));
+
+        assertEquals(1, Iterables.size(tx.query().has(bar, values.get(1)).vertices()));
+        assertEquals(1, Iterables.size(tx.query().has(bar, values.get(3)).vertices()));
 
         // Check that removeProperty(TitanKey) returns a valid value
-        String lastValueRemoved = v.removeProperty(key);
+        String lastValueRemoved = v.removeProperty(foo);
         assertNotNull(lastValueRemoved);
         assertTrue(values.contains(lastValueRemoved));
         // Check that the properties were actually deleted from v
-        assertFalse(v.getProperties(key).iterator().hasNext());
+        assertFalse(v.getProperties(foo).iterator().hasNext());
 
         // Reopen database
         clopen();
 
+        assertEquals(0, Iterables.size(tx.query().has(foo, values.get(1)).vertices()));
+        assertEquals(0, Iterables.size(tx.query().has(foo, values.get(3)).vertices()));
+
+        assertEquals(1, Iterables.size(tx.query().has(bar, values.get(1)).vertices()));
+        assertEquals(1, Iterables.size(tx.query().has(bar, values.get(3)).vertices()));
+
         // Retrieve and check our test vertex
         v = tx.getVertex(v.getID());
-        key = tx.getPropertyKey(pname);
-        Iterable<TitanProperty> iter = v.getProperties(key);
+        Iterable<TitanProperty> iter = v.getProperties(foo);
         assertFalse("Failed to durably remove multivalued property",
                 iter.iterator().hasNext());
 
+        assertEquals(values.size(), Iterables.size(v.getProperties(bar)));
         // Reinsert prop values
         for (String s : values) {
-            v.addProperty(pname, s);
+            v.addProperty(foo, s);
         }
-        assertEquals(values.size(), Iterables.size(v.getProperties(key)));
+        assertEquals(values.size(), Iterables.size(v.getProperties(foo)));
 
         // Test removeProperty(String) method on the vertex
-        lastValueRemoved = v.removeProperty(pname);
+        lastValueRemoved = v.removeProperty(foo);
         assertNotNull(lastValueRemoved);
         assertTrue(values.contains(lastValueRemoved));
-        assertFalse(v.getProperties(pname).iterator().hasNext());
+        assertFalse(v.getProperties(foo).iterator().hasNext());
     }
 
     @Test
     public void testDate() throws ParseException {
-        tx.makeType().name("birthday").vertexUnique(Direction.OUT).dataType(GregorianCalendar.class).makePropertyKey();
+        tx.makeKey("birthday").single().dataType(GregorianCalendar.class).make();
 
         Vertex v = tx.addVertex(null);
         Date date = new SimpleDateFormat("ddMMyyyy").parse("28101978");
@@ -466,6 +520,31 @@ public abstract class TitanGraphTest extends TitanGraphTestCommon {
             fail();
         } catch (IllegalStateException e) {
         }
+
+        //Test internal vertex id verification
+        newTx();
+        v21 = tx.getVertex(v21.getID());
+        tx.makeLabel("link").unidirected().make();
+        TitanVertex v3 = tx.addVertex();
+        v21.addEdge("link", v3);
+        newTx();
+        v21 = tx.getVertex(v21.getID());
+        v3 = (TitanVertex) Iterables.getOnlyElement(v21.getVertices(OUT, "link"));
+        assertFalse(v3.isRemoved());
+        v3.remove();
+        newTx();
+        v21 = tx.getVertex(v21.getID());
+        v3 = (TitanVertex) Iterables.getOnlyElement(v21.getVertices(OUT, "link"));
+        assertFalse(v3.isRemoved());
+        newTx();
+
+        TitanTransaction tx3 = graph.buildTransaction().checkInternalVertexExistence().start();
+        v21 = tx3.getVertex(v21.getID());
+        v3 = (TitanVertex) Iterables.getOnlyElement(v21.getVertices(OUT, "link"));
+        assertTrue(v3.isRemoved());
+        tx3.commit();
+
+
     }
 
     //Add more removal operations, different transaction contexts
@@ -558,7 +637,7 @@ public abstract class TitanGraphTest extends TitanGraphTestCommon {
             }
             assertEquals(numV - deleteV, Iterables.size(tx.getVertices()));
             clopen();
-            assertEquals(numV - deleteV, Iterables.size(tx.getVertices()));
+            assertEquals(numV - deleteV, Iterables.size(graph.getVertices()));
         }
     }
 
@@ -609,8 +688,8 @@ public abstract class TitanGraphTest extends TitanGraphTestCommon {
 
     @Test
     public void testUnidirectional() {
-        TitanLabel link = tx.makeType().name("link").unidirected().vertexUnique(Direction.OUT).makeEdgeLabel();
-        TitanLabel connect = tx.makeType().name("connect").primaryKey(link).makeEdgeLabel();
+        TitanLabel link = tx.makeLabel("link").unidirected().manyToOne().make();
+        TitanLabel connect = tx.makeLabel("connect").sortKey(link).make();
 
         TitanVertex v1 = tx.addVertex(), v2 = tx.addVertex(), v3 = tx.addVertex();
         TitanEdge e = v1.addEdge(link, v2);
@@ -649,16 +728,16 @@ public abstract class TitanGraphTest extends TitanGraphTestCommon {
 
     @Test
     public void testIndexRetrieval() {
-        TitanKey id = tx.makeType().name("uid").
-                vertexUnique(Direction.OUT).
-                graphUnique().indexed(Vertex.class).indexed(Edge.class).
+        TitanKey id = tx.makeKey("uid").
+                single().
+                unique().indexed(Vertex.class).indexed(Edge.class).
                 dataType(Integer.class).
-                makePropertyKey();
-        TitanKey name = tx.makeType().name("name").vertexUnique(Direction.OUT).
+                make();
+        TitanKey name = tx.makeKey("name").single().
                 indexed(Vertex.class).indexed(Edge.class).
                 dataType(String.class).
-                makePropertyKey();
-        TitanLabel connect = tx.makeType().name("connect").signature(id, name).makeEdgeLabel();
+                make();
+        TitanLabel connect = tx.makeLabel("connect").signature(id, name).make();
         int noNodes = 100;
         int div = 10;
         int mod = noNodes / div;
@@ -699,6 +778,10 @@ public abstract class TitanGraphTest extends TitanGraphTestCommon {
 
     @Test
     public void testThreadBoundTx() {
+        TitanKey t = graph.makeKey("type").dataType(Integer.class).single().indexed(Edge.class).make();
+        graph.makeLabel("friend").sortKey(t).make();
+        graph.commit();
+
         Vertex v1 = graph.addVertex(null);
         Vertex v2 = graph.addVertex(null);
         Vertex v3 = graph.addVertex(null);
@@ -714,6 +797,8 @@ public abstract class TitanGraphTest extends TitanGraphTestCommon {
         e2.setProperty("time", 15);
         Edge e3 = v3.addEdge("knows", v1);
         e3.setProperty("time", 25);
+        Edge e4 = v2.addEdge("friend", v2);
+        e4.setProperty("type", 1);
         for (Vertex v : new Vertex[]{v1, v2, v3}) {
             assertEquals(2, v.query().direction(Direction.BOTH).labels("knows").count());
             assertEquals(1, v.query().direction(Direction.OUT).labels("knows").count());
@@ -722,6 +807,12 @@ public abstract class TitanGraphTest extends TitanGraphTestCommon {
         e3.setProperty("time", 35);
         assertEquals(35, e3.getProperty("time"));
 
+        v1.addEdge("friend", v2).setProperty("type", 0);
+        graph.commit();
+        e4.setProperty("type", 2);
+        Edge ef = Iterables.getOnlyElement(v1.getEdges(OUT, "friend"));
+        assertEquals(ef, Iterables.getOnlyElement(graph.getEdges("type", 0)));
+        ef.setProperty("type", 1);
         graph.commit();
 
         assertEquals(35, e3.getProperty("time"));
@@ -892,16 +983,16 @@ public abstract class TitanGraphTest extends TitanGraphTestCommon {
 
     @Test
     public void testQuery() {
-        TitanKey name = tx.makeType().name("name").dataType(String.class).vertexUnique(Direction.OUT).indexed(Vertex.class).graphUnique().makePropertyKey();
-        TitanKey time = tx.makeType().name("time").dataType(Integer.class).vertexUnique(Direction.OUT).makePropertyKey();
-        TitanKey weight = tx.makeType().name("weight").dataType(Double.class).vertexUnique(Direction.OUT).makePropertyKey();
+        TitanKey name = tx.makeKey("name").dataType(String.class).single().indexed(Vertex.class).unique().make();
+        TitanKey time = tx.makeKey("time").dataType(Integer.class).single().make();
+        TitanKey weight = tx.makeKey("weight").dataType(Double.class).single().make();
 
-        TitanLabel author = tx.makeType().name("author").vertexUnique(Direction.OUT).unidirected().makeEdgeLabel();
+        TitanLabel author = tx.makeLabel("author").manyToOne().unidirected().make();
 
-        TitanLabel connect = tx.makeType().name("connect").primaryKey(time).makeEdgeLabel();
-        TitanLabel friend = tx.makeType().name("friend").primaryKey(weight, time).signature(author).makeEdgeLabel();
-        TitanLabel knows = tx.makeType().name("knows").primaryKey(author, weight).makeEdgeLabel();
-        TitanLabel follows = tx.makeType().name("follows").makeEdgeLabel();
+        TitanLabel connect = tx.makeLabel("connect").sortKey(time).make();
+        TitanLabel friend = tx.makeLabel("friend").sortKey(weight, time).signature(author).make();
+        TitanLabel knows = tx.makeLabel("knows").sortKey(author, weight).make();
+        TitanLabel follows = tx.makeLabel("follows").make();
 
         int noVertices = 100;
         TitanVertex[] vs = new TitanVertex[noVertices];
@@ -929,9 +1020,13 @@ public abstract class TitanGraphTest extends TitanGraphTestCommon {
         clopen();
         for (int i = 0; i < noVertices; i++) vs[i] = tx.getVertex(vs[i].getID());
         v = vs[0];
-        assertEquals(noVertices - 1, Iterables.size(v.getEdges()));
 
-        //Queries
+
+        //Queries from cache
+        assertEquals(noVertices - 1, Iterables.size(v.getEdges()));
+        assertEquals(10, Iterables.size(v.query().labels("connect").limit(10).vertices()));
+        assertEquals(10, Iterables.size(v.query().labels("connect").has("time", Compare.GREATER_THAN, 30).limit(10).vertices()));
+
         int lastTime = 0;
         for (Edge e : v.query().labels("connect").direction(OUT).limit(20).edges()) {
             int nowTime = e.getProperty("time");
@@ -939,6 +1034,8 @@ public abstract class TitanGraphTest extends TitanGraphTestCommon {
             assertTrue(lastTime + " vs. " + nowTime, lastTime <= nowTime);
             lastTime = nowTime;
         }
+        assertEquals(10, Iterables.size(v.query().labels("connect").direction(OUT).has("time", Compare.GREATER_THAN, 60).limit(10).vertices()));
+
         Iterator<Edge> outer = v.query().labels("connect").direction(OUT).limit(20).edges().iterator();
         for (Edge e : v.query().labels("connect").direction(OUT).limit(10).edges()) {
             assertEquals(e, outer.next());
@@ -948,17 +1045,19 @@ public abstract class TitanGraphTest extends TitanGraphTestCommon {
         assertEquals(33, v.query().labels("connect").has("undefined", null).direction(OUT).count());
         assertEquals(0, v.query().labels("connect").direction(OUT).has("time", null).count());
         assertEquals(10, v.query().labels("connect").direction(OUT).interval("time", 3, 31).vertexIds().size());
+        assertEquals(23, v.query().labels("connect").direction(OUT).has("time", Compare.GREATER_THAN, 31).count());
         assertEquals(10, Iterables.size(v.query().labels("connect").direction(OUT).interval("time", 3, 31).vertices()));
         assertEquals(1, v.query().has("time", 1).count());
         assertEquals(10, v.query().interval("time", 4, 14).count());
-        assertEquals(9, v.query().interval("time", 4, 14).has("time", 10, Query.Compare.NOT_EQUAL).count());
+        assertEquals(9, v.query().interval("time", 4, 14).has("time", Compare.NOT_EQUAL, 10).count());
         assertEquals(20, v.query().labels("friend", "connect").direction(OUT).interval("time", 3, 33).count());
         assertEquals(30, v.query().labels("friend", "connect", "knows").direction(OUT).interval("time", 3, 33).count());
 //        for (TitanRelation r : v.query().labels("friend", "connect", "knows").direction(OUT).has("time", 10, Query.Compare.NOT_EQUAL).relations()) System.out.println(r);
-        assertEquals(98, v.query().labels("friend", "connect", "knows").direction(OUT).has("time", 10, Query.Compare.NOT_EQUAL).count());
+        assertEquals(98, v.query().labels("friend", "connect", "knows").direction(OUT).has("time", Compare.NOT_EQUAL, 10).count());
         assertEquals(3, v.query().labels("friend").direction(OUT).interval("time", 3, 33).has("weight", 0.5).count());
         assertEquals(1, v.query().labels("friend").direction(OUT).has("weight", 0.5).interval("time", 4, 10).count());
-        assertEquals(4, v.query().labels("friend").direction(OUT).has("time", 10, Query.Compare.LESS_THAN_EQUAL).count());
+        assertEquals(4, v.query().labels("friend").direction(OUT).has("time", Compare.LESS_THAN_EQUAL, 10).count());
+        assertEquals(29, v.query().labels("friend").direction(OUT).has("time", Compare.GREATER_THAN, 10).count());
         vl = v.query().labels().direction(OUT).interval("time", 3, 31).vertexIds();
         vl.sort();
         long[] vidsubset = new long[31 - 3];
@@ -993,8 +1092,11 @@ public abstract class TitanGraphTest extends TitanGraphTestCommon {
         for (int i = 0; i < noVertices; i++) vs[i] = tx.getVertex(vs[i].getID());
         v = vs[0];
 
-        //Same queries as above but without memory loading        
-        assertEquals(0, v.query().labels("follows").has("time", 10, Query.Compare.LESS_THAN).count());
+        //Same queries as above but without memory loading
+        assertEquals(10, Iterables.size(v.query().labels("connect").limit(10).vertices()));
+        assertEquals(10, Iterables.size(v.query().labels("connect").has("time", Compare.GREATER_THAN, 30).limit(10).vertices()));
+
+        assertEquals(0, v.query().labels("follows").has("time", Compare.LESS_THAN, 10).count());
 
         //Adjacent queries
         assertEquals(1, v.query().labels("connect").direction(OUT).adjacentVertex(vs[6]).has("time", 6).count());
@@ -1005,6 +1107,10 @@ public abstract class TitanGraphTest extends TitanGraphTestCommon {
 
         assertEquals(0, v.query().labels("connect").direction(OUT).has("time", null).count());
         assertEquals(10, v.query().labels("connect").direction(OUT).interval("time", 3, 31).count());
+        assertEquals(10, v.query().labels("connect").direction(OUT).interval("time", 3, 31).count());
+        assertEquals(23, v.query().labels("connect").direction(OUT).has("time", Compare.GREATER_THAN, 31).count());
+
+
         assertEquals(10, v.query().labels("connect").direction(OUT).interval("time", 3, 31).vertexIds().size());
         assertEquals(10, Iterables.size(v.query().labels("connect").direction(OUT).interval("time", 3, 31).vertices()));
         assertEquals(1, v.query().has("time", 1).count());
@@ -1012,7 +1118,8 @@ public abstract class TitanGraphTest extends TitanGraphTestCommon {
         assertEquals(30, v.query().labels("friend", "connect", "knows").direction(OUT).interval("time", 3, 33).count());
         assertEquals(3, v.query().labels("friend").direction(OUT).interval("time", 3, 33).has("weight", 0.5).count());
         assertEquals(1, v.query().labels("friend").direction(OUT).has("weight", 0.5).interval("time", 4, 10).count());
-        assertEquals(4, v.query().labels("friend").direction(OUT).has("time", 10, Query.Compare.LESS_THAN_EQUAL).count());
+        assertEquals(4, v.query().labels("friend").direction(OUT).has("time", Compare.LESS_THAN_EQUAL, 10).count());
+        assertEquals(29, v.query().labels("friend").direction(OUT).has("time", Compare.GREATER_THAN, 10).count());
         vl = v.query().labels().direction(OUT).interval("time", 3, 31).vertexIds();
         vl.sort();
         for (int i = 0; i < vl.size(); i++) assertEquals(vidsubset[i], vl.getID(i));
@@ -1025,7 +1132,7 @@ public abstract class TitanGraphTest extends TitanGraphTestCommon {
         assertEquals(25, Iterables.size(v.query().labels("connect", "friend", "knows").has("weight", 1.5).vertexIds()));
         assertEquals(33, v.query().labels("connect").direction(OUT).count());
         assertEquals(33, v.query().labels("connect").has("undefined", null).direction(OUT).count());
-        assertEquals(98, v.query().labels("friend", "connect", "knows").direction(OUT).has("time", 10, Query.Compare.NOT_EQUAL).count());
+        assertEquals(98, v.query().labels("friend", "connect", "knows").direction(OUT).has("time", Compare.NOT_EQUAL, 10).count());
         assertEquals(99, Iterables.size(v.query().direction(OUT).vertices()));
 
         clopen();
@@ -1054,7 +1161,6 @@ public abstract class TitanGraphTest extends TitanGraphTestCommon {
         assertNotNull(v);
         assertEquals(2, v.query().has("weight", 1.5).interval("time", 10, 30).limit(2).count());
         assertEquals(5, v.query().has("weight", 1.5).interval("time", 10, 30).count());
-
     }
 
     //Merge above

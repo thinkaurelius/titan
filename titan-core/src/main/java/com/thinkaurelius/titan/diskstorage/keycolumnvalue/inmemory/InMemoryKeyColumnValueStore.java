@@ -29,7 +29,7 @@ import java.util.concurrent.ConcurrentSkipListMap;
 public class InMemoryKeyColumnValueStore implements KeyColumnValueStore {
 
     private final String name;
-    private final ConcurrentNavigableMap<StaticBuffer,ColumnValueStore> kcv;
+    private final ConcurrentNavigableMap<StaticBuffer, ColumnValueStore> kcv;
 
     public InMemoryKeyColumnValueStore(final String name) {
         Preconditions.checkArgument(StringUtils.isNotBlank(name));
@@ -40,14 +40,14 @@ public class InMemoryKeyColumnValueStore implements KeyColumnValueStore {
     @Override
     public boolean containsKey(StaticBuffer key, StoreTransaction txh) throws StorageException {
         ColumnValueStore cvs = kcv.get(key);
-        return cvs!=null && !cvs.isEmpty(txh);
+        return cvs != null && !cvs.isEmpty(txh);
     }
 
     @Override
     public List<Entry> getSlice(KeySliceQuery query, StoreTransaction txh) throws StorageException {
         ColumnValueStore cvs = kcv.get(query.getKey());
-        if (cvs==null) return Lists.newArrayList();
-        else return cvs.getSlice(query,txh);
+        if (cvs == null) return Lists.newArrayList();
+        else return cvs.getSlice(query, txh);
     }
 
     @Override
@@ -64,11 +64,11 @@ public class InMemoryKeyColumnValueStore implements KeyColumnValueStore {
     @Override
     public void mutate(StaticBuffer key, List<Entry> additions, List<StaticBuffer> deletions, StoreTransaction txh) throws StorageException {
         ColumnValueStore cvs = kcv.get(key);
-        if (cvs==null) {
-            kcv.putIfAbsent(key,new ColumnValueStore());
+        if (cvs == null) {
+            kcv.putIfAbsent(key, new ColumnValueStore());
             cvs = kcv.get(key);
         }
-        cvs.mutate(additions,deletions,txh);
+        cvs.mutate(additions, deletions, txh);
     }
 
     @Override
@@ -77,20 +77,14 @@ public class InMemoryKeyColumnValueStore implements KeyColumnValueStore {
     }
 
     @Override
-    public RecordIterator<StaticBuffer> getKeys(final StoreTransaction txh) throws StorageException {
-        Preconditions.checkArgument(txh.getConsistencyLevel() == ConsistencyLevel.DEFAULT);
-        return new RowIterator(kcv.entrySet().iterator(), null, txh);
-    }
-
-    @Override
     public KeyIterator getKeys(final KeyRangeQuery query, final StoreTransaction txh) throws StorageException {
-        Preconditions.checkArgument(txh.getConsistencyLevel() == ConsistencyLevel.DEFAULT);
+        Preconditions.checkArgument(txh.getConfiguration().getConsistency() == ConsistencyLevel.DEFAULT);
         return new RowIterator(kcv.subMap(query.getKeyStart(), query.getKeyEnd()).entrySet().iterator(), query, txh);
     }
 
     @Override
     public KeyIterator getKeys(SliceQuery query, StoreTransaction txh) throws StorageException {
-        Preconditions.checkArgument(txh.getConsistencyLevel() == ConsistencyLevel.DEFAULT);
+        Preconditions.checkArgument(txh.getConfiguration().getConsistency() == ConsistencyLevel.DEFAULT);
         return new RowIterator(kcv.entrySet().iterator(), query, txh);
     }
 
@@ -120,6 +114,7 @@ public class InMemoryKeyColumnValueStore implements KeyColumnValueStore {
         private final StoreTransaction transaction;
 
         private Map.Entry<StaticBuffer, ColumnValueStore> currentRow;
+        private Map.Entry<StaticBuffer, ColumnValueStore> nextRow;
         private boolean isClosed;
 
         public RowIterator(Iterator<Map.Entry<StaticBuffer, ColumnValueStore>> rows,
@@ -148,45 +143,71 @@ public class InMemoryKeyColumnValueStore implements KeyColumnValueStore {
                 private final Iterator<Entry> items = currentRow.getValue().getSlice(keySlice, transaction).iterator();
 
                 @Override
-                public boolean hasNext() throws StorageException {
+                public boolean hasNext() {
                     ensureOpen();
                     return items.hasNext();
                 }
 
                 @Override
-                public Entry next() throws StorageException {
+                public Entry next() {
                     ensureOpen();
                     return items.next();
                 }
 
                 @Override
-                public void close() throws StorageException {
+                public void close() {
                     isClosed = true;
+                }
+
+                @Override
+                public void remove() {
+                    throw new UnsupportedOperationException("Column removal not supported");
                 }
             };
         }
 
         @Override
-        public boolean hasNext() throws StorageException {
+        public boolean hasNext() {
             ensureOpen();
-            return rows.hasNext();
+            
+            if (null != nextRow)
+                return true;
+            
+            while (rows.hasNext()) {
+                nextRow = rows.next();
+                List<Entry> ents = nextRow.getValue().getSlice(new KeySliceQuery(nextRow.getKey(), columnSlice), transaction);
+                if (null != ents && 0 < ents.size())
+                    break;
+            }
+            
+            return null != nextRow;
         }
 
         @Override
-        public StaticBuffer next() throws StorageException {
+        public StaticBuffer next() {
             ensureOpen();
-            currentRow = rows.next();
+            
+            Preconditions.checkNotNull(nextRow);
+            
+            currentRow = nextRow;
+            nextRow = null;;
+            
             return currentRow.getKey();
         }
 
         @Override
-        public void close() throws StorageException {
+        public void close() {
             isClosed = true;
         }
 
         private void ensureOpen() {
             if (isClosed)
                 throw new IllegalStateException("Iterator has been closed.");
+        }
+
+        @Override
+        public void remove() {
+            throw new UnsupportedOperationException("Key removal not supported");
         }
     }
 }

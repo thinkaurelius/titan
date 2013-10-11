@@ -3,13 +3,12 @@ package com.thinkaurelius.titan.diskstorage.locking.transactional;
 import com.thinkaurelius.titan.diskstorage.StaticBuffer;
 import com.thinkaurelius.titan.diskstorage.StorageException;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.*;
-import com.thinkaurelius.titan.diskstorage.util.RecordIterator;
 
 import java.util.List;
 
 /**
  * Implementation of a lock application against a transactional KCVS.
- *
+ * <p/>
  * Since the underlying store will guarantee consistency in the context of the transaction, locks are simply ignored.
  *
  * @author Matthias Broecheler (me@matthiasb.com)
@@ -46,11 +45,6 @@ public class TransactionalLockStore implements KeyColumnValueStore {
     @Override
     public void acquireLock(StaticBuffer key, StaticBuffer column, StaticBuffer expectedValue, StoreTransaction txh) throws StorageException {
         //Do nothing since the backing store is transactional locks are implicitly held
-    }
-
-    @Override
-    public RecordIterator<StaticBuffer> getKeys(StoreTransaction txh) throws StorageException {
-        return store.getKeys(txh);
     }
 
     @Override

@@ -7,10 +7,7 @@ import com.google.common.base.Predicate;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.Weigher;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Iterators;
-import com.google.common.collect.Sets;
+import com.google.common.collect.*;
 import com.thinkaurelius.titan.core.*;
 import com.thinkaurelius.titan.core.attribute.Cmp;
 import com.thinkaurelius.titan.diskstorage.BackendTransaction;
@@ -20,13 +17,11 @@ import com.thinkaurelius.titan.diskstorage.keycolumnvalue.Entry;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.SliceQuery;
 import com.thinkaurelius.titan.graphdb.blueprints.TitanBlueprintsTransaction;
 import com.thinkaurelius.titan.graphdb.database.EdgeSerializer;
+import com.thinkaurelius.titan.graphdb.database.IndexSerializer;
 import com.thinkaurelius.titan.graphdb.database.StandardTitanGraph;
 import com.thinkaurelius.titan.graphdb.database.serialize.AttributeHandling;
 import com.thinkaurelius.titan.graphdb.idmanagement.IDInspector;
-import com.thinkaurelius.titan.graphdb.internal.ElementLifeCycle;
-import com.thinkaurelius.titan.graphdb.internal.ElementType;
-import com.thinkaurelius.titan.graphdb.internal.InternalRelation;
-import com.thinkaurelius.titan.graphdb.internal.InternalVertex;
+import com.thinkaurelius.titan.graphdb.internal.*;
 import com.thinkaurelius.titan.graphdb.query.*;
 import com.thinkaurelius.titan.graphdb.query.condition.*;
 import com.thinkaurelius.titan.graphdb.relations.RelationIdentifier;
@@ -38,10 +33,10 @@ import com.thinkaurelius.titan.graphdb.transaction.addedrelations.SimpleBufferAd
 import com.thinkaurelius.titan.graphdb.transaction.indexcache.ConcurrentIndexCache;
 import com.thinkaurelius.titan.graphdb.transaction.indexcache.IndexCache;
 import com.thinkaurelius.titan.graphdb.transaction.indexcache.SimpleIndexCache;
-import com.thinkaurelius.titan.graphdb.transaction.vertexcache.ConcurrentVertexCache;
-import com.thinkaurelius.titan.graphdb.transaction.vertexcache.SimpleVertexCache;
+import com.thinkaurelius.titan.graphdb.transaction.vertexcache.LRUVertexCache;
 import com.thinkaurelius.titan.graphdb.transaction.vertexcache.VertexCache;
-import com.thinkaurelius.titan.graphdb.types.StandardTypeMaker;
+import com.thinkaurelius.titan.graphdb.types.StandardKeyMaker;
+import com.thinkaurelius.titan.graphdb.types.StandardLabelMaker;
 import com.thinkaurelius.titan.graphdb.types.TitanTypeClass;
 import com.thinkaurelius.titan.graphdb.types.TypeAttribute;
 import com.thinkaurelius.titan.graphdb.types.system.SystemKey;
@@ -55,6 +50,7 @@ import com.thinkaurelius.titan.graphdb.util.VertexCentricEdgeIterable;
 import com.thinkaurelius.titan.graphdb.vertices.CacheVertex;
 import com.thinkaurelius.titan.graphdb.vertices.StandardVertex;
 import com.thinkaurelius.titan.util.datastructures.Retriever;
+import com.thinkaurelius.titan.util.stats.ObjectAccumulator;
 import com.tinkerpop.blueprints.Direction;
 import com.tinkerpop.blueprints.Edge;
 import com.tinkerpop.blueprints.Vertex;
@@ -82,29 +78,76 @@ public class StandardTitanTx extends TitanBlueprintsTransaction {
     private static final Map<Long, InternalRelation> EMPTY_DELETED_RELATIONS = ImmutableMap.of();
     private static final ConcurrentMap<UniqueLockApplication, Lock> UNINITIALIZED_LOCKS = null;
 
-    private static final long DEFAULT_CACHE_SIZE = 10000;
-
     private final StandardTitanGraph graph;
-    private final TransactionConfig config;
+    private final TransactionConfiguration config;
     private final IDInspector idInspector;
     private final AttributeHandling attributeHandler;
     private final BackendTransaction txHandle;
+    private final EdgeSerializer edgeSerializer;
+    private final IndexSerializer indexSerializer;
 
-    //Internal data structures
+    /* ###############################################
+            Internal Data Structures
+     ############################################### */
+
+    //####### Vertex Cache
+    /**
+     * Keeps track of vertices already loaded in memory. Cannot release vertices with added relations.
+     */
     private final VertexCache vertexCache;
-    private final AtomicLong temporaryID;
+
+    //######## Data structures that keep track of new and deleted elements
+    //These data structures cannot release elements, since we would loose track of what was added or deleted
+    /**
+     * Keeps track of all added relations in this transaction
+     */
     private final AddedRelationsContainer addedRelations;
+    /**
+     * Keeps track of all deleted relations in this transaction
+     */
     private Map<Long, InternalRelation> deletedRelations;
+
+    //######## Index Caches
+    /**
+     * Caches the result of index calls so that repeated index queries don't need
+     * to be passed to the IndexProvider. This cache will drop entries when it overflows
+     * since the result set can always be retrieved from the IndexProvider
+     */
     private final Cache<IndexQuery, List<Object>> indexCache;
+    /**
+     * Builds an inverted index for newly added properties so they can be considered in index queries.
+     * This cache my not release elements since that would entail an expensive linear scan over addedRelations
+     */
     private final IndexCache newVertexIndexEntries;
+
+    //######## Lock applications
+    /**
+     * Transaction-local data structure for unique lock applications so that conflicting applications can be discovered
+     * at the transactional level.
+     */
     private ConcurrentMap<UniqueLockApplication, Lock> uniqueLocks;
 
-    private final Map<String, TitanType> typeCache;
+    //####### Other Data structures
+    /**
+     * Caches Titan types by name so that they can be quickly retrieved once they are loaded in the transaction.
+     * Since type retrieval by name is common and there are only a few types, since cache is a simple map (i.e. no release)
+     */
+    private final Map<String, Long> typeCache;
 
+    /**
+     * Used to assign temporary ids to new vertices and relations added in this transaction.
+     * If ids are assigned immediately, this is not used.
+     */
+    private final AtomicLong temporaryID;
+
+
+    /**
+     * Whether or not this transaction is open
+     */
     private boolean isOpen;
 
 
-    public StandardTitanTx(StandardTitanGraph graph, TransactionConfig config, BackendTransaction txHandle) {
+    public StandardTitanTx(StandardTitanGraph graph, TransactionConfiguration config, BackendTransaction txHandle) {
         Preconditions.checkNotNull(graph);
         Preconditions.checkArgument(graph.isOpen());
         Preconditions.checkNotNull(config);
@@ -114,40 +157,35 @@ public class StandardTitanTx extends TitanBlueprintsTransaction {
         this.idInspector = graph.getIDInspector();
         this.attributeHandler = graph.getAttributeHandling();
         this.txHandle = txHandle;
+        this.edgeSerializer = graph.getEdgeSerializer();
+        this.indexSerializer = graph.getIndexSerializer();
 
         temporaryID = new AtomicLong(-1);
-        Cache<GraphCentricQuery, List<Object>> indexCacheBuilder = CacheBuilder.newBuilder().weigher(new Weigher<GraphCentricQuery, List<Object>>() {
-            @Override
-            public int weigh(GraphCentricQuery q, List<Object> r) {
-                return 2 + r.size();
-            }
-        }).
-                maximumWeight(DEFAULT_CACHE_SIZE).build();
+
         int concurrencyLevel;
         if (config.isSingleThreaded()) {
-            vertexCache = new SimpleVertexCache();
             addedRelations = new SimpleBufferAddedRelations();
             concurrencyLevel = 1;
-            typeCache = new HashMap<String, TitanType>();
+            typeCache = new HashMap<String, Long>();
             newVertexIndexEntries = new SimpleIndexCache();
         } else {
-            vertexCache = new ConcurrentVertexCache();
             addedRelations = new ConcurrentBufferAddedRelations();
             concurrencyLevel = 4;
-            typeCache = new ConcurrentHashMap<String, TitanType>();
+            typeCache = new ConcurrentHashMap<String, Long>();
             newVertexIndexEntries = new ConcurrentIndexCache();
         }
-        for (SystemType st : SystemKey.values()) typeCache.put(st.getName(), st);
-
+//        for (SystemType st : SystemKey.values()) typeCache.put(st.getName(), st);
+        vertexCache = new LRUVertexCache(config.getVertexCacheSize(), concurrencyLevel);
         indexCache = CacheBuilder.newBuilder().weigher(new Weigher<IndexQuery, List<Object>>() {
             @Override
             public int weigh(IndexQuery q, List<Object> r) {
                 return 2 + r.size();
             }
-        }).concurrencyLevel(concurrencyLevel).maximumWeight(DEFAULT_CACHE_SIZE).build();
+        }).concurrencyLevel(concurrencyLevel).maximumWeight(config.getIndexCacheWeight()).build();
 
         uniqueLocks = UNINITIALIZED_LOCKS;
         deletedRelations = EMPTY_DELETED_RELATIONS;
+
         this.isOpen = true;
     }
 
@@ -188,7 +226,7 @@ public class StandardTitanTx extends TitanBlueprintsTransaction {
         else return (StandardTitanTx) graph.getCurrentThreadTx();
     }
 
-    public TransactionConfig getConfiguration() {
+    public TransactionConfiguration getConfiguration() {
         return config;
     }
 
@@ -206,58 +244,75 @@ public class StandardTitanTx extends TitanBlueprintsTransaction {
 
     @Override
     public boolean containsVertex(final long vertexid) {
-        verifyOpen();
-        if (vertexCache.contains(vertexid)) {
-            if (!vertexCache.get(vertexid, vertexConstructor).isRemoved()) return true;
-            else return false;
-        } else if (vertexid > 0 && graph.containsVertexID(vertexid, txHandle)) return true;
-        else return false;
+        return getVertex(vertexid) != null;
     }
 
     @Override
-    public TitanVertex getVertex(final long id) {
+    public TitanVertex getVertex(final long vertexid) {
         verifyOpen();
-        if (config.hasVerifyVertexExistence() && !containsVertex(id)) return null;
-        return getExistingVertex(id);
+        if (vertexid <= 0 || !(idInspector.isTypeID(vertexid) || idInspector.isVertexID(vertexid))) return null;
+        InternalVertex v = vertexCache.get(vertexid,
+                config.hasVerifyExternalVertexExistence() ? uncertainVertexConstructor : existingVertexConstructor);
+        if (v.isRemoved()) return null;
+        else return v;
     }
 
-    public InternalVertex getExistingVertex(final long id) {
-        //return vertex no matter what, even if deleted
-        InternalVertex vertex = vertexCache.get(id, vertexConstructor);
-        return vertex;
+    public InternalVertex getExistingVertex(final long vertexid) {
+        //return vertex no matter what, even if deleted, and assume the id has the correct format
+        return vertexCache.get(vertexid, config.hasVerifyInternalVertexExistence() ? uncertainVertexConstructor : existingVertexConstructor);
     }
 
-    private final Retriever<Long, InternalVertex> vertexConstructor = new Retriever<Long, InternalVertex>() {
+    private final Retriever<Long, InternalVertex> existingVertexConstructor = new VertexConstructor(false);
+    private final Retriever<Long, InternalVertex> uncertainVertexConstructor = new VertexConstructor(true);
+
+
+    private class VertexConstructor implements Retriever<Long, InternalVertex> {
+
+        private final boolean verifyExistence;
+
+        private VertexConstructor(boolean verifyExistence) {
+            this.verifyExistence = verifyExistence;
+        }
+
         @Override
-        public InternalVertex get(Long id) {
-            Preconditions.checkNotNull(id);
-            Preconditions.checkArgument(id > 0);
+        public InternalVertex get(Long vertexid) {
+            Preconditions.checkNotNull(vertexid);
+            Preconditions.checkArgument(vertexid > 0);
+            Preconditions.checkArgument(idInspector.isTypeID(vertexid) || idInspector.isVertexID(vertexid), "Not a valid vertex id: %s", vertexid);
+
+            byte lifecycle = ElementLifeCycle.Loaded;
+            if (verifyExistence) {
+                if (graph.edgeQuery(vertexid, graph.vertexExistenceQuery, txHandle).isEmpty())
+                    lifecycle = ElementLifeCycle.Removed;
+            }
 
             InternalVertex vertex = null;
-            if (idInspector.isTypeID(id)) {
-                Preconditions.checkArgument(id > 0);
-                if (idInspector.isPropertyKeyID(id)) {
-                    vertex = new TitanKeyVertex(StandardTitanTx.this, id, ElementLifeCycle.Loaded);
+            if (idInspector.isTypeID(vertexid)) {
+                if (idInspector.isPropertyKeyID(vertexid)) {
+                    vertex = new TitanKeyVertex(StandardTitanTx.this, vertexid, lifecycle);
                 } else {
-                    Preconditions.checkArgument(idInspector.isEdgeLabelID(id));
-                    vertex = new TitanLabelVertex(StandardTitanTx.this, id, ElementLifeCycle.Loaded);
+                    Preconditions.checkArgument(idInspector.isEdgeLabelID(vertexid));
+                    vertex = new TitanLabelVertex(StandardTitanTx.this, vertexid, lifecycle);
                 }
                 //If its a newly created type, add to type cache
-                typeCache.put(((TitanType) vertex).getName(), (TitanType) vertex);
-            } else if (idInspector.isVertexID(id)) {
-                vertex = new CacheVertex(StandardTitanTx.this, id, ElementLifeCycle.Loaded);
+                if (lifecycle == ElementLifeCycle.Loaded)
+                    typeCache.put(((TitanType) vertex).getName(), vertexid);
+            } else if (idInspector.isVertexID(vertexid)) {
+                vertex = new CacheVertex(StandardTitanTx.this, vertexid, lifecycle);
             } else throw new IllegalArgumentException("ID could not be recognized");
             return vertex;
         }
-    };
+    }
+
+    ;
 
 
     @Override
     public TitanVertex addVertex() {
         verifyWriteAccess();
         StandardVertex vertex = new StandardVertex(this, temporaryID.decrementAndGet(), ElementLifeCycle.New);
-        vertex.addProperty(SystemKey.VertexState, (byte) 0);
         if (config.hasAssignIDsImmediately()) graph.assignID(vertex);
+        addProperty(vertex, SystemKey.VertexState, SystemKey.VertexStates.DEFAULT.getValue());
         vertexCache.add(vertex, vertex.getID());
         return vertex;
     }
@@ -267,11 +322,12 @@ public class StandardTitanTx extends TitanBlueprintsTransaction {
     public Iterable<Vertex> getVertices() {
         if (!addedRelations.isEmpty()) {
             //There are possible new vertices
-            List<Vertex> newVs = new ArrayList<Vertex>();
-            for (InternalVertex v : vertexCache.getAll()) {
-                if (v.isNew() && !(v instanceof TitanType)) newVs.add(v);
+            List<InternalVertex> newVs = vertexCache.getAllNew();
+            Iterator<InternalVertex> viter = newVs.iterator();
+            while (viter.hasNext()) {
+                if (viter.next() instanceof TitanType) viter.remove();
             }
-            return Iterables.concat(newVs, new VertexIterable(graph, this));
+            return Iterables.concat((List) newVs, new VertexIterable(graph, this));
         } else {
             return (Iterable) new VertexIterable(graph, this);
         }
@@ -394,6 +450,7 @@ public class StandardTitanTx extends TitanBlueprintsTransaction {
             if (!success) throw new AssertionError("Could not connect relation: " + r);
         }
         addedRelations.add(r);
+        for (int pos = 0; pos < r.getLen(); pos++) vertexCache.add(r.getVertex(pos), r.getVertex(pos).getID());
         if (isVertexIndexProperty(r)) newVertexIndexEntries.add((TitanProperty) r);
     }
 
@@ -485,15 +542,16 @@ public class StandardTitanTx extends TitanBlueprintsTransaction {
             TypeAttribute.isValidLabelDefinition(definition);
             type = new TitanLabelVertex(this, temporaryID.decrementAndGet(), ElementLifeCycle.New);
         }
+        graph.assignID(type);
+        addProperty(type, SystemKey.VertexState, SystemKey.VertexStates.DEFAULT.getValue());
         addProperty(type, SystemKey.TypeName, name);
         addProperty(type, SystemKey.TypeClass, typeClass);
         for (TypeAttribute attribute : definition.getAttributes()) {
             addProperty(type, SystemKey.TypeDefinition, attribute);
         }
-        graph.assignID(type);
         Preconditions.checkArgument(type.getID() > 0);
         vertexCache.add(type, type.getID());
-        typeCache.put(name, type);
+        typeCache.put(name, type.getID());
         return type;
 
     }
@@ -509,15 +567,21 @@ public class StandardTitanTx extends TitanBlueprintsTransaction {
     @Override
     public boolean containsType(String name) {
         verifyOpen();
-        return (typeCache.containsKey(name) || !Iterables.isEmpty(getVertices(SystemKey.TypeName, name)));
+        return (typeCache.containsKey(name) || SystemKey.KEY_MAP.containsKey(name) || !Iterables.isEmpty(getVertices(SystemKey.TypeName, name)));
     }
 
     @Override
     public TitanType getType(String name) {
         verifyOpen();
-        TitanType type = typeCache.get(name);
-        if (type == null) type = (TitanType) Iterables.getOnlyElement(getVertices(SystemKey.TypeName, name), null);
-        return type;
+        Long typeid = typeCache.get(name);
+        if (typeid != null) {
+            return (TitanType) vertexCache.get(typeid, existingVertexConstructor);
+        }
+        if (SystemKey.KEY_MAP.containsKey(name)) {
+            return SystemKey.KEY_MAP.get(name);
+        } else {
+            return (TitanType) Iterables.getOnlyElement(getVertices(SystemKey.TypeName, name), null);
+        }
     }
 
     public TitanType getExistingType(long typeid) {
@@ -535,7 +599,7 @@ public class StandardTitanTx extends TitanBlueprintsTransaction {
     public TitanKey getPropertyKey(String name) {
         TitanType et = getType(name);
         if (et == null) {
-            return config.getAutoEdgeTypeMaker().makeKey(name, makeType());
+            return config.getAutoEdgeTypeMaker().makeKey(makeKey(name));
         } else if (et.isPropertyKey()) {
             return (TitanKey) et;
         } else
@@ -547,7 +611,7 @@ public class StandardTitanTx extends TitanBlueprintsTransaction {
     public TitanLabel getEdgeLabel(String name) {
         TitanType et = getType(name);
         if (et == null) {
-            return config.getAutoEdgeTypeMaker().makeLabel(name, makeType());
+            return config.getAutoEdgeTypeMaker().makeLabel(makeLabel(name));
         } else if (et.isEdgeLabel()) {
             return (TitanLabel) et;
         } else
@@ -555,8 +619,17 @@ public class StandardTitanTx extends TitanBlueprintsTransaction {
     }
 
     @Override
-    public TypeMaker makeType() {
-        return new StandardTypeMaker(this, graph.getIndexSerializer());
+    public KeyMaker makeKey(String name) {
+        StandardKeyMaker maker = new StandardKeyMaker(this, indexSerializer);
+        maker.name(name);
+        return maker;
+    }
+
+    @Override
+    public LabelMaker makeLabel(String name) {
+        StandardLabelMaker maker = new StandardLabelMaker(this, indexSerializer);
+        maker.name(name);
+        return maker;
     }
 
     /*
@@ -564,12 +637,12 @@ public class StandardTitanTx extends TitanBlueprintsTransaction {
      */
 
     public VertexCentricQueryBuilder query(TitanVertex vertex) {
-        return new VertexCentricQueryBuilder((InternalVertex) vertex, graph.getEdgeSerializer());
+        return new VertexCentricQueryBuilder((InternalVertex) vertex, edgeSerializer);
     }
 
     @Override
     public TitanMultiVertexQuery multiQuery(TitanVertex... vertices) {
-        MultiVertexCentricQueryBuilder builder = new MultiVertexCentricQueryBuilder(this, graph.getEdgeSerializer());
+        MultiVertexCentricQueryBuilder builder = new MultiVertexCentricQueryBuilder(this, edgeSerializer);
         for (TitanVertex v : vertices) builder.addVertex(v);
         return builder;
     }
@@ -638,7 +711,6 @@ public class StandardTitanTx extends TitanBlueprintsTransaction {
             if (query.getVertex().isNew()) return Iterators.emptyIterator();
 
             final boolean filterDirection = (exeInfo != null) ? (Boolean) exeInfo : false;
-            final EdgeSerializer edgeSerializer = graph.getEdgeSerializer();
             final InternalVertex v = query.getVertex();
             Iterable<TitanRelation> result = null;
 
@@ -674,7 +746,7 @@ public class StandardTitanTx extends TitanBlueprintsTransaction {
     };
 
 
-    public final QueryExecutor<GraphCentricQuery, TitanElement, IndexQuery> elementProcessor = new QueryExecutor<GraphCentricQuery, TitanElement, IndexQuery>() {
+    public final QueryExecutor<GraphCentricQuery, TitanElement, JointIndexQuery> elementProcessor = new QueryExecutor<GraphCentricQuery, TitanElement, JointIndexQuery>() {
 
         private final PredicateCondition<TitanKey, TitanElement> getEqualityCondition(Condition<TitanElement> condition) {
             if (condition instanceof PredicateCondition) {
@@ -692,8 +764,8 @@ public class StandardTitanTx extends TitanBlueprintsTransaction {
 
         @Override
         public Iterator<TitanElement> getNew(final GraphCentricQuery query) {
-            Preconditions.checkArgument(query.getType() == ElementType.VERTEX || query.getType() == ElementType.EDGE);
-            if (query.getType() == ElementType.VERTEX && hasModifications()) {
+            Preconditions.checkArgument(query.getResultType() == ElementType.VERTEX || query.getResultType() == ElementType.EDGE);
+            if (query.getResultType() == ElementType.VERTEX && hasModifications()) {
                 Preconditions.checkArgument(QueryUtil.isQueryNormalForm(query.getCondition()));
                 PredicateCondition<TitanKey, TitanElement> standardIndexKey = getEqualityCondition(query.getCondition());
                 Iterator<TitanVertex> vertices;
@@ -742,7 +814,7 @@ public class StandardTitanTx extends TitanBlueprintsTransaction {
                         return query.matches(vertex);
                     }
                 });
-            } else if (query.getType() == ElementType.EDGE && !addedRelations.isEmpty()) {
+            } else if (query.getResultType() == ElementType.EDGE && !addedRelations.isEmpty()) {
                 return (Iterator) addedRelations.getView(new Predicate<InternalRelation>() {
                     @Override
                     public boolean apply(@Nullable InternalRelation relation) {
@@ -761,52 +833,65 @@ public class StandardTitanTx extends TitanBlueprintsTransaction {
         @Override
         public boolean isDeleted(GraphCentricQuery query, TitanElement result) {
             if (result == null || result.isRemoved()) return true;
-            else if (query.getType() == ElementType.VERTEX) {
+            else if (query.getResultType() == ElementType.VERTEX) {
                 Preconditions.checkArgument(result instanceof InternalVertex);
                 InternalVertex v = ((InternalVertex) result).it();
                 if (v.hasAddedRelations() || v.hasRemovedRelations()) {
                     return !query.matches(result);
                 } else return false;
-            } else if (query.getType() == ElementType.EDGE) {
+            } else if (query.getResultType() == ElementType.EDGE) {
                 //Loaded edges are immutable and new edges are previously filtered
                 Preconditions.checkArgument(result.isLoaded() || result.isNew());
                 return false;
-            } else throw new IllegalArgumentException("Unexpected type: " + query.getType());
+            } else throw new IllegalArgumentException("Unexpected type: " + query.getResultType());
         }
 
         @Override
-        public Iterator<TitanElement> execute(final GraphCentricQuery query, final IndexQuery indexQuery, final Object exeInfo) {
+        public Iterator<TitanElement> execute(final GraphCentricQuery query, final JointIndexQuery indexQuery, final Object exeInfo) {
             Iterator<TitanElement> iter = null;
-            if (!indexQuery.hasStore()) {
-                log.warn("Query requires iterating over all vertices [{}]. For better performance, use indexes", query.getCondition());
-                if (query.getType() == ElementType.VERTEX) {
-                    iter = (Iterator) getVertices().iterator();
-                } else if (query.getType() == ElementType.EDGE) {
-                    iter = (Iterator) getEdges().iterator();
-                } else throw new IllegalArgumentException("Unexpected type: " + query.getType());
-            } else {
-                Preconditions.checkArgument(exeInfo != null && exeInfo instanceof String);
-                final String indexName = (String) exeInfo;
-                try {
-                    iter = Iterators.transform(indexCache.get(indexQuery, new Callable<List<Object>>() {
+            if (!indexQuery.isEmpty()) {
+                List<QueryUtil.IndexCall<Object>> retrievals = new ArrayList<QueryUtil.IndexCall<Object>>();
+                for (int i = 0; i < indexQuery.size(); i++) {
+                    final String index = indexQuery.getIndex(i);
+                    final IndexQuery subquery = indexQuery.getQuery(i);
+                    retrievals.add(new QueryUtil.IndexCall<Object>() {
                         @Override
-                        public List<Object> call() throws Exception {
-                            return graph.elementQuery(indexName, indexQuery, txHandle);
-                        }
-                    }).iterator(), new Function<Object, TitanElement>() {
-                        @Nullable
-                        @Override
-                        public TitanElement apply(@Nullable Object id) {
-                            Preconditions.checkNotNull(id);
-                            if (id instanceof Long) return getExistingVertex((Long) id);
-                            else if (id instanceof RelationIdentifier)
-                                return (TitanElement) getEdge((RelationIdentifier) id);
-                            else throw new IllegalArgumentException("Unexpected id type: " + id);
+                        public Collection<Object> call(int limit) {
+                            IndexQuery adjustedQuery = subquery.updateLimit(limit);
+                            try {
+                                return indexCache.get(subquery, new Callable<List<Object>>() {
+                                    @Override
+                                    public List<Object> call() throws Exception {
+                                        return indexSerializer.query(index, subquery, txHandle);
+                                    }
+                                });
+                            } catch (Exception e) {
+                                throw new TitanException("Could not call index", e.getCause());
+                            }
                         }
                     });
-                } catch (Exception e) {
-                    throw new TitanException("Could not call index", e);
                 }
+
+
+                List<Object> resultSet = QueryUtil.processIntersectingRetrievals(retrievals, indexQuery.getLimit());
+                iter = Iterators.transform(resultSet.iterator(), new Function<Object, TitanElement>() {
+                    @Nullable
+                    @Override
+                    public TitanElement apply(@Nullable Object id) {
+                        Preconditions.checkNotNull(id);
+                        if (query.getResultType() == ElementType.VERTEX) return getExistingVertex((Long) id);
+                        else if (query.getResultType() == ElementType.EDGE)
+                            return (TitanElement) getEdge((RelationIdentifier) id);
+                        else throw new IllegalArgumentException("Unexpected id type: " + id);
+                    }
+                });
+            } else {
+                log.warn("Query requires iterating over all vertices [{}]. For better performance, use indexes", query.getCondition());
+                if (query.getResultType() == ElementType.VERTEX) {
+                    iter = (Iterator) getVertices().iterator();
+                } else if (query.getResultType() == ElementType.EDGE) {
+                    iter = (Iterator) getEdges().iterator();
+                } else throw new IllegalArgumentException("Unexpected type: " + query.getResultType());
             }
             return iter;
         }

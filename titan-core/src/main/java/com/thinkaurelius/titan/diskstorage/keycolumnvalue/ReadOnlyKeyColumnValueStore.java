@@ -2,7 +2,6 @@ package com.thinkaurelius.titan.diskstorage.keycolumnvalue;
 
 import com.thinkaurelius.titan.diskstorage.StaticBuffer;
 import com.thinkaurelius.titan.diskstorage.StorageException;
-import com.thinkaurelius.titan.diskstorage.util.RecordIterator;
 
 import java.util.List;
 
@@ -28,11 +27,6 @@ public class ReadOnlyKeyColumnValueStore implements KeyColumnValueStore {
     public void acquireLock(StaticBuffer key, StaticBuffer column, StaticBuffer expectedValue,
                             StoreTransaction txh) throws StorageException {
         throw new UnsupportedOperationException("Cannot lock on a read-only store");
-    }
-
-    @Override
-    public RecordIterator<StaticBuffer> getKeys(StoreTransaction txh) throws StorageException {
-        return store.getKeys(txh);
     }
 
     @Override

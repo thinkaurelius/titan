@@ -2,6 +2,7 @@ package com.thinkaurelius.titan.diskstorage.solr;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Sets;
+import com.thinkaurelius.titan.core.Order;
 import com.thinkaurelius.titan.core.attribute.*;
 import com.thinkaurelius.titan.diskstorage.StorageException;
 import com.thinkaurelius.titan.diskstorage.TemporaryStorageException;
@@ -343,6 +344,18 @@ public class SolrSearchIndex implements IndexProvider {
         } else {
             solrQuery.setRows(MAX_RESULT_SET_SIZE);
         }
+        List<IndexQuery.OrderEntry> sorts = query.getOrder();
+
+        if (null != sorts && sorts.size() > 0) {
+            for (IndexQuery.OrderEntry sortEntry : sorts) {
+                String sortField = sortEntry.getKey();
+                SolrQuery.ORDER sortOrder = ( sortEntry.getOrder() == Order.DESC ) ?
+                        SolrQuery.ORDER.desc :
+                        SolrQuery.ORDER.asc;
+                solrQuery.addSort(sortField, sortOrder);
+            }
+        }
+
         try {
             QueryResponse response = null;
 
@@ -415,6 +428,12 @@ public class SolrSearchIndex implements IndexProvider {
                     //sample data set would return 2 documents: one where text = Tomorrow is the World,
                     //and the second where text = Hello World
                     q.addFilterQuery(key + ":("+((String) value).toLowerCase()+")");
+                    return q;
+                } else if (titanPredicate == Text.PREFIX) {
+                    q.addFilterQuery(key + ":("+((String) value).toLowerCase()+"*)");
+                    return q;
+                } else if (titanPredicate == Text.REGEX) {
+                    q.addFilterQuery(key + ":/"+((String) value)+"/");
                     return q;
                 } else {
                     throw new IllegalArgumentException("Relation is not supported for string value: " + titanPredicate);
@@ -552,8 +571,11 @@ public class SolrSearchIndex implements IndexProvider {
             }
         } else if (dataType == Geoshape.class) {
             return titanPredicate == Geo.WITHIN;
-        } else if (dataType == String.class) {
-            return titanPredicate == Text.CONTAINS;
+        } else if (dataType == String.class
+                && (titanPredicate == Text.CONTAINS ||
+                    titanPredicate == Text.PREFIX ||
+                    titanPredicate == Text.REGEX)) {
+            return true;
         } else {
             return false;
         }

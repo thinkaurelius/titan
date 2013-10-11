@@ -6,6 +6,7 @@ import com.thinkaurelius.titan.diskstorage.StaticBuffer;
 import com.thinkaurelius.titan.diskstorage.StorageException;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.*;
 import com.thinkaurelius.titan.diskstorage.util.RecordIterator;
+
 import org.apache.commons.configuration.Configuration;
 
 import java.util.List;
@@ -50,11 +51,6 @@ public class InMemoryStorageAdapter implements KeyColumnValueStoreManager {
             }
 
             @Override
-            public RecordIterator<StaticBuffer> getKeys(StoreTransaction txh) throws StorageException {
-                return new EmptyRowIterator();
-            }
-
-            @Override
             public KeyIterator getKeys(KeyRangeQuery keyQuery, StoreTransaction txh) throws StorageException {
                 return new EmptyRowIterator();
             }
@@ -87,11 +83,11 @@ public class InMemoryStorageAdapter implements KeyColumnValueStoreManager {
     }
 
     @Override
-    public StoreTransaction beginTransaction(ConsistencyLevel consistencyLevel) throws StorageException {
+    public StoreTransaction beginTransaction(final StoreTxConfig config) throws StorageException {
         return new StoreTransaction() {
             @Override
-            public ConsistencyLevel getConsistencyLevel() {
-                return ConsistencyLevel.DEFAULT;
+            public StoreTxConfig getConfiguration() {
+                return config;
             }
 
             @Override
@@ -124,20 +120,21 @@ public class InMemoryStorageAdapter implements KeyColumnValueStoreManager {
     @Override
     public StoreFeatures getFeatures() {
         StoreFeatures f = new StoreFeatures();
-        f.supportsScan=true;
-        f.supportsBatchMutation=true;
+        f.supportsUnorderedScan = true;
+        f.supportsOrderedScan = true;
+        f.supportsBatchMutation = true;
 
-        f.supportsTransactions=true;
-        f.supportsConsistentKeyOperations=false;
-        f.supportsLocking=true;
+        f.supportsTransactions = true;
+        f.supportsConsistentKeyOperations = false;
+        f.supportsLocking = true;
 
-        f.isKeyOrdered=false;
-        f.isDistributed=false;
-        f.hasLocalKeyPartition=false;
+        f.isKeyOrdered = false;
+        f.isDistributed = false;
+        f.hasLocalKeyPartition = false;
         return f;
     }
 
-    private final Map<String,String> config = Maps.newHashMap();
+    private final Map<String, String> config = Maps.newHashMap();
 
     @Override
     public String getConfigurationProperty(String key) throws StorageException {
@@ -146,7 +143,7 @@ public class InMemoryStorageAdapter implements KeyColumnValueStoreManager {
 
     @Override
     public void setConfigurationProperty(String key, String value) throws StorageException {
-        config.put(key,value);
+        config.put(key, value);
     }
 
     private static class EmptyRowIterator implements KeyIterator {
@@ -156,20 +153,26 @@ public class InMemoryStorageAdapter implements KeyColumnValueStoreManager {
         }
 
         @Override
-        public boolean hasNext() throws StorageException {
+        public boolean hasNext() {
             return false;
         }
 
         @Override
-        public StaticBuffer next() throws StorageException {
+        public StaticBuffer next() {
             throw new NoSuchElementException();
         }
 
         @Override
-        public void close() throws StorageException {
+        public void close() {
+            // Do nothing
+        }
+        
+        @Override
+        public void remove() {
+            throw new UnsupportedOperationException("Can't remove element from empty iterator");
         }
     }
-    
+
     @Override
     public String getName() {
         return toString();

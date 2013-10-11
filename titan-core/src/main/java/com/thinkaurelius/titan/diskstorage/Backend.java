@@ -15,8 +15,7 @@ import com.thinkaurelius.titan.diskstorage.indexing.IndexInformation;
 import com.thinkaurelius.titan.diskstorage.indexing.IndexProvider;
 import com.thinkaurelius.titan.diskstorage.indexing.IndexTransaction;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.*;
-import com.thinkaurelius.titan.diskstorage.keycolumnvalue.keyvalue.OrderedKeyValueStoreManager;
-import com.thinkaurelius.titan.diskstorage.keycolumnvalue.keyvalue.OrderedKeyValueStoreManagerAdapter;
+import com.thinkaurelius.titan.diskstorage.keycolumnvalue.keyvalue.*;
 import com.thinkaurelius.titan.diskstorage.locking.Locker;
 import com.thinkaurelius.titan.diskstorage.locking.consistentkey.ConsistentKeyLocker;
 import com.thinkaurelius.titan.diskstorage.locking.consistentkey.ExpectedValueCheckingStore;
@@ -27,6 +26,7 @@ import com.thinkaurelius.titan.diskstorage.util.MetricInstrumentedStore;
 import com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfiguration;
 import com.thinkaurelius.titan.graphdb.configuration.TitanConstants;
 import com.thinkaurelius.titan.graphdb.database.indexing.StandardIndexInformation;
+import com.thinkaurelius.titan.graphdb.transaction.TransactionConfiguration;
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
@@ -296,6 +296,8 @@ public class Backend {
                 REGISTERED_STORAGE_MANAGERS);
         if (manager instanceof OrderedKeyValueStoreManager) {
             manager = new OrderedKeyValueStoreManagerAdapter((OrderedKeyValueStoreManager) manager, STATIC_KEY_LENGTHS);
+        } else if (manager instanceof CacheStoreManager) {
+            manager = new CacheStoreManagerAdapter((CacheStoreManager) manager);
         }
         Preconditions.checkArgument(manager instanceof KeyColumnValueStoreManager);
         return (KeyColumnValueStoreManager) manager;
@@ -388,17 +390,23 @@ public class Backend {
      * @return
      * @throws StorageException
      */
-    public BackendTransaction beginTransaction() throws StorageException {
-        StoreTransaction tx = storeManager.beginTransaction(ConsistencyLevel.DEFAULT);
+    public BackendTransaction beginTransaction(TransactionConfiguration configuration) throws StorageException {
+        StoreTxConfig txConfig = new StoreTxConfig();
+        if (configuration.hasTimestamp()) txConfig.setTimestamp(configuration.getTimestamp());
+        StoreTransaction tx = storeManager.beginTransaction(txConfig);
         if (bufferSize > 1) {
-            assert storeManager.getFeatures().supportsBatchMutation();
+            Preconditions.checkArgument(storeManager.getFeatures().supportsBatchMutation());
             tx = new BufferTransaction(tx, storeManager, bufferSize, writeAttempts, persistAttemptWaittime);
         }
         if (!storeFeatures.supportsLocking()) {
             if (storeFeatures.supportsTransactions()) {
                 //No transaction wrapping needed
             } else if (storeFeatures.supportsConsistentKeyOperations()) {
-                tx = new ExpectedValueCheckingTransaction(tx, storeManager.beginTransaction(ConsistencyLevel.KEY_CONSISTENT), readAttempts);
+                txConfig = new StoreTxConfig(ConsistencyLevel.KEY_CONSISTENT);
+                if (configuration.hasTimestamp()) txConfig.setTimestamp(configuration.getTimestamp());
+                tx = new ExpectedValueCheckingTransaction(tx,
+                        storeManager.beginTransaction(txConfig),
+                        readAttempts);
             }
         }
 
@@ -408,7 +416,9 @@ public class Backend {
             indexTx.put(entry.getKey(), new IndexTransaction(entry.getValue()));
         }
 
-        return new BackendTransaction(tx, edgeStore, vertexIndexStore, edgeIndexStore, readAttempts, persistAttemptWaittime, indexTx);
+        return new BackendTransaction(tx, storeManager.getFeatures(),
+                edgeStore, vertexIndexStore, edgeIndexStore,
+                readAttempts, persistAttemptWaittime, indexTx);
     }
 
     public void close() throws StorageException {
@@ -444,6 +454,8 @@ public class Backend {
         put("local", "com.thinkaurelius.titan.diskstorage.berkeleyje.BerkeleyJEStoreManager");
         put("berkeleyje", "com.thinkaurelius.titan.diskstorage.berkeleyje.BerkeleyJEStoreManager");
         put("persistit", "com.thinkaurelius.titan.diskstorage.persistit.PersistitStoreManager");
+        put("hazelcastkcvs", "com.thinkaurelius.titan.diskstorage.hazelcast.HazelcastKeyColumnValueStoreManager");
+        put("hazelcastcache", "com.thinkaurelius.titan.diskstorage.hazelcast.HazelcastCacheStoreManager");
         put("cassandra", "com.thinkaurelius.titan.diskstorage.cassandra.astyanax.AstyanaxStoreManager");
         put("cassandrathrift", "com.thinkaurelius.titan.diskstorage.cassandra.thrift.CassandraThriftStoreManager");
         put("astyanax", "com.thinkaurelius.titan.diskstorage.cassandra.astyanax.AstyanaxStoreManager");

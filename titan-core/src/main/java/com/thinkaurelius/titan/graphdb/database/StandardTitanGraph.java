@@ -10,9 +10,7 @@ import com.thinkaurelius.titan.diskstorage.BackendTransaction;
 import com.thinkaurelius.titan.diskstorage.StaticBuffer;
 import com.thinkaurelius.titan.diskstorage.StorageException;
 import com.thinkaurelius.titan.diskstorage.indexing.IndexQuery;
-import com.thinkaurelius.titan.diskstorage.keycolumnvalue.Entry;
-import com.thinkaurelius.titan.diskstorage.keycolumnvalue.KeySliceQuery;
-import com.thinkaurelius.titan.diskstorage.keycolumnvalue.SliceQuery;
+import com.thinkaurelius.titan.diskstorage.keycolumnvalue.*;
 import com.thinkaurelius.titan.diskstorage.util.BackendOperation;
 import com.thinkaurelius.titan.diskstorage.util.RecordIterator;
 import com.thinkaurelius.titan.graphdb.blueprints.TitanBlueprintsGraph;
@@ -30,14 +28,18 @@ import com.thinkaurelius.titan.graphdb.internal.InternalType;
 import com.thinkaurelius.titan.graphdb.internal.InternalVertex;
 import com.thinkaurelius.titan.graphdb.relations.EdgeDirection;
 import com.thinkaurelius.titan.graphdb.transaction.StandardTitanTx;
-import com.thinkaurelius.titan.graphdb.transaction.TransactionConfig;
+import com.thinkaurelius.titan.graphdb.transaction.StandardTransactionBuilder;
+import com.thinkaurelius.titan.graphdb.transaction.TransactionConfiguration;
+import com.thinkaurelius.titan.graphdb.types.system.SystemKey;
 import com.thinkaurelius.titan.graphdb.types.system.SystemTypeManager;
 import com.thinkaurelius.titan.graphdb.util.ExceptionFactory;
 import com.tinkerpop.blueprints.Direction;
 import com.tinkerpop.blueprints.Features;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -62,6 +64,8 @@ public class StandardTitanGraph extends TitanBlueprintsGraph {
     protected final EdgeSerializer edgeSerializer;
     protected final Serializer serializer;
 
+    public final SliceQuery vertexExistenceQuery;
+
 
     public StandardTitanGraph(GraphDatabaseConfiguration configuration) {
         this.config = configuration;
@@ -74,14 +78,20 @@ public class StandardTitanGraph extends TitanBlueprintsGraph {
         this.idManager = idAssigner.getIDManager();
 
         this.serializer = config.getSerializer();
-        this.indexSerializer = new IndexSerializer(this.serializer,this.backend.getIndexInformation());
-        this.edgeSerializer = new EdgeSerializer(this.serializer,this.idManager);
+        this.indexSerializer = new IndexSerializer(this.serializer, this.backend.getIndexInformation());
+        this.edgeSerializer = new EdgeSerializer(this.serializer, this.idManager);
+        this.vertexExistenceQuery = edgeSerializer.getQuery(SystemKey.VertexState, Direction.OUT, new EdgeSerializer.TypedInterval[0], null).setLimit(1);
+
         isOpen = true;
     }
 
     @Override
     public boolean isOpen() {
         return isOpen;
+    }
+    
+    public void clear() throws StorageException {
+        backend.clearStorage();
     }
 
     @Override
@@ -106,18 +116,23 @@ public class StandardTitanGraph extends TitanBlueprintsGraph {
 
     @Override
     public TitanTransaction newTransaction() {
-        return newTransaction(new TransactionConfig(config, false));
+        return buildTransaction().start();
+    }
+
+    @Override
+    public StandardTransactionBuilder buildTransaction() {
+        return new StandardTransactionBuilder(getConfiguration(), this);
     }
 
     @Override
     public TitanTransaction newThreadBoundTransaction() {
-        return newTransaction(new TransactionConfig(config, true));
+        return buildTransaction().threadBound().start();
     }
 
-    public StandardTitanTx newTransaction(TransactionConfig configuration) {
+    public StandardTitanTx newTransaction(TransactionConfiguration configuration) {
         if (!isOpen) ExceptionFactory.graphShutdown();
         try {
-            return new StandardTitanTx(this, configuration, backend.beginTransaction());
+            return new StandardTitanTx(this, configuration, backend.beginTransaction(configuration));
         } catch (StorageException e) {
             throw new TitanException("Could not start new transaction", e);
         }
@@ -145,54 +160,56 @@ public class StandardTitanGraph extends TitanBlueprintsGraph {
 
     // ################### READ #########################
 
-    public boolean containsVertexID(long id, BackendTransaction tx) {
-        log.trace("Checking vertex existence for {}", id);
-        return tx.edgeStoreContainsKey(IDHandler.getKey(id));
-    }
-
     public RecordIterator<Long> getVertexIDs(final BackendTransaction tx) {
-        if (!backend.getStoreFeatures().supportsScan())
-            throw new UnsupportedOperationException("The configured storage backend does not support global graph operations - use Faunus instead");
-        final RecordIterator<StaticBuffer> keyiter = tx.edgeStoreKeys();
+        Preconditions.checkArgument(backend.getStoreFeatures().supportsOrderedScan() ||
+                backend.getStoreFeatures().supportsUnorderedScan(),
+                "The configured storage backend does not support global graph operations - use Faunus instead");
+
+        final KeyIterator keyiter;
+        if (backend.getStoreFeatures().supportsUnorderedScan()) {
+            keyiter = tx.edgeStoreKeys(vertexExistenceQuery);
+        } else {
+            keyiter = tx.edgeStoreKeys(new KeyRangeQuery(IDHandler.MIN_KEY, IDHandler.MAX_KEY, vertexExistenceQuery));
+        }
+
         return new RecordIterator<Long>() {
 
             @Override
-            public boolean hasNext() throws StorageException {
+            public boolean hasNext() {
                 return keyiter.hasNext();
             }
 
             @Override
-            public Long next() throws StorageException {
+            public Long next() {
                 return IDHandler.getKeyID(keyiter.next());
             }
 
             @Override
-            public void close() throws StorageException {
+            public void close() throws IOException {
                 keyiter.close();
+            }
+
+            @Override
+            public void remove() {
+                throw new UnsupportedOperationException("Removal not supported");
             }
         };
     }
 
-
-    public List<Object> elementQuery(String indexName, IndexQuery query, BackendTransaction tx) {
-        return indexSerializer.query(indexName, query, tx);
-    }
-
     public List<Entry> edgeQuery(long vid, SliceQuery query, BackendTransaction tx) {
-        Preconditions.checkArgument(vid>0);
+        Preconditions.checkArgument(vid > 0);
         return tx.edgeStoreQuery(new KeySliceQuery(IDHandler.getKey(vid), query));
     }
 
     public List<List<Entry>> edgeMultiQuery(LongArrayList vids, SliceQuery query, BackendTransaction tx) {
-        Preconditions.checkArgument(vids!=null && !vids.isEmpty());
+        Preconditions.checkArgument(vids != null && !vids.isEmpty());
         List<StaticBuffer> vertexIds = new ArrayList<StaticBuffer>(vids.size());
-        for (int i=0;i<vids.size();i++) {
-            Preconditions.checkArgument(vids.get(i)>0);
+        for (int i = 0; i < vids.size(); i++) {
+            Preconditions.checkArgument(vids.get(i) > 0);
             vertexIds.add(IDHandler.getKey(vids.get(i)));
         }
         return tx.edgeStoreMultiQuery(vertexIds, query);
     }
-
 
 
     // ################### WRITE #########################
@@ -213,7 +230,7 @@ public class StandardTitanGraph extends TitanBlueprintsGraph {
         if (!tx.getConfiguration().hasAssignIDsImmediately())
             idAssigner.assignIDs(addedRelations);
 
-        Callable<Boolean> persist = new Callable<Boolean>(){
+        Callable<Boolean> persist = new Callable<Boolean>() {
             @Override
             public Boolean call() throws Exception {
                 //2. Collect deleted edges
@@ -223,17 +240,17 @@ public class StandardTitanGraph extends TitanBlueprintsGraph {
                         Preconditions.checkArgument(del.isRemoved());
                         for (int pos = 0; pos < del.getLen(); pos++) {
                             InternalVertex vertex = del.getVertex(pos);
-                            mutations.put(vertex, del);
+                            if (pos == 0 || !del.isLoop()) mutations.put(vertex, del);
                             Direction dir = EdgeDirection.fromPosition(pos);
                             if (acquireLocks && del.getType().isUnique(dir) &&
                                     ((InternalType) del.getType()).uniqueLock(dir)) {
-                                Entry entry = edgeSerializer.writeRelation(del,pos,tx);
+                                Entry entry = edgeSerializer.writeRelation(del, pos, tx);
                                 mutator.acquireEdgeLock(IDHandler.getKey(vertex.getID()), entry.getColumn(), entry.getValue());
                             }
                         }
                         //Update Indexes
                         if (del.isProperty()) {
-                            if (acquireLocks) indexSerializer.lockKeyedProperty((TitanProperty) del,mutator);
+                            if (acquireLocks) indexSerializer.lockKeyedProperty((TitanProperty) del, mutator);
                         }
 
                     }
@@ -254,7 +271,7 @@ public class StandardTitanGraph extends TitanBlueprintsGraph {
                     } else { //STANDARD TitanRelation
                         for (int pos = 0; pos < relation.getLen(); pos++) {
                             InternalVertex vertex = relation.getVertex(pos);
-                            if (pos==0 || !relation.isLoop()) mutations.put(vertex, relation);
+                            if (pos == 0 || !relation.isLoop()) mutations.put(vertex, relation);
                             Direction dir = EdgeDirection.fromPosition(pos);
                             if (acquireLocks && relation.getType().isUnique(dir) && !vertex.isNew()
                                     && ((InternalType) relation.getType()).uniqueLock(dir)) {
@@ -265,7 +282,7 @@ public class StandardTitanGraph extends TitanBlueprintsGraph {
                     }
                     //Update Indexes
                     if (relation.isProperty()) {
-                        if (acquireLocks) indexSerializer.lockKeyedProperty((TitanProperty) relation,mutator);
+                        if (acquireLocks) indexSerializer.lockKeyedProperty((TitanProperty) relation, mutator);
                     }
 
                 }
@@ -276,7 +293,8 @@ public class StandardTitanGraph extends TitanBlueprintsGraph {
                     mutator.flush();
                     //Register new keys with indexprovider
                     for (InternalType itype : otherEdgeTypes.keySet()) {
-                        if (itype.isPropertyKey() && itype.isNew()) indexSerializer.newPropertyKey((TitanKey)itype,mutator);
+                        if (itype.isPropertyKey() && itype.isNew())
+                            indexSerializer.newPropertyKey((TitanKey) itype, mutator);
                     }
                 }
 
@@ -285,7 +303,9 @@ public class StandardTitanGraph extends TitanBlueprintsGraph {
             }
 
             @Override
-            public String toString() { return "PersistingTransaction"; }
+            public String toString() {
+                return "PersistingTransaction";
+            }
         };
         BackendOperation.execute(persist, maxWriteRetryAttempts, retryStorageWaitTime);
     }
@@ -299,33 +319,43 @@ public class StandardTitanGraph extends TitanBlueprintsGraph {
 
         BackendTransaction mutator = tx.getTxHandle();
         for (V vertex : vertices) {
-            Preconditions.checkArgument(vertex.getID()>0,"Vertex has no id: %s",vertex.getID());
+            Preconditions.checkArgument(vertex.getID() > 0, "Vertex has no id: %s", vertex.getID());
             List<InternalRelation> edges = mutatedEdges.get(vertex);
             List<Entry> additions = new ArrayList<Entry>(edges.size());
             List<StaticBuffer> deletions = new ArrayList<StaticBuffer>(Math.max(10, edges.size() / 10));
             for (InternalRelation edge : edges) {
-                for (int pos=0;pos<edge.getLen();pos++) {
+                for (int pos = 0; pos < edge.getLen(); pos++) {
                     if (edge.getVertex(pos).equals(vertex)) {
                         if (edge.isRemoved()) {
-                            if (edge.isProperty()) {
-                                indexSerializer.removeProperty((TitanProperty) edge,mutator);
-                            } else if (edge.isEdge()) {
-                                indexSerializer.removeEdge(edge,mutator);
-                            }
                             deletions.add(edgeSerializer.writeRelation(edge, pos, false, tx).getColumn());
                         } else {
-                            assert edge.isNew();
-                            if (edge.isProperty()) {
-                                indexSerializer.addProperty((TitanProperty) edge,mutator);
-                            } else {
-                                indexSerializer.addEdge(edge, mutator);
-                            }
+                            Preconditions.checkArgument(edge.isNew());
                             additions.add(edgeSerializer.writeRelation(edge, pos, tx));
                         }
                     }
                 }
             }
+
             mutator.mutateEdges(IDHandler.getKey(vertex.getID()), additions, deletions);
+            //Index Updates
+            for (InternalRelation relation : edges) {
+                if (relation.getVertex(0).equals(vertex)) {
+                    if (relation.isRemoved()) {
+                        if (relation.isProperty()) {
+                            indexSerializer.removeProperty((TitanProperty) relation, mutator);
+                        } else if (relation.isEdge()) {
+                            indexSerializer.removeEdge(relation, mutator);
+                        }
+                    } else {
+                        Preconditions.checkArgument(relation.isNew());
+                        if (relation.isProperty()) {
+                            indexSerializer.addProperty((TitanProperty) relation, mutator);
+                        } else {
+                            indexSerializer.addEdge(relation, mutator);
+                        }
+                    }
+                }
+            }
         }
 
     }
