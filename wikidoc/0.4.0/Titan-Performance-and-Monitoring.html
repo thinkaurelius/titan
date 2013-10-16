@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+    <title>Metrics in Titan</title>
+    <link rel="stylesheet" href="./css/screen.css" type="text/css" charset="utf-8" />
+    <link rel="stylesheet" href="./css/gollum.css" type="text/css" charset="utf-8" />
+    <link rel="stylesheet" href="./css/syntax.css" type="text/css" charset="utf-8" />
+    <script src="./javascript/jquery-1.4.2.min.js" type="text/javascript"></script>
+    <script src="./javascript/jquery.text_selection-1.0.0.min.js" type="text/javascript"></script>
+    <script src="./javascript/jquery.previewable_comment_form.js" type="text/javascript"></script>
+    <script src="./javascript/jquery.tabs.js" type="text/javascript"></script>
+    <script src="./javascript/gollum.js" type="text/javascript"></script>
+  </head>
+
+  <body>
+    <div id="main">
+      <div class="site">
+        <div id="guides">
+          <div class="guide">
+            <div class="main">
+              <div class="actions">
+                <div>
+                  <a href="./Home.html">Aurelius Titan</a>
+                </div>
+              </div>
+              <h1>Metrics in Titan</h1>
+              <div class="content wikistyle gollum markdown">
+                <h1>Metrics in Titan</h1>
+
+<p>Starting in version 0.4.0, Titan supports <a href="http://metrics.codahale.com/">Metrics</a>.  Titan records histograms of time spent satisfying storage backend requests.  These histograms form a coarse-grained measure of the response time of the storage engine underlying Titan.</p>
+
+<h2>Configuration</h2>
+
+<p>To enable Metrics, set the following in Titan's properties file:</p>
+
+<div class="highlight">
+<pre><span class="c"># Required</span>
+<span class="n">metrics</span><span class="p">.</span><span class="n">enable</span><span class="o">-</span><span class="n">basic</span><span class="o">-</span><span class="n">metrics</span> <span class="p">=</span> <span class="nb">true</span>
+</pre>
+</div>
+
+
+<p>Titan's currently supported Metrics reporters and template configurations for each one follow.</p>
+
+<ul>
+<li>
+<p>JMX</p>
+
+<p>To enable JMX, set the following in Titan's properties file:
+</p>
+<div class="highlight">
+<pre><span class="c"># Required</span>
+<span class="n">metrics</span><span class="p">.</span><span class="n">jmx</span><span class="p">.</span><span class="n">enabled</span> <span class="p">=</span> <span class="nb">true</span>
+<span class="c"># Optional; if omitted, then Metrics uses its default values</span>
+<span class="n">metrics</span><span class="p">.</span><span class="n">jmx</span><span class="p">.</span><span class="n">domain</span> <span class="p">=</span> <span class="n">foo</span>
+<span class="n">metrics</span><span class="p">.</span><span class="n">jmx</span><span class="p">.</span><span class="n">agentid</span> <span class="p">=</span> <span class="n">baz</span>
+</pre>
+</div>
+
+
+<p><code>metrics.jmx.domain</code> and <code>.agentid</code> are strings that override Metrics' internal defaults for the JMX reporting domain and JMX reporting agent ID, respectively.</p>
+</li>
+<li>
+<p>Slf4j</p>
+
+
+<div class="highlight">
+<pre><span class="c"># Required; specify logging interval in milliseconds</span>
+<span class="n">metrics</span><span class="p">.</span><span class="n">slf4j</span><span class="p">.</span><span class="n">interval</span> <span class="p">=</span> 60000
+<span class="c"># Optional; uses Metrics default when unset</span>
+<span class="n">metrics</span><span class="p">.</span><span class="n">slf4j</span><span class="p">.</span><span class="n">logger</span> <span class="p">=</span> <span class="n">foo</span>
+</pre>
+</div>
+</li>
+<li>
+<p>Console</p>
+
+
+<div class="highlight">
+<pre><span class="c"># Required; specify logging interval in milliseconds</span>
+<span class="n">metrics</span><span class="p">.</span><span class="n">console</span><span class="p">.</span><span class="n">interval</span> <span class="p">=</span> 60000
+</pre>
+</div>
+</li>
+<li>
+<p>CSV (writes one comma-separated values file per metric to a configurable directory)</p>
+
+
+<div class="highlight">
+<pre><span class="c"># Required; specify logging interval in milliseconds</span>
+<span class="n">metrics</span><span class="p">.</span><span class="n">csv</span><span class="p">.</span><span class="n">interval</span> <span class="p">=</span> 60000
+<span class="n">metrics</span><span class="p">.</span><span class="n">csv</span><span class="p">.</span><span class="nb">dir</span> <span class="p">=</span> <span class="n">foo</span><span class="o">/</span><span class="nb">bar</span>
+</pre>
+</div>
+
+
+<p>The output directory for CSV files will be created if it doesn't already exist.</p>
+</li>
+</ul><h2>What's Measured</h2>
+
+<p>Titan times, counts, and histograms its method calls against the storage backend.  These measurements are organized by method name.  By default, measurements for the edge store, ID store, vertex index store, and edge index store are combined.  However, the configuration setting <code>metrics.merge-basic-metrics = false</code> splits the metrics for four different stores into separate datapoints instead of combining them.  The default metric names follow.</p>
+
+<p>Index stores and caches are not yet covered by metrics.</p>
+
+<h3>Default Names</h3>
+
+<p>These metric names are in effect when <code>metrics.merge-basic-metrics</code> is either absent from Titan's properties file or is set to true.</p>
+
+<h4>Counters</h4>
+
+<div class="highlight">
+<pre><span class="n">com</span><span class="p">.</span><span class="n">thinkaurelius</span><span class="p">.</span><span class="n">titan</span><span class="p">.</span><span class="n">stores</span><span class="p">.</span><span class="n">acquireLock</span><span class="p">.</span><span class="n">calls</span>
+<span class="n">com</span><span class="p">.</span><span class="n">thinkaurelius</span><span class="p">.</span><span class="n">titan</span><span class="p">.</span><span class="n">stores</span><span class="p">.</span><span class="n">acquireLock</span><span class="p">.</span><span class="n">exceptions</span>
+<span class="n">com</span><span class="p">.</span><span class="n">thinkaurelius</span><span class="p">.</span><span class="n">titan</span><span class="p">.</span><span class="n">stores</span><span class="p">.</span><span class="n">close</span><span class="p">.</span><span class="n">calls</span>
+<span class="n">com</span><span class="p">.</span><span class="n">thinkaurelius</span><span class="p">.</span><span class="n">titan</span><span class="p">.</span><span class="n">stores</span><span class="p">.</span><span class="n">close</span><span class="p">.</span><span class="n">exceptions</span>
+<span class="n">com</span><span class="p">.</span><span class="n">thinkaurelius</span><span class="p">.</span><span class="n">titan</span><span class="p">.</span><span class="n">stores</span><span class="p">.</span><span class="n">containsKey</span><span class="p">.</span><span class="n">calls</span>
+<span class="n">com</span><span class="p">.</span><span class="n">thinkaurelius</span><span class="p">.</span><span class="n">titan</span><span class="p">.</span><span class="n">stores</span><span class="p">.</span><span class="n">containsKey</span><span class="p">.</span><span class="n">exceptions</span>
+<span class="n">com</span><span class="p">.</span><span class="n">thinkaurelius</span><span class="p">.</span><span class="n">titan</span><span class="p">.</span><span class="n">stores</span><span class="p">.</span><span class="n">getKeys</span><span class="p">.</span><span class="n">calls</span>
+<span class="n">com</span><span class="p">.</span><span class="n">thinkaurelius</span><span class="p">.</span><span class="n">titan</span><span class="p">.</span><span class="n">stores</span><span class="p">.</span><span class="n">getKeys</span><span class="p">.</span><span class="n">exceptions</span>
+<span class="n">com</span><span class="p">.</span><span class="n">thinkaurelius</span><span class="p">.</span><span class="n">titan</span><span class="p">.</span><span class="n">stores</span><span class="p">.</span><span class="n">getLocalKeyPartition</span><span class="p">.</span><span class="n">calls</span>
+<span class="n">com</span><span class="p">.</span><span class="n">thinkaurelius</span><span class="p">.</span><span class="n">titan</span><span class="p">.</span><span class="n">stores</span><span class="p">.</span><span class="n">getLocalKeyPartition</span><span class="p">.</span><span class="n">exceptions</span>
+<span class="n">com</span><span class="p">.</span><span class="n">thinkaurelius</span><span class="p">.</span><span class="n">titan</span><span class="p">.</span><span class="n">stores</span><span class="p">.</span><span class="n">getName</span><span class="p">.</span><span class="n">calls</span>
+<span class="n">com</span><span class="p">.</span><span class="n">thinkaurelius</span><span class="p">.</span><span class="n">titan</span><span class="p">.</span><span class="n">stores</span><span class="p">.</span><span class="n">getName</span><span class="p">.</span><span class="n">exceptions</span>
+<span class="n">com</span><span class="p">.</span><span class="n">thinkaurelius</span><span class="p">.</span><span class="n">titan</span><span class="p">.</span><span class="n">stores</span><span class="p">.</span><span class="n">getSlice</span><span class="p">.</span><span class="n">calls</span>
+<span class="n">com</span><span class="p">.</span><span class="n">thinkaurelius</span><span class="p">.</span><span class="n">titan</span><span class="p">.</span><span class="n">stores</span><span class="p">.</span><span class="n">getSlice</span><span class="p">.</span><span class="n">entries</span><span class="o">-</span><span class="n">returned</span>
+<span class="n">com</span><span class="p">.</span><span class="n">thinkaurelius</span><span class="p">.</span><span class="n">titan</span><span class="p">.</span><span class="n">stores</span><span class="p">.</span><span class="n">getSlice</span><span class="p">.</span><span class="n">exceptions</span>
+<span class="n">com</span><span class="p">.</span><span class="n">thinkaurelius</span><span class="p">.</span><span class="n">titan</span><span class="p">.</span><span class="n">stores</span><span class="p">.</span><span class="n">mutate</span><span class="p">.</span><span class="n">calls</span>
+<span class="n">com</span><span class="p">.</span><span class="n">thinkaurelius</span><span class="p">.</span><span class="n">titan</span><span class="p">.</span><span class="n">stores</span><span class="p">.</span><span class="n">mutate</span><span class="p">.</span><span class="n">exceptions</span>
+</pre>
+</div>
+
+
+<p>Though most of the Metrics above follow the method-calls and method-exceptions pattern, there is one exception in <code>getSlice.entries-returned</code>.  This counts the aggregate number of column-value pairs processed by calls to the <code>getSlice</code> method in storage backends.  One method call may return one or very many such pairs, which is why those counters are separated.</p>
+
+<h4>Timers</h4>
+
+<div class="highlight">
+<pre><span class="n">com</span><span class="p">.</span><span class="n">thinkaurelius</span><span class="p">.</span><span class="n">titan</span><span class="p">.</span><span class="n">stores</span><span class="p">.</span><span class="n">acquireLock</span><span class="p">.</span><span class="n">time</span>
+<span class="n">com</span><span class="p">.</span><span class="n">thinkaurelius</span><span class="p">.</span><span class="n">titan</span><span class="p">.</span><span class="n">stores</span><span class="p">.</span><span class="n">close</span><span class="p">.</span><span class="n">time</span>
+<span class="n">com</span><span class="p">.</span><span class="n">thinkaurelius</span><span class="p">.</span><span class="n">titan</span><span class="p">.</span><span class="n">stores</span><span class="p">.</span><span class="n">containsKey</span><span class="p">.</span><span class="n">time</span>
+<span class="n">com</span><span class="p">.</span><span class="n">thinkaurelius</span><span class="p">.</span><span class="n">titan</span><span class="p">.</span><span class="n">stores</span><span class="p">.</span><span class="n">getKeys</span><span class="p">.</span><span class="n">time</span>
+<span class="n">com</span><span class="p">.</span><span class="n">thinkaurelius</span><span class="p">.</span><span class="n">titan</span><span class="p">.</span><span class="n">stores</span><span class="p">.</span><span class="n">getLocalKeyPartition</span><span class="p">.</span><span class="n">time</span>
+<span class="n">com</span><span class="p">.</span><span class="n">thinkaurelius</span><span class="p">.</span><span class="n">titan</span><span class="p">.</span><span class="n">stores</span><span class="p">.</span><span class="n">getName</span><span class="p">.</span><span class="n">time</span>
+<span class="n">com</span><span class="p">.</span><span class="n">thinkaurelius</span><span class="p">.</span><span class="n">titan</span><span class="p">.</span><span class="n">stores</span><span class="p">.</span><span class="n">getSlice</span><span class="p">.</span><span class="n">time</span>
+<span class="n">com</span><span class="p">.</span><span class="n">thinkaurelius</span><span class="p">.</span><span class="n">titan</span><span class="p">.</span><span class="n">stores</span><span class="p">.</span><span class="n">mutate</span><span class="p">.</span><span class="n">time</span>
+</pre>
+</div>
+
+
+<h4>Histograms</h4>
+
+<div class="highlight">
+<pre><span class="n">com</span><span class="p">.</span><span class="n">thinkaurelius</span><span class="p">.</span><span class="n">titan</span><span class="p">.</span><span class="n">stores</span><span class="p">.</span><span class="n">getSlice</span><span class="p">.</span><span class="n">entries</span><span class="o">-</span><span class="n">histogram</span>
+</pre>
+</div>
+
+
+<p>This histograms the number of column-value entries returned per <code>getSlice</code> call.</p>
+
+<h3>Per-Store Names</h3>
+
+<p>When <code>metrics.merge-basic-metrics = false</code> is set in Titan's properties file, the <code>stores</code> string in the metric names above is replaced by <code>idStore</code>, <code>edgeStore</code>, <code>vertexIndexStore</code>, or <code>edegIndexStore</code> according to the role of the backend instance handling the method call.</p>
+
+<h1>JUnitBenchmarks in Titan</h1>
+
+<p>Starting in version 0.4.0, several of Titan's JUnit tests have been converted to <a href="http://labs.carrotsearch.com/junit-benchmarks.html">JUnitBenchmarks</a>.  To execute these tests in a clone of the Titan repository, invoke the following command:</p>
+
+<div class="highlight">
+<pre><span class="n">mvn</span> <span class="o">-</span><span class="n">Pperformance</span><span class="o">-</span><span class="n">test</span><span class="p">,</span><span class="n">memory</span><span class="o">-</span><span class="n">test</span> <span class="n">clean</span> <span class="n">install</span>
+</pre>
+</div>
+
+
+<p>This can be issued in the repository root to test all storage backends, or in a particular storage backend module, such as <code>titan-cassandra</code> or <code>titan-berkeleyje</code>, to test only that backend.  The results are written to console and to a series of files named <code>jub.&lt;nanotime&gt;.xml</code>, one file per test.</p>
+
+<p>These tests are executed weekly on an AWS EC2 m1.medium instance and pushed to <a href="https://public.ducksboard.com/xWvWuJp2J0uMHm7TC_BM/">Ducksboard</a>.</p>
+              </div>
+            </div>
+          </div>
+          <div class="admin">
+            <div style="float: left;">
+              <small>Last edited by <b>Dan LaRocque</b>, 2013-10-16 08:54:20</small>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

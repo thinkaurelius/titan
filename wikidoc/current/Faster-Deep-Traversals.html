@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+    <title>Faster Deep Traversals</title>
+    <link rel="stylesheet" href="./css/screen.css" type="text/css" charset="utf-8" />
+    <link rel="stylesheet" href="./css/gollum.css" type="text/css" charset="utf-8" />
+    <link rel="stylesheet" href="./css/syntax.css" type="text/css" charset="utf-8" />
+    <script src="./javascript/jquery-1.4.2.min.js" type="text/javascript"></script>
+    <script src="./javascript/jquery.text_selection-1.0.0.min.js" type="text/javascript"></script>
+    <script src="./javascript/jquery.previewable_comment_form.js" type="text/javascript"></script>
+    <script src="./javascript/jquery.tabs.js" type="text/javascript"></script>
+    <script src="./javascript/gollum.js" type="text/javascript"></script>
+  </head>
+
+  <body>
+    <div id="main">
+      <div class="site">
+        <div id="guides">
+          <div class="guide">
+            <div class="main">
+              <div class="actions">
+                <div>
+                  <a href="./Home.html">Aurelius Titan</a>
+                </div>
+              </div>
+              <h1>Faster Deep Traversals</h1>
+              <div class="content wikistyle gollum textile">
+                <p>Deep traversals on a graph often require executing identical vertex queries on sets of queries. For instance, retrieving all siblings of friends of some user vertex <code>v</code> executes an identical vertex centric query for each of <code>v</code> ’s friends:</p>
+<div class="highlight">
+<pre><span class="k">for</span> <span class="o">(</span><span class="n">Vertex</span> <span class="n">f</span> <span class="o">:</span> <span class="n">v</span><span class="o">.</span><span class="na">getVertices</span><span class="o">(</span><span class="n">BOTH</span><span class="o">,</span><span class="s">"friend"</span><span class="o">))</span> <span class="o">{</span>
+	<span class="k">for</span> <span class="o">(</span><span class="n">Vertex</span> <span class="n">s</span> <span class="o">:</span> <span class="n">f</span><span class="o">.</span><span class="na">getVertices</span><span class="o">(</span><span class="n">BOTH</span><span class="o">,</span><span class="s">"sibling"</span><span class="o">))</span> <span class="o">{</span>
+		<span class="c1">//Do something</span>
+	<span class="o">}</span>
+<span class="o">}</span>
+</pre>
+</div>
+
+<p><code>getVertices(BOTH,"sibling")</code> is the same vertex query for each friend vertex <code>f</code>. The above code snippet is the default way of implementing this traversal and how the Gremlin query <code>v.both("friend").both("sibling")</code> gets executed.<br>
+However, if <code>v</code> has many friends, this requires executing many identical queries independently.</p>
+<p>Titan provides the <code>multiQuery(TitanVertex... vertices)</code> method to construct a vertex query for multiple vertices and execute it as one. By combining multiple requests into one, this method can significantly reduce query response times and increase query throughput, depending on the storage backend and the number of vertex queries that are combined into a multi-vertex query.</p>
+<div class="highlight">
+<pre><span class="n">TitanMultiVertexQuery</span> <span class="n">mq</span> <span class="o">=</span> <span class="n">graph</span><span class="o">.</span><span class="na">multiQuery</span><span class="o">();</span>
+<span class="n">mq</span><span class="o">.</span><span class="na">direction</span><span class="o">(</span><span class="n">BOTH</span><span class="o">).</span><span class="na">labels</span><span class="o">(</span><span class="s">"sibling"</span><span class="o">);</span>
+<span class="k">for</span> <span class="o">(</span><span class="n">Vertex</span> <span class="n">f</span> <span class="o">:</span> <span class="n">v</span><span class="o">.</span><span class="na">getVertices</span><span class="o">(</span><span class="n">BOTH</span><span class="o">,</span><span class="s">"friend"</span><span class="o">))</span> <span class="o">{</span>
+	<span class="n">mq</span><span class="o">.</span><span class="na">addVertex</span><span class="o">((</span><span class="n">TitanVertex</span><span class="o">)</span><span class="n">f</span><span class="o">);</span>	
+<span class="o">}</span>
+<span class="n">Map</span><span class="o">&lt;</span><span class="n">TitanVertex</span><span class="o">,</span><span class="n">Iterable</span><span class="o">&lt;</span><span class="n">TitanVertex</span><span class="o">&gt;&gt;</span> <span class="n">results</span> <span class="o">=</span> <span class="n">mq</span><span class="o">.</span><span class="na">vertices</span><span class="o">();</span>
+</pre>
+</div>
+
+<p>A <code>TitanMultiVertexQuery</code> is identical to the standard <code>VertexQuery</code>/<code>TitanVertexQuery</code> with two differences:</p>
+<ol>
+<li>The query is executed on multiple vertices at once. Those vertices are either provided to the multi-query factory method <code>multiQuery(TitanVertex… vertices)</code> or added <code>addVertex()</code> or <code>addAllVertices()</code> on the multi-query constructor</li>
+	<li>When the query is executed via <code>vertices()</code>, <code>properties()</code>, or <code>titanEdges()</code> the results are returned as a map which contains the individual results for query on each of the added vertices.</li>
+</ol><p>All other query specification methods remain the same, which makes it easy to substitute <code>TitanMultiVertexQuery</code> for <code>TitanVertexQuery</code> where performance can be improved by combining multiple queries.</p>
+<p>Please note:</p>
+<ul>
+<li>
+<code>TitanMultiVertexQuery</code> is most effective when running Titan against a distributed storage backend since it greatly improves query performance by bundling inter-cluster communication and reducing message load. On a simple deployment scenario we observed an order magnitude performance improvement when combing in 50 individual vertex queries into one multi-query.</li>
+	<li>
+<code>limit()</code> applies to each individual result set and not to the entire result set of a multi-query. In other words, the semantics of limit() are identical to <code>VertexQuery</code>.</li>
+	<li>
+<code>TitanMultiVertexQuery</code> is an experimental feature introduced with Titan 0.4.0. Please use with care and benchmark against your particular use case to determine its suitability for your application.</li>
+	<li>
+<code>TitanMultiVertexQuery</code> is an experimental feature of Titan and not (yet) part of Blueprints and therefore not supported by Gremlin. We plan to make a case for multi-query in Blueprints after demonstrating its performance gains on a range of applications.</li>
+</ul>
+              </div>
+            </div>
+          </div>
+          <div class="admin">
+            <div style="float: left;">
+              <small>Last edited by <b>Dan LaRocque</b>, 2013-10-16 08:54:20</small>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
