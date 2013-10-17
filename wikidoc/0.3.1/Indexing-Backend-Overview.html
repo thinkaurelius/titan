@@ -67,7 +67,7 @@ Mousetrap.bind(['e'], function( e ) {
 <div class="wrap">
   <div id="wiki-body" class="gollum-textile-content">
     <div id="template">
-      <p><span class="float-left"><span><img src="https://raw.github.com/thinkaurelius/titan/master/doc/images/titan-elasticsearch.png" width="150px" /></span></span></p>
+      <p><span class="float-left"><span><img src="images/titan-elasticsearch.png" width="150px" /></span></span></p>
 <p>Titan provides two types of index systems: The <em>standard</em> index and the <em>external index</em> interface which supports an arbitrary number of external indexing backends to provide support for geo, numeric range, and full-text search.</p>
 <p>The standard index is very fast and always available without any further configuration, but only supports exact index matches. In other words, the standard index can only retrieve vertices and edges by matching one of their properties exactly.</p>
 <p>The external index interface is more flexible and supports retrieving vertices and edges by bounding their geo-location, properties that fall into a numeric range or matching tokens in full text. The external index interface connects to separate systems as index backends for indexing and retrieval similarly to how storage backends are used for persistence. Index backends need to be configured in the graph configuration before they can be used.</p>

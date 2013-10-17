@@ -74,7 +74,7 @@ Mousetrap.bind(['e'], function( e ) {
 <h2>Deploying on Managed Machines<a class="anchor" id="Deploying-on-Managed-Machines" href="#Deploying-on-Managed-Machines"></a></h2>
 <p>The following sections outline the various ways in which Titan can be used in concert with Cassandra.</p>
 <h3>Local Server Mode<a class="anchor" id="Local-Server-Mode" href="#Local-Server-Mode"></a></h3>
-<p><img src="https://github.com/thinkaurelius/titan/raw/master/doc/images/titan-modes-local.png" alt="" /></p>
+<p><img src="images/titan-modes-local.png" alt="" /></p>
 <p>Cassandra can be run as a standalone database on the same local host as Titan and the end-user application. In this model, Titan and Cassandra communicate with one another via a <code>localhost</code> socket. Running Titan over Cassandra requires the following setup steps:</p>
 <ol><li><a href="http://cassandra.apache.org/download/">Download</a>, unpack, and <a href="http://wiki.apache.org/cassandra/GettingStarted">setup</a> Cassandra on your local machine.</li>
 	<li>Start Cassandra by invoking <code>bin/cassandra -f</code> on the command line in the directory where Cassandra was unpacked. Ensure that Cassandra started successfully.</li>
@@ -86,7 +86,7 @@ Mousetrap.bind(['e'], function( e ) {
 </pre></div>
 <p>In the Gremlin shell, you can not define the type of the variables <code>conf</code> and <code>g</code>. Therefore, simply leave off the type declaration.</p>
 <h3>Remote Server Mode<a class="anchor" id="Remote-Server-Mode" href="#Remote-Server-Mode"></a></h3>
-<p><img src="https://github.com/thinkaurelius/titan/raw/master/doc/images/titan-modes-distributed.png" alt="" /></p>
+<p><img src="images/titan-modes-distributed.png" alt="" /></p>
 <p>When the graph needs to scale beyond the confines of a single machine, then Cassandra and Titan are logically separated into different machines. In this model, the Cassandra cluster maintains the graph representation and any number of Titan instances maintain socket-based read/write access to the Cassandra cluster. The end-user application can directly interact with Titan within the same <span class="caps">JVM</span> as Titan.</p>
 <p>For example, suppose we have a running Cassandra cluster where one of the machines has the IP address 77.77.77.77, then connecting Titan with the cluster is accomplished as follows (comma separate IP addresses to reference more than one machine):</p>
 <div class="highlight"><pre><span class="n">Configuration</span> <span class="n">conf</span> <span class="o">=</span> <span class="k">new</span> <span class="n">BaseConfiguration</span><span class="o">();</span>
@@ -96,7 +96,7 @@ Mousetrap.bind(['e'], function( e ) {
 </pre></div>
 <p>In the Gremlin shell, you can not define the type of the variables <code>conf</code> and <code>g</code>. Therefore, simply leave off the type declaration.</p>
 <h3>Remote Server Mode with Rexster<a class="anchor" id="Remote-Server-Mode-with-Rexster" href="#Remote-Server-Mode-with-Rexster"></a></h3>
-<p><img src="https://github.com/thinkaurelius/titan/raw/master/doc/images/titan-modes-rexster.png" alt="" /></p>
+<p><img src="images/titan-modes-rexster.png" alt="" /></p>
 <p>Rexster can be wrapped around each Titan instance defined in the previous subsection. In this way, the end-user application need not be a Java-based application as it can communicate with Rexster over <span class="caps">REST</span>. This type of deployment is great for polyglot architectures where various components written in different languages need to reference and compute on the graph.</p>
 <div class="highlight"><pre>http://rexster.titan.machine1/mygraph/vertices/1
 http://rexster.titan.machine2/mygraph/tp/gremlin?script=g.v(1).out('follows').out('created')
@@ -119,7 +119,7 @@ http://rexster.titan.machine2/mygraph/tp/gremlin?script=g.v(1).out('follows').ou
   <span class="nt">&lt;/graph&gt;</span>
 </pre></div>
 <h3>Titan Embedded Mode<a class="anchor" id="Titan-Embedded-Mode" href="#Titan-Embedded-Mode"></a></h3>
-<p><img src="https://github.com/thinkaurelius/titan/raw/master/doc/images/titan-modes-embedded.png" alt="" /></p>
+<p><img src="images/titan-modes-embedded.png" alt="" /></p>
 <p>Finally, Cassandra can be embedded in Titan, which means, that Titan and Cassandra run in the same <span class="caps">JVM</span> and communicate via in process calls rather than over the network. This removes the (de)serialization and network protocol overhead and can therefore lead to considerable performance improvements. In this deployment mode, Titan internally starts a cassandra daemon and Titan no longer connects to an existing cluster but is its own cluster.</p>
 <p>To use Titan in embedded mode, simply configure <code>embeddedcassandra</code> as the storage backend. The configuration options listed below also apply to embedded Cassandra. In creating a Titan cluster, ensure that the individual nodes can discover each other via the Gossip protocol, so setup a Titan-with-Cassandra-embedded cluster much like you would a stand alone Cassandra cluster. When running Titan in embedded mode, the Cassandra yaml file is configured using the additional configuration option <code>storage.cassandra-config-dir</code>, which specifies the yaml file as a full url, e.g. <code>storage.cassandra-config-dir = file:///home/cassandra.yaml</code>.</p>
 <p>When running a cluster with Titan and Cassandra embedded, it is advisable to expose Titan through the Rexster server so that applications can remotely connect to the Titan graph database and execute queries. To make this setup easy and simple, Titan comes packaged with <a class="internal present" href="Titan-Server.html">Titan Server</a>.</p>

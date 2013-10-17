@@ -49,7 +49,7 @@
   <div class="wrap">
   <div id="wiki-body" class="gollum-textile-content">
     <div id="template">
-      <p><span class="float-left"><span><img src="https://github.com/thinkaurelius/titan/raw/master/doc/images/titan-configuration.png" width="200px" /></span></span></p>
+      <p><span class="float-left"><span><img src="images/titan-configuration.png" width="200px" /></span></span></p>
 <p>This page summarizes Titan&#x2019;s configurations options. To configure a <code>TitanGraph</code> invoke the <code>TitanFactory.open()</code> method with a <a href="http://commons.apache.org/configuration/">commons configuration</a> object or the file name of a properties configuration file. The <code>TitanFactory</code> will return a <code>TitanGraph</code> according to the configuration.</p>
 <p>The following example opens a <code>TitanGraph</code> with the configured local storage directory.<br /></p><pre><code>Configuration conf = new BaseConfiguration();
 conf.setProperty("storage.directory","/tmp/titan");

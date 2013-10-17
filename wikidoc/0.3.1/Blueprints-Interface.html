@@ -72,7 +72,7 @@ Mousetrap.bind(['e'], function( e ) {
 <ol><li>Any technology written against the Blueprints <span class="caps">API</span> works efficiently and seamlessly on Titan. This includes all open-source products in the <a class="internal present" href="TinkerPop-Graph-Stack.html">TinkerPop graph stack</a>.</li>
 	<li>Any application written for Titan can be migrated to another Blueprints enabled graph database, so there is no vendor lock-in.</li>
 </ol><h2>Introduction to TitanGraph<a class="anchor" id="Introduction-to-TitanGraph" href="#Introduction-to-TitanGraph"></a></h2>
-<p><span class="align-center"><span><img src="https://github.com/thinkaurelius/titan/raw/master/doc/images/juno-married.png" /></span></span></p>
+<p><span class="align-center"><span><img src="images/juno-married.png" /></span></span></p>
 <div class="highlight"><pre><span class="n">TitanGraph</span> <span class="n">g</span> <span class="o">=</span> <span class="n">TitanFactory</span><span class="o">.</span><span class="na">open</span><span class="o">(</span><span class="s">"/tmp/titan"</span><span class="o">);</span>
 <span class="n">Vertex</span> <span class="n">juno</span> <span class="o">=</span> <span class="n">g</span><span class="o">.</span><span class="na">addVertex</span><span class="o">(</span><span class="kc">null</span><span class="o">);</span>
 <span class="n">juno</span><span class="o">.</span><span class="na">setProperty</span><span class="o">(</span><span class="s">"name"</span><span class="o">,</span> <span class="s">"juno"</span><span class="o">);</span>
@@ -84,7 +84,7 @@ Mousetrap.bind(['e'], function( e ) {
 <p>Please review the <a href="http://tinkerpop.com/docs/javadocs/blueprints/2.1.0/com/tinkerpop/blueprints/package-summary.html">Blueprints Core <span class="caps">API</span></a> for a complete listing of all the Blueprints methods available.</p>
 <h2>Vertex Queries<a class="anchor" id="Vertex-Queries" href="#Vertex-Queries"></a></h2>
 <p>Continuing with the example above, more vertices are created that are connected to by Juno.</p>
-<p><span class="align-center"><span><img src="https://github.com/thinkaurelius/titan/raw/master/doc/images/super-node.png" /></span></span></p>
+<p><span class="align-center"><span><img src="images/super-node.png" /></span></span></p>
 <div class="highlight"><pre><span class="n">Vertex</span> <span class="n">turnus</span> <span class="o">=</span> <span class="n">g</span><span class="o">.</span><span class="na">addVertex</span><span class="o">(</span><span class="kc">null</span><span class="o">);</span>
 <span class="n">turnus</span><span class="o">.</span><span class="na">setProperty</span><span class="o">(</span><span class="s">"name"</span><span class="o">,</span> <span class="s">"turnus"</span><span class="o">);</span>
 <span class="n">Vertex</span> <span class="n">hercules</span> <span class="o">=</span> <span class="n">g</span><span class="o">.</span><span class="na">addVertex</span><span class="o">(</span><span class="kc">null</span><span class="o">);</span>

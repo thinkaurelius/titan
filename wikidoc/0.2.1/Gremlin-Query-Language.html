@@ -71,7 +71,7 @@ Mousetrap.bind(['e'], function( e ) {
 <p>Titan supports the standard <a href="http://gremlin.tinkerpop.com">Gremlin</a> graph query language for complex graph traversal and mutation operations. Gremlin is a <a href="http://en.wikipedia.org/wiki/Functional_programming">functional language</a> whereby traversal operators are chained together to form path-like expressions. For example, “from Hercules, traverse to his father and then his father’s father and return the grandfather’s name.”</p>
 <p>This section of documentation will only briefly overview Gremlin. For more complete documentation on Gremlin, please see the <a href="http://gremlin.tinkerpop.com">online documentation</a>. Moreover, the examples are with respects to Gremlin-Groovy and note that there are other <a href="https://github.com/tinkerpop/gremlin/wiki/JVM-Language-Implementations"><span class="caps">JVM</span> language implementations</a> of Gremlin.</p>
 <h2>Introductory Traversals<a class="anchor" id="Introductory-Traversals" href="#Introductory-Traversals"></a></h2>
-<p>When working with Gremlin, it is important to realize the query as a chain of operations/functions that are read from left to right. A simple grandfather query is provided below over the <em>Graph of the Gods</em> <a href="https://github.com/thinkaurelius/titan/raw/master/doc/images/graph-of-the-gods.png">dataset</a>.</p>
+<p>When working with Gremlin, it is important to realize the query as a chain of operations/functions that are read from left to right. A simple grandfather query is provided below over the <em>Graph of the Gods</em> <a href="images/graph-of-the-gods.png">dataset</a>.</p>
 <div class="highlight"><pre>gremlin&gt; g.V('name','hercules').out('father').out('father').name
 ==&gt;saturn
 </pre></div>

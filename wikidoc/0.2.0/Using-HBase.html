@@ -56,7 +56,7 @@
 <h2>HBase Setup</h2>
 <p>The following sections outline the various ways in which Titan can be used in concert with HBase.</p>
 <h3>Local Server Mode</h3>
-<p><img src="https://github.com/thinkaurelius/titan/raw/master/doc/images/titan-modes-local.png" alt="" /></p>
+<p><img src="images/titan-modes-local.png" alt="" /></p>
 <p>HBase can be run as a standalone database on the same local host as Titan and the end-user application. In this model, Titan and HBase communicate with one another via a <code>localhost</code> socket. Running Titan over HBase requires the following setup steps:</p>
 <ul><li>Download and extract a stable HBase from <a href="http://www.apache.org/dyn/closer.cgi/hbase/stable/">http://www.apache.org/dyn/closer.cgi/hbase/stable/</a>.</li>
 	<li>Start HBase by invoking the <code>start-hbase.sh</code> script in the <em>bin</em> directory inside the extracted HBase directory. To stop HBase, use <code>stop-hbase.sh</code>.</li>
@@ -68,7 +68,7 @@ conf.setProperty("storage.backend","hbase");
 TitanGraph g = TitanFactory.open(conf);</code></pre>
 <p>Note, that you do not need to specify a hostname since a localhost connection is attempted by default. Also, in the Gremlin shell, you can not define the type of the variables <code>conf</code> and <code>g</code>. Therefore, simply leave off the type declaration.</p>
 <h3>Remote Server Mode</h3>
-<p><img src="https://github.com/thinkaurelius/titan/raw/master/doc/images/titan-modes-distributed.png" alt="" /></p>
+<p><img src="images/titan-modes-distributed.png" alt="" /></p>
 <p>When the graph needs to scale beyond the confines of a single machine, then HBase and Titan are logically separated into different machines. In this model, the HBase cluster maintains the graph representation and any number of Titan instances maintain socket-based read/write access to the HBase cluster. The end-user application can directly interact with Titan within the same <span class="caps">JVM</span> as Titan.</p>
 <p>For example, suppose we have a running HBase cluster with two machines at IP address 77.77.77.77 and 77.77.77.78, then connecting Titan with the cluster is accomplished as follows:</p>
 <pre><code>Configuration conf = new BaseConfiguration();
@@ -77,7 +77,7 @@ conf.setProperty("storage.hostname","77.77.77.77,77.77.77.78");
 TitanGraph g = TitanFactory.open(conf);</code></pre>
 <p><em>storage.hostname</em> accepts a comma separated list of IP addresses and hostname for any subset of machines in the HBase cluster Titan should connect to. Also, in the Gremlin shell, you can not define the type of the variables <code>conf</code> and <code>g</code>. Therefore, simply leave off the type declaration.</p>
 <h3>Remote Server Mode with Rexster</h3>
-<p><img src="https://github.com/thinkaurelius/titan/raw/master/doc/images/titan-modes-rexster.png" alt="" /></p>
+<p><img src="images/titan-modes-rexster.png" alt="" /></p>
 <p>Finally, Rexster can be wrapped around each Titan instance defined in the previous subsection. In this way, the end-user application need not be a Java-based application as it can communicate with Rexster over <span class="caps">REST</span>. This type of deployment is great for polyglot architectures where various components written in different languages need to reference and compute on the graph.</p>
 <pre><code>http://rexster.titan.machine1/mygraph/vertices/1
 http://rexster.titan.machine2/mygraph/tp/gremlin?script=g.v(1).out('follows').out('created')</code></pre>

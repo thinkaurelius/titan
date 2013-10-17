@@ -51,7 +51,7 @@
     <div id="template">
       <p>Titan is designed to support the processing of graphs so large that they require storage and computational capacities beyond what a single machine can provide. This is Titan&#x2019;s foundational benefit. This section will discuss the various specific benefits of Titan and its underlying, supported persistence solutions.</p>
 <h2>General Titan Benefits</h2>
-<p><span class="float-right"><span><img src="https://github.com/thinkaurelius/titan/raw/master/doc/images/titan-kneeling.png" width="150px" /></span></span></p>
+<p><span class="float-right"><span><img src="images/titan-kneeling.png" width="150px" /></span></span></p>
 <ul><li>Support for very large graphs. Titan graphs scale with the number of machines in the cluster.</li>
 	<li>Support for very many concurrent transactions. Titan&#x2019;s transactional capacity scale with the number of machines in the cluster.</li>
 	<li>Native support for the popular property graph data model exposed by <a href="http://blueprints.tinkerpop.com">Blueprints</a>.</li>
@@ -82,7 +82,7 @@
 	<li>Open source under the liberal Apache 2 license.</li>
 </ul><h2>Titan and the <span class="caps">CAP</span> Theorem</h2>
 <p>When using a database, the <a href="http://en.wikipedia.org/wiki/CAP_theorem"><span class="caps">CAP</span> theorem</a> should be thoroughly considered (C=Consistency, A=Availability, P=Partitionability). Titan is distributed with 3 supporting backends: <a href="http://cassandra.apache.org/">Cassandra</a>, <a href="http://hbase.apache.org/">HBase</a>, and <a href="http://www.oracle.com/technetwork/products/berkeleydb/">BerkeleyDB</a>. Their tradeoffs with respect to the <span class="caps">CAP</span> theorem are represented in the diagram below. Note that BerkeleyDB is a non-distributed database and as such, is typically only used with Titan for testing and exploration purposes.</p>
-<p><span class="align-center"><span><img src="https://github.com/thinkaurelius/titan/raw/master/doc/images/titan-captheorem.png" /></span></span><br /><br /></p>
+<p><span class="align-center"><span><img src="images/titan-captheorem.png" /></span></span><br /><br /></p>
 <blockquote>
 <p>&#x201C;Despite your best efforts, your system will experience enough faults that it will have to make a choice between reducing yield (i.e., stop answering requests) and reducing harvest (i.e., giving answers based on incomplete data). This decision should be based on business requirements.&#x201D; &#x2013; <a href="http://codahale.com/you-cant-sacrifice-partition-tolerance">Coda Hale</a></p>
 </blockquote>
