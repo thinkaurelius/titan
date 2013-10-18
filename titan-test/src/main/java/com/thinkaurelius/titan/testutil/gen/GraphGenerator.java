@@ -17,10 +17,10 @@ import com.tinkerpop.blueprints.Edge;
 import com.tinkerpop.blueprints.Vertex;
 import com.tinkerpop.blueprints.util.io.graphml.GraphMLReader;
 import com.tinkerpop.blueprints.util.io.graphml.GraphMLWriter;
-import com.tinkerpop.furnace.generators.DistributionGenerator;
-import com.tinkerpop.furnace.generators.EdgeAnnotator;
-import com.tinkerpop.furnace.generators.PowerLawDistribution;
-import com.tinkerpop.furnace.generators.VertexAnnotator;
+import com.tinkerpop.furnace.alpha.generators.DistributionGenerator;
+import com.tinkerpop.furnace.alpha.generators.EdgeAnnotator;
+import com.tinkerpop.furnace.alpha.generators.PowerLawDistribution;
+import com.tinkerpop.furnace.alpha.generators.VertexAnnotator;
 
 /**
  * Generates Titan graphs. Requires an open, empty Titan graph.
@@ -30,7 +30,7 @@ import com.tinkerpop.furnace.generators.VertexAnnotator;
  * <ul>
  * <li>Creating types</li>
  * <li>Inserting vertices and labeled, directed edges (power-law distribution)</li>
- * <li>Setting integer-valued, standard-indexed, vertex-unique properties on edges and vertices</li>
+ * <li>Setting integer-valued, standard-indexed, single-valued properties on edges and vertices</li>
  * </ul>
  * <p/>
  * This uses a {@link java.util.Random} with a hard-coded seed. However, it also
