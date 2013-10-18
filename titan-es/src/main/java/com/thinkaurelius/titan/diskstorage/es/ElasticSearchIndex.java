@@ -424,6 +424,13 @@ public class ElasticSearchIndex implements IndexProvider {
                     Geoshape.Point southwest = shape.getPoint(0);
                     Geoshape.Point northeast = shape.getPoint(1);
                     return FilterBuilders.geoBoundingBoxFilter(key).bottomRight(southwest.getLatitude(), northeast.getLongitude()).topLeft(northeast.getLatitude(), southwest.getLongitude());
+                } else if (shape.getType() == Geoshape.Type.POLYGON) {
+                    GeoPolygonFilterBuilder polygonFilter = FilterBuilders.geoPolygonFilter(key);
+                    for (int i = 0; i < shape.size(); i++) {
+                        Geoshape.Point point = shape.getPoint(i);
+                        polygonFilter.addPoint(point.getLatitude(), point.getLongitude());
+                    }
+                    return polygonFilter;
                 } else
                     throw new IllegalArgumentException("Unsupported or invalid search shape type: " + shape.getType());
             } else throw new IllegalArgumentException("Unsupported type: " + value);
