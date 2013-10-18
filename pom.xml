@@ -91,6 +91,7 @@
         <module>titan-berkeleyje</module>
         <module>titan-cassandra</module>
         <module>titan-hbase</module>
+        <module>titan-accumulo</module>
         <module>titan-es</module>
         <module>titan-lucene</module>
         <module>titan-hazelcast</module>
