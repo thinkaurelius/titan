@@ -64,8 +64,13 @@ public class QueryUtil {
         if (isQNFLiteralOrNot(condition)) return true;
         else if (condition instanceof And) {
             for (Condition<?> child : ((And<?>) condition).getChildren()) {
-                if (isQNFLiteralOrNot(child)) continue;
-                else if (child instanceof Or) {
+                if (isQNFLiteralOrNot(child)) {
+                    continue;
+                } else if (child instanceof And) {
+                    for (Condition<?> child2 : ((And<?>) child).getChildren()) {
+                        if (!isQNFLiteralOrNot(child2)) return false;
+                    }
+                } else if (child instanceof Or) {
                     for (Condition<?> child2 : ((Or<?>) child).getChildren()) {
                         if (!isQNFLiteralOrNot(child2)) return false;
                     }
