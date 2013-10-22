@@ -1,7 +1,5 @@
 package com.thinkaurelius.titan.graphdb.transaction.vertexcache;
 
-import com.carrotsearch.hppc.ObjectContainer;
-import com.carrotsearch.hppc.cursors.ObjectCursor;
 import com.google.common.base.Preconditions;
 import com.google.common.cache.*;
 import com.thinkaurelius.titan.graphdb.internal.InternalVertex;
@@ -33,7 +31,7 @@ public class LRUVertexCache implements VertexCache {
                         }
                     }
                 })
-                .build();
+                .softValues().build();
     }
 
     @Override
@@ -82,12 +80,10 @@ public class LRUVertexCache implements VertexCache {
         return vertices;
     }
 
-
     @Override
     public synchronized void close() {
-        cache.cleanUp();
+        addedRelVertices.clear();
         cache.invalidateAll();
+        cache.cleanUp();
     }
-
-
 }
