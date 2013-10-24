@@ -184,7 +184,7 @@ public class StandardTitanTx extends TitanBlueprintsTransaction {
             public int weigh(IndexQuery q, List<Object> r) {
                 return 2 + r.size();
             }
-        }).concurrencyLevel(concurrencyLevel).maximumWeight(config.getIndexCacheWeight()).build();
+        }).concurrencyLevel(concurrencyLevel).maximumWeight(config.getIndexCacheWeight()).softValues().build();
 
         uniqueLocks = UNINITIALIZED_LOCKS;
         deletedRelations = EMPTY_DELETED_RELATIONS;
@@ -985,7 +985,9 @@ public class StandardTitanTx extends TitanBlueprintsTransaction {
     }
 
     private void close() {
-        //TODO: release non crucial data structures to preserve memory?
+        vertexCache.close();
+        indexCache.invalidateAll();
+        indexCache.cleanUp();
         isOpen = false;
     }
 
