@@ -2,11 +2,18 @@
   xsi:schemaLocation="http://maven.apache.org/plugins/maven-assembly-plugin/component/1.1.2 http://maven.apache.org/xsd/component-1.1.2.xsd">
     <fileSets>
         <fileSet>
-            <directory>../../conf</directory>
+            <directory>../src/assembly/static/conf</directory>
             <outputDirectory>/conf</outputDirectory>
             <includes>
                 <include>titan-*</include>
             </includes>
         </fileSet>
     </fileSets>
+
+    <files>
+        <file>
+            <source>../../titan-hazelcast/src/test/resources/hazelcast.xml</source>
+            <outputDirectory>/conf</outputDirectory>
+        </file>
+    </files>
 </component>

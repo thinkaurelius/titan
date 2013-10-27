@@ -1,4 +1,3 @@
-
 package com.thinkaurelius.titan.core;
 
 import com.tinkerpop.blueprints.*;
@@ -20,10 +19,19 @@ public interface TitanVertexQuery extends BaseVertexQuery, VertexQuery {
     * ---------------------------------------------------------------
     */
 
+    /**
+     * Restricts this query to only those edges that point to the given vertex.
+     *
+     * @param vertex
+     * @return this query builder
+     */
     public TitanVertexQuery adjacentVertex(TitanVertex vertex);
 
     @Override
     public TitanVertexQuery labels(String... labels);
+
+    @Override
+    public TitanVertexQuery keys(String... keys);
 
     @Override
     public TitanVertexQuery types(TitanType... type);
@@ -69,6 +77,11 @@ public interface TitanVertexQuery extends BaseVertexQuery, VertexQuery {
      */
     public Iterable<Edge> edges();
 
+    /**
+     * Returns an iterable over all incident edges that match this query. Returns edges as {@link TitanEdge}.
+     *
+     * @return Iterable over all incident edges that match this query
+     */
     public Iterable<TitanEdge> titanEdges();
 
     /**

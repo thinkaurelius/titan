@@ -5,6 +5,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
+import com.google.common.collect.Sets;
 import com.thinkaurelius.titan.core.*;
 import com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfiguration;
 import com.thinkaurelius.titan.graphdb.internal.InternalType;
@@ -727,6 +728,44 @@ public abstract class TitanGraphTest extends TitanGraphTestCommon {
     }
 
     @Test
+    public void testJointIndexRetrieval() {
+        graph.makeKey("name").dataType(String.class).indexed(Vertex.class).make();
+        graph.makeKey("color").dataType(String.class).indexed(Vertex.class).make();
+        Vertex v = graph.addVertex(null);
+        v.setProperty("name", "ilya");
+        v.setProperty("color", "blue");
+        graph.commit();
+
+        assertEquals(1, Iterables.size(graph.query().has("name", "ilya").vertices()));
+        assertEquals(1, Iterables.size(graph.query().has("name", "ilya").has("color", "blue").vertices()));
+    }
+
+    @Test
+    public void testLargeJointIndexRetrieval() {
+        graph.makeKey("sid").dataType(Integer.class).indexed(Vertex.class).make();
+        graph.makeKey("color").dataType(String.class).indexed(Vertex.class).make();
+        graph.commit();
+
+        int sids = 17;
+        String[] colors = {"blue", "red", "yellow", "brown", "green", "orange", "purple"};
+        int multiplier = 200;
+        int numV = sids * colors.length * multiplier;
+        for (int i = 0; i < numV; i++) {
+            Vertex v = graph.addVertex(null);
+            v.setProperty("color", colors[i % colors.length]);
+            v.setProperty("sid", i % sids);
+        }
+        graph.commit();
+        clopen();
+
+        assertEquals(numV / sids, Iterables.size(graph.query().has("sid", 8).vertices()));
+        assertEquals(numV / colors.length, Iterables.size(graph.query().has("color", colors[2]).vertices()));
+
+        assertEquals(multiplier, Iterables.size(graph.query().has("sid", 11).has("color", colors[3]).vertices()));
+    }
+
+
+    @Test
     public void testIndexRetrieval() {
         TitanKey id = tx.makeKey("uid").
                 single().
@@ -1078,15 +1117,26 @@ public abstract class TitanGraphTest extends TitanGraphTestCommon {
         assertEquals(1, v.query().labels("knows").direction(OUT).adjacentVertex(vs[11]).count());
         assertEquals(1, v.query().labels("knows").direction(OUT).adjacentVertex(vs[11]).has("weight", 3.5).count());
 
+        //Property queries
+        assertEquals(1, Iterables.size(v.query().properties()));
+        assertEquals(1, Iterables.size(v.query().keys("name").properties()));
+
         //MultiQueries
         TitanVertex[] qvs = {vs[6], vs[9], vs[12], vs[15], vs[60]};
         Map<TitanVertex, Iterable<TitanEdge>> results;
+        Map<TitanVertex, Iterable<TitanProperty>> results2;
         results = tx.multiQuery(qvs).direction(IN).labels("connect").titanEdges();
         for (Iterable<TitanEdge> result : results.values()) assertEquals(1, Iterables.size(result));
-        results = tx.multiQuery(qvs).labels("connect").titanEdges();
+        results = tx.multiQuery(Sets.newHashSet(qvs)).labels("connect").titanEdges();
         for (Iterable<TitanEdge> result : results.values()) assertEquals(1, Iterables.size(result));
         results = tx.multiQuery(qvs).labels("knows").titanEdges();
         for (Iterable<TitanEdge> result : results.values()) assertEquals(0, Iterables.size(result));
+        results = tx.multiQuery(qvs).titanEdges();
+        for (Iterable<TitanEdge> result : results.values()) assertEquals(1, Iterables.size(result));
+        results2 = tx.multiQuery(qvs).properties();
+        for (Iterable<TitanProperty> result : results2.values()) assertEquals(1, Iterables.size(result));
+        results2 = tx.multiQuery(qvs).keys("name").properties();
+        for (Iterable<TitanProperty> result : results2.values()) assertEquals(1, Iterables.size(result));
 
         clopen();
         for (int i = 0; i < noVertices; i++) vs[i] = tx.getVertex(vs[i].getID());
@@ -1135,6 +1185,10 @@ public abstract class TitanGraphTest extends TitanGraphTestCommon {
         assertEquals(98, v.query().labels("friend", "connect", "knows").direction(OUT).has("time", Compare.NOT_EQUAL, 10).count());
         assertEquals(99, Iterables.size(v.query().direction(OUT).vertices()));
 
+        //Property queries
+        assertEquals(1, Iterables.size(v.query().properties()));
+        assertEquals(1, Iterables.size(v.query().keys("name").properties()));
+
         clopen();
 
         //MultiQueries
@@ -1143,10 +1197,16 @@ public abstract class TitanGraphTest extends TitanGraphTestCommon {
         qvs = qvs2;
         results = tx.multiQuery(qvs).direction(IN).labels("connect").titanEdges();
         for (Iterable<TitanEdge> result : results.values()) assertEquals(1, Iterables.size(result));
-        results = tx.multiQuery(qvs).labels("connect").titanEdges();
+        results = tx.multiQuery(Sets.newHashSet(qvs)).labels("connect").titanEdges();
         for (Iterable<TitanEdge> result : results.values()) assertEquals(1, Iterables.size(result));
         results = tx.multiQuery(qvs).labels("knows").titanEdges();
         for (Iterable<TitanEdge> result : results.values()) assertEquals(0, Iterables.size(result));
+        results = tx.multiQuery(qvs).titanEdges();
+        for (Iterable<TitanEdge> result : results.values()) assertEquals(1, Iterables.size(result));
+        results2 = tx.multiQuery(qvs).properties();
+        for (Iterable<TitanProperty> result : results2.values()) assertEquals(1, Iterables.size(result));
+        results2 = tx.multiQuery(qvs).keys("name").properties();
+        for (Iterable<TitanProperty> result : results2.values()) assertEquals(1, Iterables.size(result));
 
         newTx();
 

@@ -21,6 +21,7 @@ import com.thinkaurelius.titan.graphdb.database.IndexSerializer;
 import com.thinkaurelius.titan.graphdb.database.StandardTitanGraph;
 import com.thinkaurelius.titan.graphdb.database.serialize.AttributeHandling;
 import com.thinkaurelius.titan.graphdb.idmanagement.IDInspector;
+import com.thinkaurelius.titan.graphdb.idmanagement.IDManager;
 import com.thinkaurelius.titan.graphdb.internal.*;
 import com.thinkaurelius.titan.graphdb.query.*;
 import com.thinkaurelius.titan.graphdb.query.condition.*;
@@ -50,15 +51,18 @@ import com.thinkaurelius.titan.graphdb.util.VertexCentricEdgeIterable;
 import com.thinkaurelius.titan.graphdb.vertices.CacheVertex;
 import com.thinkaurelius.titan.graphdb.vertices.StandardVertex;
 import com.thinkaurelius.titan.util.datastructures.Retriever;
+import com.thinkaurelius.titan.util.stats.MetricManager;
 import com.thinkaurelius.titan.util.stats.ObjectAccumulator;
 import com.tinkerpop.blueprints.Direction;
 import com.tinkerpop.blueprints.Edge;
 import com.tinkerpop.blueprints.Vertex;
+
 import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
+
 import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
@@ -187,6 +191,9 @@ public class StandardTitanTx extends TitanBlueprintsTransaction {
         deletedRelations = EMPTY_DELETED_RELATIONS;
 
         this.isOpen = true;
+        if (null != config.getMetricsPrefix()) {
+            MetricManager.INSTANCE.getCounter(config.getMetricsPrefix(), "tx", "begin").inc();
+        }
     }
 
     /*
@@ -304,17 +311,31 @@ public class StandardTitanTx extends TitanBlueprintsTransaction {
         }
     }
 
-    ;
-
-
     @Override
-    public TitanVertex addVertex() {
+    public TitanVertex addVertex(Long vertexId) {
         verifyWriteAccess();
+        if (vertexId != null && !graph.getConfiguration().allowVertexIdSetting()) {
+            log.warn("Provided vertex id [{}] is ignored because vertex id setting is not enabled", vertexId);
+            vertexId = null;
+        }
+        Preconditions.checkArgument(vertexId != null || !graph.getConfiguration().allowVertexIdSetting(), "Must provide vertex id");
+        Preconditions.checkArgument(vertexId == null || IDManager.isVertexID(vertexId), "Not a valid vertex id: %s", vertexId);
+        Preconditions.checkArgument(vertexId == null || !config.hasVerifyExternalVertexExistence() || !containsVertex(vertexId), "Vertex with given id already exists: %s", vertexId);
         StandardVertex vertex = new StandardVertex(this, temporaryID.decrementAndGet(), ElementLifeCycle.New);
-        if (config.hasAssignIDsImmediately()) graph.assignID(vertex);
+        if (vertexId != null) {
+            vertex.setID(vertexId);
+        } else if (config.hasAssignIDsImmediately()) {
+            graph.assignID(vertex);
+        }
         addProperty(vertex, SystemKey.VertexState, SystemKey.VertexStates.DEFAULT.getValue());
         vertexCache.add(vertex, vertex.getID());
         return vertex;
+
+    }
+
+    @Override
+    public TitanVertex addVertex() {
+        return addVertex(null);
     }
 
 
@@ -647,6 +668,13 @@ public class StandardTitanTx extends TitanBlueprintsTransaction {
         return builder;
     }
 
+    @Override
+    public TitanMultiVertexQuery multiQuery(Collection<TitanVertex> vertices) {
+        MultiVertexCentricQueryBuilder builder = new MultiVertexCentricQueryBuilder(this, edgeSerializer);
+        builder.addAllVertices(vertices);
+        return builder;
+    }
+
     public void executeMultiQuery(final Collection<InternalVertex> vertices, final SliceQuery sq) {
         LongArrayList vids = new LongArrayList(vertices.size());
         for (InternalVertex v : vertices) {
@@ -857,12 +885,12 @@ public class StandardTitanTx extends TitanBlueprintsTransaction {
                     retrievals.add(new QueryUtil.IndexCall<Object>() {
                         @Override
                         public Collection<Object> call(int limit) {
-                            IndexQuery adjustedQuery = subquery.updateLimit(limit);
+                            final IndexQuery adjustedQuery = subquery.updateLimit(limit);
                             try {
-                                return indexCache.get(subquery, new Callable<List<Object>>() {
+                                return indexCache.get(adjustedQuery, new Callable<List<Object>>() {
                                     @Override
                                     public List<Object> call() throws Exception {
-                                        return indexSerializer.query(index, subquery, txHandle);
+                                        return indexSerializer.query(index, adjustedQuery, txHandle);
                                     }
                                 });
                             } catch (Exception e) {
@@ -950,6 +978,9 @@ public class StandardTitanTx extends TitanBlueprintsTransaction {
             throw new TitanException("Could not commit transaction due to exception during persistence", e);
         } finally {
             close();
+            if (null != config.getMetricsPrefix()) {
+                MetricManager.INSTANCE.getCounter(config.getMetricsPrefix(), "tx", "commit").inc();
+            }
         }
     }
 
@@ -962,6 +993,9 @@ public class StandardTitanTx extends TitanBlueprintsTransaction {
             throw new TitanException("Could not rollback transaction due to exception", e);
         } finally {
             close();
+            if (null != config.getMetricsPrefix()) {
+                MetricManager.INSTANCE.getCounter(config.getMetricsPrefix(), "tx", "rollback").inc();
+            }
         }
     }
 
