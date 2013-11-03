@@ -33,22 +33,6 @@
             <version>${solr.version}</version>
         </dependency>
         <dependency>
-            <artifactId>solr-core</artifactId>
-            <groupId>org.apache.solr</groupId>
-            <version>${solr.version}</version>
-            <!-- As of 08/12/13
-                solr-core uses Zookeeper 3.4.2 and solr-solrj uses Zookeeper 3.4.5.
-                This generates a maven enforcer convergence issue. Added exception to this dependency to
-                resolve the issue.
-            -->
-            <exclusions>
-                <exclusion>
-                    <groupId>org.apache.zookeeper</groupId>
-                    <artifactId>zookeeper</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-        <dependency>
             <groupId>javax.servlet</groupId>
             <artifactId>servlet-api</artifactId>
             <version>2.5</version>

@@ -4,7 +4,6 @@ import org.apache.commons.configuration.Configuration;
 import org.apache.commons.lang.StringUtils;
 import org.apache.solr.client.solrj.SolrServer;
 import org.apache.solr.client.solrj.SolrServerException;
-import org.apache.solr.client.solrj.embedded.EmbeddedSolrServer;
 import org.apache.solr.client.solrj.impl.CloudSolrServer;
 import org.apache.solr.client.solrj.impl.HttpSolrServer;
 import org.apache.solr.client.solrj.request.CoreAdminRequest;
@@ -12,9 +11,7 @@ import org.apache.solr.client.solrj.response.CoreAdminResponse;
 import org.apache.solr.common.SolrException;
 import org.apache.solr.common.params.CoreAdminParams;
 import org.apache.solr.common.util.NamedList;
-import org.apache.solr.core.CoreContainer;
-import org.apache.solr.core.CoreDescriptor;
-import org.apache.solr.core.SolrCore;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,9 +39,7 @@ public class SolrServerFactory {
 
         String mode = config.getString(SOLR_MODE, SOLR_MODE_EMBEDDED);
 
-        if (mode.equalsIgnoreCase(SOLR_MODE_EMBEDDED)) {
-            solrServers = buildEmbeddedSolrServers(config);
-        } else if (mode.equalsIgnoreCase(SOLR_MODE_HTTP)) {
+        if (mode.equalsIgnoreCase(SOLR_MODE_HTTP)) {
             solrServers = buildHttpSolrServer(config);
         } else if (mode.equalsIgnoreCase(SOLR_MODE_CLOUD)) {
             solrServers = buildCloudSolrServer(config);
@@ -57,42 +52,6 @@ public class SolrServerFactory {
 
         return solrServers;
     }
-
-    /**
-     * Generates an EmbeddedSolrServer connection. Note that mult-core embedded is not supported in this method.
-     * @param config
-     * @return
-     * @throws SolrException
-     */
-    private Map<String, SolrServer> buildEmbeddedSolrServers(Configuration config)
-        throws SolrException {
-        Map<String, SolrServer> servers = new HashMap<String, SolrServer>();
-
-        String solrHome = config.getString(SOLR_HOME, "");
-        File home = new File(solrHome);
-        CoreContainer coreContainer = new CoreContainer(home.getAbsolutePath());
-
-        List<String> coreNames = SolrSearchUtils.parseConfigForCoreNames(config);
-
-        for (String coreName : coreNames) {
-            Properties coreProperties = new Properties();
-            coreProperties.put(CoreDescriptor.CORE_NAME, coreName);
-            coreProperties.put(CoreDescriptor.CORE_INSTDIR, home.getAbsolutePath() + "/" + coreName);
-            coreProperties.put(CoreDescriptor.CORE_PROPERTIES, "core.properties");
-
-            CoreDescriptor cd = new CoreDescriptor(coreContainer, coreProperties);
-            SolrCore newCore = coreContainer.create(cd);
-            coreContainer.register(newCore, true);
-            coreContainer.load();
-            SolrServer server = new EmbeddedSolrServer(coreContainer, coreName);
-            servers.put(coreName, server);
-
-            log.debug("Using core name of: " + coreName + " for EmbeddedSolrServer. This value can be changed by setting the solr.embedded.coreName value");
-        }
-
-        return servers;
-    }
-
 
     private Map<String, SolrServer> buildHttpSolrServer(Configuration config)
             throws SolrException {
