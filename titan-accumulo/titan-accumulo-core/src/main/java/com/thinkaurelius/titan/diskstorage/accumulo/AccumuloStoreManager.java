@@ -112,6 +112,7 @@ public class AccumuloStoreManager extends DistributedStoreManager implements Key
         features.supportsUnorderedScan = true;
         features.supportsBatchMutation = true;
         features.supportsTransactions = false;
+        features.supportsMultiQuery = true;
         features.supportsConsistentKeyOperations = true;
         features.supportsLocking = false;
         features.isKeyOrdered = false;
