@@ -3,10 +3,10 @@ package com.thinkaurelius.titan.diskstorage.solr;
 /**
  * @author Jared Holmberg (jholmberg@bericotechnologies.com)
  */
-public class SolrSearchConstants {
+public class SolrConstants {
 
     //Global settings
-    public static final String SOLR_MODE = "solr-mode";
+    public static final String SOLR_MODE = "solr.mode";
     public static final String SOLR_MODE_EMBEDDED = "embedded";
     public static final String SOLR_MODE_HTTP = "http";
     public static final String SOLR_MODE_CLOUD = "cloud";

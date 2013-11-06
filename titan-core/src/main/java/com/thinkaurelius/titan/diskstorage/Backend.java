@@ -479,6 +479,7 @@ public class Backend {
         put("lucene", "com.thinkaurelius.titan.diskstorage.lucene.LuceneIndex");
         put("elasticsearch", "com.thinkaurelius.titan.diskstorage.es.ElasticSearchIndex");
         put("es", "com.thinkaurelius.titan.diskstorage.es.ElasticSearchIndex");
+        put("solr", "com.thinkaurelius.titan.diskstorage.solr.SolrIndex");
     }};
 
     private final Function<String, Locker> CONSISTENT_KEY_LOCKER_CREATOR = new Function<String, Locker>() {

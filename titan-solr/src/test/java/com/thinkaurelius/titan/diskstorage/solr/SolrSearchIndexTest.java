@@ -16,7 +16,7 @@ import org.apache.commons.configuration.Configuration;
 import java.util.List;
 import java.util.Map;
 
-import static com.thinkaurelius.titan.diskstorage.solr.SolrSearchConstants.*;
+import static com.thinkaurelius.titan.diskstorage.solr.SolrConstants.*;
 import static org.junit.Assert.assertEquals;
 import  org.junit.Test;
 
@@ -28,7 +28,7 @@ public class SolrSearchIndexTest extends IndexProviderTest {
 
     @Override
     public IndexProvider openIndex() throws StorageException {
-        return new SolrSearchIndex(getLocalSolrTestConfig());
+        return new SolrIndex(getLocalSolrTestConfig());
     }
 
     public static final Configuration getLocalSolrTestConfig() {

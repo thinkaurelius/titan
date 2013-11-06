@@ -31,18 +31,18 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.*;
 
-import static com.thinkaurelius.titan.diskstorage.solr.SolrSearchConstants.*;
+import static com.thinkaurelius.titan.diskstorage.solr.SolrConstants.*;
 
 /**
  * @author Jared Holmberg (jholmberg@bericotechnologies.com)
  */
-public class SolrSearchIndex implements IndexProvider {
+public class SolrIndex implements IndexProvider {
 
     private static final int MAX_RESULT_SET_SIZE = 100000;
     private static int BATCH_SIZE;
     private static final int DEFAULT_BATCH_SIZE = 1000;
     private boolean isEmbeddedMode;
-    private Logger log = LoggerFactory.getLogger(SolrSearchIndex.class);
+    private Logger log = LoggerFactory.getLogger(SolrIndex.class);
     private float kilometersPerDegree = 111.12f;
     private int totalDocsProcessed;
 
@@ -105,10 +105,10 @@ public class SolrSearchIndex implements IndexProvider {
      *  </p>
      * @param config
      */
-    public SolrSearchIndex(Configuration config) {
+    public SolrIndex(Configuration config) {
 
         SolrServerFactory factory = new SolrServerFactory();
-        coreNames = SolrSearchUtils.parseConfigForCoreNames(config);
+        coreNames = SolrUtils.parseConfigForCoreNames(config);
 
         try {
             solrServers = factory.buildSolrServers(config);
@@ -127,7 +127,7 @@ public class SolrSearchIndex implements IndexProvider {
     }
 
     private void detectAndSetEmbeddedMode(Configuration config) {
-        String mode = config.getString(SOLR_MODE, SOLR_MODE_EMBEDDED);
+        String mode = config.getString(SOLR_MODE, SOLR_MODE_HTTP);
         if (mode.equalsIgnoreCase(SOLR_MODE_EMBEDDED)) {
             isEmbeddedMode = true;
         }

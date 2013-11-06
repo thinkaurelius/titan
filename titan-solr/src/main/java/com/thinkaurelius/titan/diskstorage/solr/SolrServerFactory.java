@@ -1,7 +1,6 @@
 package com.thinkaurelius.titan.diskstorage.solr;
 
 import org.apache.commons.configuration.Configuration;
-import org.apache.commons.lang.StringUtils;
 import org.apache.solr.client.solrj.SolrServer;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.impl.CloudSolrServer;
@@ -15,12 +14,11 @@ import org.apache.solr.common.util.NamedList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.util.*;
 
-import static com.thinkaurelius.titan.diskstorage.solr.SolrSearchConstants.*;
+import static com.thinkaurelius.titan.diskstorage.solr.SolrConstants.*;
 
 /**
  * Generates an EmbeddedSolrServer, HttpSolrServer, or CloudSolrServer based on
@@ -37,7 +35,7 @@ public class SolrServerFactory {
             throws IllegalArgumentException, SolrException {
         Map<String, SolrServer> solrServers;
 
-        String mode = config.getString(SOLR_MODE, SOLR_MODE_EMBEDDED);
+        String mode = config.getString(SOLR_MODE, SOLR_MODE_HTTP);
 
         if (mode.equalsIgnoreCase(SOLR_MODE_HTTP)) {
             solrServers = buildHttpSolrServer(config);
@@ -56,7 +54,7 @@ public class SolrServerFactory {
     private Map<String, SolrServer> buildHttpSolrServer(Configuration config)
             throws SolrException {
         HttpSolrServer server = null;
-        List<String> coreNames = SolrSearchUtils.parseConfigForCoreNames(config);
+        List<String> coreNames = SolrUtils.parseConfigForCoreNames(config);
         Map<String, SolrServer> servers = new HashMap<String, SolrServer>();
         for (String coreName : coreNames) {
             String url = config.getString(SOLR_HTTP_URL, SOLR_HTTP_DEFAULT_URL);
@@ -122,7 +120,7 @@ public class SolrServerFactory {
             server = new CloudSolrServer(zookeeperUrl);
             server.setDefaultCollection(config.getString(SOLR_CLOUD_COLLECTION, SOLR_CLOUD_DEFAULT_COLLECTION));
 
-            List<String> coreNames = SolrSearchUtils.parseConfigForCoreNames(config);
+            List<String> coreNames = SolrUtils.parseConfigForCoreNames(config);
 
 
             for (String coreName : coreNames) {
