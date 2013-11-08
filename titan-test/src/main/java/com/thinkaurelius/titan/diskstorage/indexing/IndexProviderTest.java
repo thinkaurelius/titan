@@ -162,6 +162,10 @@ public abstract class IndexProviderTest {
             assertEquals(2, result.size());
             assertEquals(ImmutableSet.of("doc1", "doc2"), ImmutableSet.copyOf(result));
 
+            result = tx.query(new IndexQuery(store, PredicateCondition.of("location", Geo.WITHIN, Geoshape.polygon(48.5,0.0, 47.5,-0.5, 47.5,0.5))));
+            assertEquals(1, result.size());
+            assertEquals(ImmutableSet.of("doc1"), ImmutableSet.copyOf(result));
+
             result = tx.query(new IndexQuery(store, And.of(PredicateCondition.of("text", Text.CONTAINS, "tomorrow"), PredicateCondition.of("location", Geo.WITHIN, Geoshape.circle(48.5, 0.5, 200.00)))));
             assertEquals(ImmutableSet.of("doc2"), ImmutableSet.copyOf(result));
 
