@@ -53,8 +53,6 @@ public class AccumuloStoreManager extends DistributedStoreManager implements Key
     public static final String ACCUMULO_CONFIGURATION_NAMESPACE = "accumulo-config";
     // Configuration keys
     public static final String ACCUMULO_INTSANCE_KEY = "instance";
-    public static final String ACCUMULO_USER_KEY = "username";
-    public static final String ACCUMULO_PASSWORD_KEY = "password";
     public static final String TABLE_NAME_KEY = "tablename";
     public static final String SERVER_SIDE_ITERATORS_KEY = "server-side-iterators";
     // Configuration defaults
@@ -67,8 +65,6 @@ public class AccumuloStoreManager extends DistributedStoreManager implements Key
     private final String tableName;
     private final String instanceName;
     private final String zooKeepers;
-    private final String username;
-    private final String password;
     private final boolean serverSideIterators;
     private final Instance instance;    // thread-safe
     private final Connector connector;  // thread-safe
@@ -87,9 +83,6 @@ public class AccumuloStoreManager extends DistributedStoreManager implements Key
         // Accumulo specific keys
         Configuration accumuloConfig = config.subset(ACCUMULO_CONFIGURATION_NAMESPACE);
         instanceName = accumuloConfig.getString(ACCUMULO_INTSANCE_KEY);
-
-        username = accumuloConfig.getString(ACCUMULO_USER_KEY);
-        password = accumuloConfig.getString(ACCUMULO_PASSWORD_KEY);
 
         serverSideIterators = accumuloConfig.getBoolean(SERVER_SIDE_ITERATORS_KEY, SERVER_SIDE_ITERATORS_DEFAULT);
 
@@ -191,12 +184,10 @@ public class AccumuloStoreManager extends DistributedStoreManager implements Key
         }
     }
 
-    @Override
     public String getConfigurationProperty(String key) throws StorageException {
         return storeConfiguration.getConfigurationProperty(key);
     }
 
-    @Override
     public void setConfigurationProperty(String key, String value) throws StorageException {
         storeConfiguration.setConfigurationProperty(key, value);
     }

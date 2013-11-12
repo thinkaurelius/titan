@@ -43,14 +43,13 @@ public class AccumuloStorageSetup {
         storageConfig.addProperty(GraphDatabaseConfiguration.STORAGE_BACKEND_KEY,
                 "com.thinkaurelius.titan.diskstorage.accumulo.MockAccumuloStoreManager");
         storageConfig.addProperty(GraphDatabaseConfiguration.HOSTNAME_KEY, "localhost");
+        
+        storageConfig.addProperty(GraphDatabaseConfiguration.AUTH_USERNAME_KEY, "root");
+        storageConfig.addProperty(GraphDatabaseConfiguration.AUTH_PASSWORD_KEY, "");
 
         Configuration accumuloConfig = storageConfig.subset(AccumuloStoreManager.ACCUMULO_CONFIGURATION_NAMESPACE);
 
         accumuloConfig.addProperty(AccumuloStoreManager.ACCUMULO_INTSANCE_KEY, "devdb");
-
-        accumuloConfig.addProperty(AccumuloStoreManager.ACCUMULO_USER_KEY, "root");
-        accumuloConfig.addProperty(AccumuloStoreManager.ACCUMULO_PASSWORD_KEY, "");
-        
         accumuloConfig.addProperty(AccumuloStoreManager.SERVER_SIDE_ITERATORS_KEY, false);
 
         return config;
