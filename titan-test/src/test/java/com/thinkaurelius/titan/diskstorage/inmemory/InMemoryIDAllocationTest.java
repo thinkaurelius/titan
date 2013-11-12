@@ -1,15 +1,21 @@
 package com.thinkaurelius.titan.diskstorage.inmemory;
 
+import com.thinkaurelius.titan.diskstorage.IDAllocationTest;
 import com.thinkaurelius.titan.diskstorage.LockKeyColumnValueStoreTest;
 import com.thinkaurelius.titan.diskstorage.StorageException;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.KeyColumnValueStoreManager;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.inmemory.InMemoryStoreManager;
+import org.apache.commons.configuration.Configuration;
 
 /**
  * @author Matthias Broecheler (me@matthiasb.com)
  */
 
-public class inMemoryLockKeyColumnValueStoreTest extends LockKeyColumnValueStoreTest {
+public class InMemoryIDAllocationTest extends IDAllocationTest {
+
+    public InMemoryIDAllocationTest(Configuration baseConfig) {
+        super(baseConfig);
+    }
 
     @Override
     public KeyColumnValueStoreManager openStorageManager(int id) throws StorageException {
@@ -17,11 +23,9 @@ public class inMemoryLockKeyColumnValueStoreTest extends LockKeyColumnValueStore
     }
 
     @Override
-    public void testRemoteLockContention() {
-        //Does not apply to non-persisting in-memory store
+    public void testMultiIDAcquisition() {
+        //DO nothing - TODO: should this work??
     }
 
-    //TODO: should this test work in-memory?
-    @Override
-    public void testMultiIDAcquisition() {}
+
 }

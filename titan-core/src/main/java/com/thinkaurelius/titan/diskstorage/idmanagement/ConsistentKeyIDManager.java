@@ -4,10 +4,12 @@ import com.google.common.base.Preconditions;
 import com.thinkaurelius.titan.diskstorage.*;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.*;
 import com.thinkaurelius.titan.diskstorage.locking.TemporaryLockingException;
-import com.thinkaurelius.titan.diskstorage.util.ByteBufferUtil;
-import com.thinkaurelius.titan.diskstorage.util.TimeUtility;
-import com.thinkaurelius.titan.diskstorage.util.WriteBufferUtil;
-import com.thinkaurelius.titan.diskstorage.util.WriteByteBuffer;
+import com.thinkaurelius.titan.diskstorage.util.*;
+import com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfiguration;
+import static com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfiguration.*;
+
+import com.thinkaurelius.titan.graphdb.database.idassigner.IDPoolExhaustedException;
+import com.thinkaurelius.titan.graphdb.database.idhandling.VariableLong;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.configuration.Configuration;
 import org.slf4j.Logger;
@@ -15,6 +17,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Random;
 
 /**
  * {@link com.thinkaurelius.titan.diskstorage.IDAuthority} implementation assuming that the backing store
@@ -30,7 +33,7 @@ import java.util.List;
  * @author Matthias Broecheler (me@matthiasb.com)
  */
 
-public class ConsistentKeyIDManager extends AbstractIDManager {
+public class ConsistentKeyIDManager extends AbstractIDManager implements BackendOperation.TransactionalProvider {
 
     private static final Logger log = LoggerFactory.getLogger(ConsistentKeyIDManager.class);
 
@@ -43,11 +46,42 @@ public class ConsistentKeyIDManager extends AbstractIDManager {
     private final int rollbackAttempts = 5;
     private final int rollbackWaitTime = 200;
 
+    private final int uniqueIdBitWidth;
+    private final int uniqueIDUpperBound;
+    private final int uniqueId;
+    private final boolean randomizeUniqueId;
+    private final ConsistencyLevel consistencLevel;
+
+    private final Random random = new Random();
+
     public ConsistentKeyIDManager(KeyColumnValueStore idStore, StoreManager manager, Configuration config) throws StorageException {
         super(config);
         Preconditions.checkArgument(manager.getFeatures().supportsConsistentKeyOperations());
         this.manager = manager;
         this.idStore = idStore;
+
+        uniqueIdBitWidth = config.getInt(IDAUTHORITY_UNIQUE_ID_BITS_KEY,IDAUTHORITY_UNIQUE_ID_BITS_DEFAULT);
+        Preconditions.checkArgument(uniqueIdBitWidth>=0 && uniqueIdBitWidth<=16,"Invalid unique id bit width defined [%s]. Must be in [0,16]",uniqueIdBitWidth);
+        uniqueIDUpperBound = 1<<uniqueIdBitWidth;
+        if (config.getBoolean(IDAUTHORITY_RANDOMIZE_UNIQUE_ID_KEY,IDAUTHORITY_RANDOMIZE_UNIQUE_ID_DEFAULT)) {
+            Preconditions.checkArgument(!config.containsKey(IDAUTHORITY_UNIQUE_ID_KEY),"Conflicting configuration: a unique id and randomization have been set");
+            Preconditions.checkArgument(!config.getBoolean(IDAUTHORITY_USE_LOCAL_CONSISTENCY_KEY, IDAUTHORITY_USE_LOCAL_CONSISTENCY_DEFAULT),
+                    "Cannot use local consistency with randomization - this leads to data corruption");
+            randomizeUniqueId = true;
+            uniqueId = -1;
+            consistencLevel = ConsistencyLevel.KEY_CONSISTENT;
+        } else {
+            randomizeUniqueId = false;
+            if (config.getBoolean(IDAUTHORITY_USE_LOCAL_CONSISTENCY_KEY,IDAUTHORITY_USE_LOCAL_CONSISTENCY_DEFAULT)) {
+                Preconditions.checkArgument(config.containsKey(IDAUTHORITY_UNIQUE_ID_KEY),"Need to configure a unique id in order to use local consistency");
+                consistencLevel = ConsistencyLevel.LOCAL_KEY_CONSISTENT;
+            } else {
+                consistencLevel = ConsistencyLevel.KEY_CONSISTENT;
+            }
+            uniqueId = config.getInt(IDAUTHORITY_UNIQUE_ID_KEY,IDAUTHORITY_UNIQUE_ID_DEFAULT);
+            Preconditions.checkArgument(uniqueId>=0,"Invalid unique id: %s",uniqueId);
+            Preconditions.checkArgument(uniqueId<uniqueIDUpperBound,"Unique id is too large for bit width [%s]: %s",uniqueIdBitWidth,uniqueId);
+        }
     }
 
     @Override
@@ -60,10 +94,20 @@ public class ConsistentKeyIDManager extends AbstractIDManager {
         idStore.close();
     }
 
-    private long getCurrentID(StaticBuffer partitionKey, StoreTransaction txh) throws StorageException {
-        List<Entry> blocks = idStore.getSlice(new KeySliceQuery(partitionKey, LOWER_SLICE, UPPER_SLICE).setLimit(5), txh);
-        if (blocks == null) throw new TemporaryStorageException("Could not read from storage");
+    @Override
+    public StoreTransaction openTx() throws StorageException {
+        return manager.beginTransaction(new StoreTxConfig(consistencLevel, metricsPrefix));
+    }
 
+    private long getCurrentID(final StaticBuffer partitionKey) throws StorageException {
+        List<Entry> blocks = BackendOperation.execute(new BackendOperation.Transactional<List<Entry>>() {
+            @Override
+            public List<Entry> call(StoreTransaction txh) throws StorageException {
+                return idStore.getSlice(new KeySliceQuery(partitionKey, LOWER_SLICE, UPPER_SLICE).setLimit(5), txh);
+            }
+        },this);
+
+        if (blocks == null) throw new TemporaryStorageException("Could not read from storage");
         long latest = BASE_ID;
 
         for (Entry e : blocks) {
@@ -75,30 +119,69 @@ public class ConsistentKeyIDManager extends AbstractIDManager {
         return latest;
     }
 
+    private int getUniqueID() {
+        int id;
+        if (randomizeUniqueId) {
+            id = random.nextInt(uniqueIDUpperBound);
+        } else id = uniqueId;
+        assert id>=0 && id<uniqueIDUpperBound;
+        return id;
+    }
+
+    protected StaticBuffer getPartitionKey(int partition, int uniqueId) {
+        if (uniqueIdBitWidth==0)
+            return ByteBufferUtil.getIntBuffer(partition);
+        return ByteBufferUtil.getIntBuffer(new int[]{partition,uniqueId});
+    }
 
     @Override
     public long[] getIDBlock(int partition) throws StorageException {
-        long blockSize = getBlockSize(partition);
+        //partition id can be any integer, even negative, its only a partition identifier
+
+        final long blockSize = getBlockSize(partition);
+        final long idUpperBound = getIdUpperBound(partition);
+
+        final int bitOffset = (VariableLong.unsignedBitLength(idUpperBound)-1)-uniqueIdBitWidth;
+        Preconditions.checkArgument(bitOffset>0,"Unique id bit width [%s] is too wide for partition [%s] id bound [%s]"
+                                                ,uniqueIdBitWidth,partition,idUpperBound);
+        final long idBlockUpperBound = (1l<<bitOffset);
+
+
+        Preconditions.checkArgument(idBlockUpperBound>blockSize,
+                "Block size [%s] is larger than upper bound [%s] for bit width [%s]",blockSize,idBlockUpperBound,uniqueIdBitWidth);
 
         for (int retry = 0; retry < idApplicationRetryCount; retry++) {
-            StoreTransaction txh = null;
+            final int uniqueID = getUniqueID();
             try {
-                txh = manager.beginTransaction(new StoreTxConfig(ConsistencyLevel.KEY_CONSISTENT, metricsPrefix));
                 // Read the latest counter values from the idStore
-                StaticBuffer partitionKey = getPartitionKey(partition);
+                final StaticBuffer partitionKey = getPartitionKey(partition,uniqueID);
                 // calculate the start (inclusive) and end (exclusive) of the allocation we're about to attempt
-                long nextStart = getCurrentID(partitionKey, txh);
-                Preconditions.checkArgument(Long.MAX_VALUE - blockSize > nextStart, "ID overflow detected");
-                long nextEnd = nextStart + blockSize;
+                long nextStart = getCurrentID(partitionKey);
+                if (idBlockUpperBound - blockSize <= nextStart) {
+                    log.info("ID overflow detected. Current id {}, block size {} and upper bound {} for bit width {}",
+                            nextStart,blockSize,idBlockUpperBound,uniqueIdBitWidth);
+                    if (randomizeUniqueId && (retry+1)<idApplicationRetryCount) {
+                        continue;
+                    }
+                    throw new IDPoolExhaustedException("Exhausted id block for partition ["+partition+"] with upper bound: " + idBlockUpperBound);
+                }
 
-                StaticBuffer target = getBlockApplication(nextEnd);
+                assert idBlockUpperBound - blockSize > nextStart;
+                long nextEnd = nextStart + blockSize;
+                final StaticBuffer target = getBlockApplication(nextEnd);
 
 
                 // attempt to write our claim on the next id block
                 boolean success = false;
                 try {
                     long before = System.currentTimeMillis();
-                    idStore.mutate(partitionKey, Arrays.asList(StaticBufferEntry.of(target, ByteBufferUtil.emptyBuffer())), KeyColumnValueStore.NO_DELETIONS, txh);
+                    BackendOperation.execute(new BackendOperation.Transactional<Boolean>() {
+                        @Override
+                        public Boolean call(StoreTransaction txh) throws StorageException {
+                            idStore.mutate(partitionKey, Arrays.asList(StaticBufferEntry.of(target, ByteBufferUtil.emptyBuffer())), KeyColumnValueStore.NO_DELETIONS, txh);
+                            return true;
+                        }
+                    },this);
                     long after = System.currentTimeMillis();
 
                     if (idApplicationWaitMS < after - before) {
@@ -106,7 +189,7 @@ public class ConsistentKeyIDManager extends AbstractIDManager {
                     } else {
 
                         assert 0 != target.length();
-                        StaticBuffer[] slice = getBlockSlice(nextEnd);
+                        final StaticBuffer[] slice = getBlockSlice(nextEnd);
 
                         /* At this point we've written our claim on [nextStart, nextEnd),
                          * but we haven't yet guaranteed the absence of a contending claim on
@@ -116,7 +199,12 @@ public class ConsistentKeyIDManager extends AbstractIDManager {
                         TimeUtility.INSTANCE.sleepUntil(after + idApplicationWaitMS, log);
 
                         // Read all id allocation claims on this partition, for the counter value we're claiming
-                        List<Entry> blocks = idStore.getSlice(new KeySliceQuery(partitionKey, slice[0], slice[1]), txh);
+                        List<Entry> blocks = BackendOperation.execute(new BackendOperation.Transactional<List<Entry>>() {
+                            @Override
+                            public List<Entry> call(StoreTransaction txh) throws StorageException {
+                                return idStore.getSlice(new KeySliceQuery(partitionKey, slice[0], slice[1]), txh);
+                            }
+                        },this);
                         if (blocks == null) throw new TemporaryStorageException("Could not read from storage");
                         if (blocks.isEmpty())
                             throw new PermanentStorageException("It seems there is a race-condition in the block application. " +
@@ -137,6 +225,10 @@ public class ConsistentKeyIDManager extends AbstractIDManager {
                             }
 
                             success = true;
+                            //Pad ids
+                            for (int i=0;i<result.length;i++) {
+                                result[i] = (((long)uniqueID)<<bitOffset) + result[i];
+                            }
                             return result;
                         } else {
                             // Another claimant beat us to this id block -- try again.
@@ -148,7 +240,19 @@ public class ConsistentKeyIDManager extends AbstractIDManager {
                         //Delete claim to not pollute id space
                         for (int attempt = 0; attempt < rollbackAttempts; attempt++) {
                             try {
-                                idStore.mutate(partitionKey, KeyColumnValueStore.NO_ADDITIONS, Arrays.asList(target), txh);
+                                BackendOperation.execute(new BackendOperation.Transactional<Boolean>() {
+                                    @Override
+                                    public Boolean call(StoreTransaction txh) throws StorageException {
+                                        idStore.mutate(partitionKey, KeyColumnValueStore.NO_ADDITIONS, Arrays.asList(target), txh);
+                                        return true;
+                                    }
+                                }, new BackendOperation.TransactionalProvider() { //Use normal consistency level for these non-critical delete operations
+                                    @Override
+                                    public StoreTransaction openTx() throws StorageException {
+                                        return manager.beginTransaction(new StoreTxConfig(ConsistencyLevel.DEFAULT,metricsPrefix));
+                                    }
+                                });
+
                                 break;
                             } catch (StorageException e) {
                                 log.warn("Storage exception while deleting old block application - retrying in {} ms", rollbackWaitTime, e);
@@ -160,12 +264,8 @@ public class ConsistentKeyIDManager extends AbstractIDManager {
                 }
             } catch (TemporaryStorageException e) {
                 log.warn("Temporary storage exception while acquiring id block - retrying in {} ms: {}", idApplicationWaitMS, e);
-                if (txh != null) txh.rollback();
-                txh = null;
                 if (idApplicationWaitMS > 0)
                     TimeUtility.INSTANCE.sleepUntil(System.currentTimeMillis() + idApplicationWaitMS, log);
-            } finally {
-                if (txh != null) txh.commit();
             }
         }
 
