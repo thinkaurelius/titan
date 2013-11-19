@@ -38,7 +38,6 @@
         <module>titan-dist-cassandra</module>
         <module>titan-dist-hbase</module>
         <module>titan-dist-accumulo</module>
-        <module>titan-dist-hazelcast</module>
         <module>titan-dist-server</module>
     </modules>
 
@@ -51,7 +50,6 @@
             <groupId>${project.groupId}</groupId>
             <artifactId>titan-core</artifactId>
             <version>${project.version}</version>
-            <classifier>${titan.classifier}</classifier>
         </dependency>
         <dependency>
             <groupId>junit</groupId>
