@@ -1,6 +1,5 @@
 package com.thinkaurelius.titan.graphdb.types;
 
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableSet;
 import com.thinkaurelius.titan.core.Order;
 
@@ -22,15 +21,11 @@ public enum TypeAttributeType {
     INDEXES(IndexType[].class),
     DATATYPE(Class.class),
     UNIDIRECTIONAL(Boolean.class),
-    SORT_ORDER(Order.class) {
-        @Override
-        public Order defaultValue(TypeAttribute.Map map) {
-            return Order.ASC;
-        }
-    };
+    SORT_ORDER(Order.class),
+    INDEX_PARAMETERS(IndexParameters[].class);
 
     static final Set<TypeAttributeType> PROPERTY_KEY_TYPES = ImmutableSet.of(UNIQUENESS, UNIQUENESS_LOCK, STATIC,
-            HIDDEN, MODIFIABLE, SORT_KEY, SORT_ORDER, SIGNATURE, INDEXES, DATATYPE);
+            HIDDEN, MODIFIABLE, SORT_KEY, SORT_ORDER, SIGNATURE, INDEXES, INDEX_PARAMETERS, DATATYPE);
 
     static final Set<TypeAttributeType> EDGE_LABEL_TYPES = ImmutableSet.of(UNIQUENESS, UNIQUENESS_LOCK, STATIC,
             HIDDEN, MODIFIABLE, SORT_KEY, SORT_ORDER, SIGNATURE, UNIDIRECTIONAL);
@@ -47,7 +42,10 @@ public enum TypeAttributeType {
     }
 
     public Object defaultValue(TypeAttribute.Map map) {
-        return null;
+        switch(this) {
+            case SORT_ORDER: return Order.ASC;
+            default: return null;
+        }
     }
 
 }

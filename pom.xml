@@ -79,10 +79,9 @@
         <titan.testdir>${project.build.directory}/titan-test</titan.testdir>
         <gpg.skip>false</gpg.skip>
         <perf.jvm.opts />
-        <default.test.jvm.opts>-Xms256m -Xmx768m -ea ${test.extra.jvm.opts}</default.test.jvm.opts>
+        <default.test.jvm.opts>-Xms256m -Xmx768m -XX:+HeapDumpOnOutOfMemoryError -ea ${test.extra.jvm.opts}</default.test.jvm.opts>
         <mem.jvm.opts>-Xms256m -Xmx256m -ea -XX:+HeapDumpOnOutOfMemoryError ${test.extra.jvm.opts}</mem.jvm.opts>
         <test.extra.jvm.opts />
-        <titan.classifier />
         <test.skip.default>false</test.skip.default>
     </properties>
     <modules>
@@ -93,7 +92,6 @@
         <module>titan-hbase</module>
         <module>titan-es</module>
         <module>titan-lucene</module>
-        <module>titan-hazelcast</module>
         <module>titan-rexster</module>
         <module>titan-all</module>
         <module>titan-site</module>
@@ -401,6 +399,11 @@
                 <groupId>org.apache.avro</groupId>
                 <artifactId>avro</artifactId>
                 <version>1.4.1</version>
+            </dependency>
+            <dependency>
+                <artifactId>jboss-logging</artifactId>
+                <groupId>org.jboss.logging</groupId>
+                <version>3.1.2.GA</version>
             </dependency>
             <dependency>
                 <groupId>org.slf4j</groupId>
@@ -716,7 +719,6 @@
                 <compiler.source>1.6</compiler.source>
                 <compiler.target>1.6</compiler.target>
                 <compiler.args>-Xbootclasspath:/opt/jdk1.6.0_45/jre/lib/rt.jar</compiler.args>
-                <titan.classifier>jre6</titan.classifier>
             </properties>
 
             <build>
@@ -1046,9 +1048,9 @@
                                     <argLine>${mem.jvm.opts}</argLine>
                                     <reuseForks>false</reuseForks>
                                     <forkCount>1</forkCount>
-                                    <parallel />
-                                    <threadCount>0</threadCount>
-                                    <perCoreThreadCount>1</perCoreThreadCount>
+                                    <parallel>none</parallel>
+                                    <threadCount>1</threadCount>
+                                    <perCoreThreadCount>false</perCoreThreadCount>
                                     <runOrder>alphabetical</runOrder>
                                     <groups>com.thinkaurelius.titan.testcategory.MemoryTests</groups>
                                     <excludedGroups />
@@ -1083,15 +1085,12 @@
                                     <argLine>${default.test.jvm.opts} ${perf.jvm.opts}</argLine>
                                     <reuseForks>false</reuseForks>
                                     <forkCount>1</forkCount>
-                                    <parallel />
+                                    <parallel>none</parallel>
                                     <threadCount>1</threadCount>
-                                    <perCoreThreadCount>1</perCoreThreadCount>
+                                    <perCoreThreadCount>false</perCoreThreadCount>
                                     <runOrder>alphabetical</runOrder>
                                     <groups>com.thinkaurelius.titan.testcategory.PerformanceTests</groups>
                                     <excludedGroups />
-                                    <excludes>
-                                        <exclude>**/External*</exclude>
-                                    </excludes>
                                 </configuration>
                             </execution>
                         </executions>
