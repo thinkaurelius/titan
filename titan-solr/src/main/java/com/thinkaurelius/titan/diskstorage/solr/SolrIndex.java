@@ -7,10 +7,7 @@ import com.thinkaurelius.titan.core.attribute.*;
 import com.thinkaurelius.titan.diskstorage.StorageException;
 import com.thinkaurelius.titan.diskstorage.TemporaryStorageException;
 import com.thinkaurelius.titan.diskstorage.TransactionHandle;
-import com.thinkaurelius.titan.diskstorage.indexing.IndexEntry;
-import com.thinkaurelius.titan.diskstorage.indexing.IndexMutation;
-import com.thinkaurelius.titan.diskstorage.indexing.IndexProvider;
-import com.thinkaurelius.titan.diskstorage.indexing.IndexQuery;
+import com.thinkaurelius.titan.diskstorage.indexing.*;
 import com.thinkaurelius.titan.diskstorage.solr.transform.GeoToWktConverter;
 import com.thinkaurelius.titan.graphdb.query.TitanPredicate;
 import com.thinkaurelius.titan.graphdb.query.condition.And;
@@ -43,8 +40,6 @@ public class SolrIndex implements IndexProvider {
     private static final int DEFAULT_BATCH_SIZE = 1000;
     private boolean isEmbeddedMode;
     private Logger log = LoggerFactory.getLogger(SolrIndex.class);
-    private float kilometersPerDegree = 111.12f;
-    private int totalDocsProcessed;
 
     /**
      * Builds a mapping between the core name and its respective Solr Server connection.
@@ -103,7 +98,7 @@ public class SolrIndex implements IndexProvider {
      *          }
      *      </pre>
      *  </p>
-     * @param config
+     * @param config Titan configuration passed in at start up time
      */
     public SolrIndex(Configuration config) {
 
@@ -165,12 +160,12 @@ public class SolrIndex implements IndexProvider {
      * of Solr and you modify its schema with new fields, don't forget to re-index!
      * @param store Index store
      * @param key New key to register
-     * @param dataType Datatype to register for the key
+     * @param information Datatype to register for the key
      * @param tx enclosing transaction
      * @throws StorageException
      */
     @Override
-    public void register(String store, String key, Class<?> dataType, TransactionHandle tx) throws StorageException {
+    public void register(String store, String key, KeyInformation information, TransactionHandle tx) throws StorageException {
         //Since all data types must be defined in the schema.xml, pre-registering a type does not work
     }
 
@@ -179,13 +174,14 @@ public class SolrIndex implements IndexProvider {
      *
      * @param mutations Updates to the index. First map contains all the mutations for each store. The inner map contains
      *                  all changes for each document in an {@link IndexMutation}.
+     * @param informations
      * @param tx Enclosing transaction
      * @throws StorageException
      * @see IndexMutation
      */
     @Override
-    public void mutate(Map<String, Map<String, IndexMutation>> mutations, TransactionHandle tx) throws StorageException {
-
+    public void mutate(Map<String, Map<String, IndexMutation>> mutations, KeyInformation.IndexRetriever informations, TransactionHandle tx) throws StorageException {
+        //TODO: research usage of the informations parameter
         try {
             List<String> deleteIds = new ArrayList<String>();
             Collection<SolrInputDocument> newDocuments = new ArrayList<SolrInputDocument>();
@@ -511,6 +507,16 @@ public class SolrIndex implements IndexProvider {
         return locations;
     }
 
+    @Override
+    public List<String> query(IndexQuery query, KeyInformation.IndexRetriever informations, TransactionHandle tx) throws StorageException {
+        return null;  //To change body of implemented methods use File | Settings | File Templates.
+    }
+
+    @Override
+    public Iterable<RawQuery.Result<String>> query(RawQuery query, KeyInformation.IndexRetriever informations, TransactionHandle tx) throws StorageException {
+        return null;  //To change body of implemented methods use File | Settings | File Templates.
+    }
+
     /**
      * Solr handles all transactions on the server-side. That means all
      * commit, optimize, or rollback applies since the last commit/optimize/rollback.
@@ -581,6 +587,19 @@ public class SolrIndex implements IndexProvider {
         }
     }
 
+
+
+    @Override
+    public boolean supports(KeyInformation information, TitanPredicate titanPredicate) {
+        //TODO: implement new API for supports method
+        return false;  //To change body of implemented methods use File | Settings | File Templates.
+    }
+
+    @Override
+    public boolean supports(KeyInformation information) {
+        return false;  //To change body of implemented methods use File | Settings | File Templates.
+    }
+
     @Override
     public boolean supports(Class<?> dataType) {
         if (Number.class.isAssignableFrom(dataType) ||
@@ -594,6 +613,5 @@ public class SolrIndex implements IndexProvider {
     private StorageException storageException(Exception solrException) {
         return new TemporaryStorageException("Unable to complete query on Solr.", solrException);
     }
-
 
 }
