@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+    <title>Data Caching</title>
+    <link rel="stylesheet" href="./css/screen.css" type="text/css" charset="utf-8" />
+    <link rel="stylesheet" href="./css/gollum.css" type="text/css" charset="utf-8" />
+    <link rel="stylesheet" href="./css/syntax.css" type="text/css" charset="utf-8" />
+    <script src="./javascript/jquery-1.4.2.min.js" type="text/javascript"></script>
+    <script src="./javascript/jquery.text_selection-1.0.0.min.js" type="text/javascript"></script>
+    <script src="./javascript/jquery.previewable_comment_form.js" type="text/javascript"></script>
+    <script src="./javascript/jquery.tabs.js" type="text/javascript"></script>
+    <script src="./javascript/gollum.js" type="text/javascript"></script>
+  </head>
+
+  <body>
+    <div id="main">
+      <div class="site">
+        <div id="guides">
+          <div class="guide">
+            <div class="main">
+              <div class="actions">
+                <div>
+                  <a href="./Home.html">Aurelius Titan</a>
+                </div>
+              </div>
+              <h1>Data Caching</h1>
+              <div class="content wikistyle gollum textile">
+                <p>Titan employs multiple layers of data caching to facilitate fast graph traversals. The caching layers are listed here in the order they are accessed from within a Titan transaction. The closer the cache is to the transaction, the faster the cache access and the higher the memory footprint and maintenance overhead.</p>
+<h3>Transaction Level Caching</h3>
+<p>Within an open transaction, Titan maintains two caches:</p>
+<ul>
+<li>Vertex Cache: Caches accessed vertices and their adjacency list (or subsets thereof) so that subsequent access is significantly faster within the same transaction. Hence, this cache speeds up iterative traversals.</li>
+	<li>Index Cache: Caches the results for index queries so that subsequent index calls can be served from the cache and do not requires invoking the indexing backend.</li>
+</ul><p>Read more about <a class="internal present" href="./Transaction-Cache.html">transaction level caching</a> and how to tune it.</p>
+<h3>Database Level Caching</h3>
+<p>Caches retrieved adjacency lists (or subsets thereof) across multiple transactions and beyond the duration of a single transaction. The database level cache is shared by all transactions across a database. It is more space efficient than the transaction level caches but also slightly slower to access.</p>
+<p>Read more about <a class="internal present" href="./Database-Cache.html">database level caching</a> and how to configure it.</p>
+<h3>Storage Backend Caching</h3>
+<p>Each storage backend maintains its own data caching layer. These caches benefit from compression, data compactness, coordinated expiration and are often maintained off heap which means that large caches can be used without running in garbage collection issues. While these caches can be significantly larger than the database level cache, they are also slower to access.</p>
+<p>The exact type of caching and its properties depends on the particular <a class="internal present" href="./Storage-Backend-Overview.html">storage backend</a>. Please refer to the respective documentation for more information about the caching infrastructure and how to optimize it.</p>
+              </div>
+            </div>
+          </div>
+          <div class="admin">
+            <div style="float: left;">
+              <small>Last edited by <b>Dan LaRocque</b>, 2013-11-24 04:55:36</small>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
