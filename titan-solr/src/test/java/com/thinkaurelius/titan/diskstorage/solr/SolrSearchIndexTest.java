@@ -31,6 +31,11 @@ public class SolrSearchIndexTest extends IndexProviderTest {
         return new SolrIndex(getLocalSolrTestConfig());
     }
 
+    @Override
+    public boolean supportsLuceneStyleQueries() {
+        return true;
+    }
+
     public static final Configuration getLocalSolrTestConfig() {
         Configuration config = new BaseConfiguration();
 

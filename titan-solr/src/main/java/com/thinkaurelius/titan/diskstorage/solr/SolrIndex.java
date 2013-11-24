@@ -9,6 +9,7 @@ import com.thinkaurelius.titan.diskstorage.TemporaryStorageException;
 import com.thinkaurelius.titan.diskstorage.TransactionHandle;
 import com.thinkaurelius.titan.diskstorage.indexing.*;
 import com.thinkaurelius.titan.diskstorage.solr.transform.GeoToWktConverter;
+import com.thinkaurelius.titan.graphdb.database.serialize.AttributeUtil;
 import com.thinkaurelius.titan.graphdb.query.TitanPredicate;
 import com.thinkaurelius.titan.graphdb.query.condition.And;
 import com.thinkaurelius.titan.graphdb.query.condition.Condition;
@@ -97,6 +98,26 @@ public class SolrIndex implements IndexProvider {
      *              }
      *          }
      *      </pre>
+     *  </p>
+     *  <p>
+     *      Something to keep in mind when using Solr as the {@link com.thinkaurelius.titan.diskstorage.indexing.IndexProvider} for Titan. Solr has many different
+     *      types of indexes for backing your field types defined in the schema. Whenever you use a solr.Textfield type, string values are split up into individual
+     *      tokens. This is usually desirable except in cases where you are searching for a phrase that begins with a specified prefix as in
+     *      the {@link com.thinkaurelius.titan.core.attribute.Text#PREFIX} enumeration that can be used in gremlin searches. In that case, the SolrIndex will use the
+     *      convention of assuming you have defined a field of the same name as the solr.Textfield but will be of type solr.Strfield.
+     *  </p>
+     *  <p>
+     *      For example, let's say you have two documents in Solr with a field called description. One document has a description of "Tomorrow is the world", the other, "World domination".
+     *      If you defined the description field in your schema and set it to type solr.TextField a PREFIX based search like the one below would return both documents:
+     *      <pre>
+     *          {@code
+     *          g.query().has("description",Text.PREFIX,"World")
+     *          }
+     *      </pre>
+     *  </p>
+     *  <p>
+     *      However, if you create a copyField with the name "descriptionString" and set its type to solr.StrField, the PREFIX search defined above would behave as expected
+     *      and only return the document with description "World domination" as its a raw string that is not tokenized in the index.
      *  </p>
      * @param config Titan configuration passed in at start up time
      */
@@ -187,7 +208,6 @@ public class SolrIndex implements IndexProvider {
             Collection<SolrInputDocument> newDocuments = new ArrayList<SolrInputDocument>();
             Collection<SolrInputDocument> updateDocuments = new ArrayList<SolrInputDocument>();
             boolean isLastBatch = false;
-            this.totalDocsProcessed = 0;
 
             for (Map.Entry<String, Map<String, IndexMutation>> stores : mutations.entrySet()) {
                 String coreName = stores.getKey();
@@ -256,7 +276,6 @@ public class SolrIndex implements IndexProvider {
                         }
                     }
                     numProcessed++;
-                    totalDocsProcessed++;
                     if (numProcessed == stores.getValue().size()) {
                         isLastBatch = true;
                     }
@@ -327,7 +346,7 @@ public class SolrIndex implements IndexProvider {
 
 
     @Override
-    public List<String> query(IndexQuery query, TransactionHandle tx) throws StorageException {
+    public List<String> query(IndexQuery query, KeyInformation.IndexRetriever informaations, TransactionHandle tx) throws StorageException {
         List<String> result = new ArrayList<String>();
         String core = query.getStore();
         String keyIdField = keyFieldIds.get(core);
@@ -373,6 +392,48 @@ public class SolrIndex implements IndexProvider {
         }
         return result;
     }
+
+    @Override
+    public Iterable<RawQuery.Result<String>> query(RawQuery query, KeyInformation.IndexRetriever informations, TransactionHandle tx) throws StorageException {
+        List<RawQuery.Result<String>> result = new ArrayList<RawQuery.Result<String>>();
+        String core = query.getStore();
+        String keyIdField = keyFieldIds.get(core);
+        SolrServer solr = this.solrServers.get(core);
+        SolrQuery solrQuery = new SolrQuery();
+        solrQuery.setQuery("*:*");
+        solrQuery.addFilterQuery(query.getQuery());
+        solrQuery.addField("*");
+        solrQuery.addField("score");
+
+        if (query.hasLimit()) {
+            solrQuery.setRows(query.getLimit());
+        } else {
+            solrQuery.setRows(MAX_RESULT_SET_SIZE);
+        }
+
+        try {
+            QueryResponse response = null;
+
+            response = solr.query(solrQuery);
+            log.debug("Executed query [{}] in {} ms", query.getQuery(), response.getElapsedTime());
+            int totalHits = response.getResults().size();
+            if (false == query.hasLimit() && totalHits >= MAX_RESULT_SET_SIZE) {
+                log.warn("Query result set truncated to first [{}] elements for query: {}", MAX_RESULT_SET_SIZE, query);
+            }
+            result = new ArrayList<RawQuery.Result<String>>(totalHits);
+
+            for (SolrDocument hit : response.getResults()) {
+                result.add(new RawQuery.Result<String>(hit.getFieldValue(keyIdField).toString(),
+                        Double.parseDouble(hit.getFieldValue("score").toString())));
+            }
+        } catch (HttpSolrServer.RemoteSolrException e) {
+            log.error("Query did not complete because parameters were not recognized : ", e);
+        } catch (SolrServerException e) {
+            log.error("Unable to query Solr index.", e);
+        }
+        return result;
+    }
+
 
     public SolrQuery buildQuery(SolrQuery q, Condition<?> condition) {
         if (condition instanceof PredicateCondition) {
@@ -426,10 +487,21 @@ public class SolrIndex implements IndexProvider {
                     q.addFilterQuery(key + ":("+((String) value).toLowerCase()+")");
                     return q;
                 } else if (titanPredicate == Text.PREFIX) {
-                    q.addFilterQuery(key + ":("+((String) value).toLowerCase()+"*)");
+                    String prefixConventionName = "String";
+                    q.addFilterQuery(key + prefixConventionName + ":"+((String) value).toLowerCase()+"*");
                     return q;
                 } else if (titanPredicate == Text.REGEX) {
-                    q.addFilterQuery(key + ":/"+((String) value)+"/");
+                    String prefixConventionName = "String";
+                    q.addFilterQuery(key + prefixConventionName + ":/"+((String) value)+"/");
+                    return q;
+                } else if (titanPredicate == Text.CONTAINS_PREFIX) {
+                    q.addFilterQuery(key + ":"+((String) value)+"*");
+                    return q;
+                } else if (titanPredicate == Cmp.EQUAL) {
+                    q.addFilterQuery(key + ":\"" +((String)value)+"\"");
+                    return q;
+                } else if (titanPredicate == Cmp.NOT_EQUAL) {
+                    q.addFilterQuery("-" + key + ":\"" +((String)value)+"\"");
                     return q;
                 } else {
                     throw new IllegalArgumentException("Relation is not supported for string value: " + titanPredicate);
@@ -507,16 +579,6 @@ public class SolrIndex implements IndexProvider {
         return locations;
     }
 
-    @Override
-    public List<String> query(IndexQuery query, KeyInformation.IndexRetriever informations, TransactionHandle tx) throws StorageException {
-        return null;  //To change body of implemented methods use File | Settings | File Templates.
-    }
-
-    @Override
-    public Iterable<RawQuery.Result<String>> query(RawQuery query, KeyInformation.IndexRetriever informations, TransactionHandle tx) throws StorageException {
-        return null;  //To change body of implemented methods use File | Settings | File Templates.
-    }
-
     /**
      * Solr handles all transactions on the server-side. That means all
      * commit, optimize, or rollback applies since the last commit/optimize/rollback.
@@ -568,7 +630,9 @@ public class SolrIndex implements IndexProvider {
     }
 
     @Override
-    public boolean supports(Class<?> dataType, TitanPredicate titanPredicate) {
+    public boolean supports(KeyInformation information, TitanPredicate titanPredicate) {
+        Class<?> dataType = information.getDataType();
+
         if (Number.class.isAssignableFrom(dataType)) {
             if (titanPredicate instanceof Cmp) {
                 return true;
@@ -579,32 +643,20 @@ public class SolrIndex implements IndexProvider {
             return titanPredicate == Geo.WITHIN;
         } else if (dataType == String.class
                 && (titanPredicate == Text.CONTAINS ||
-                    titanPredicate == Text.PREFIX ||
-                    titanPredicate == Text.REGEX)) {
+                titanPredicate == Text.PREFIX ||
+                titanPredicate == Text.REGEX)) {
             return true;
         } else {
             return false;
         }
     }
 
-
-
-    @Override
-    public boolean supports(KeyInformation information, TitanPredicate titanPredicate) {
-        //TODO: implement new API for supports method
-        return false;  //To change body of implemented methods use File | Settings | File Templates.
-    }
-
     @Override
     public boolean supports(KeyInformation information) {
-        return false;  //To change body of implemented methods use File | Settings | File Templates.
-    }
-
-    @Override
-    public boolean supports(Class<?> dataType) {
-        if (Number.class.isAssignableFrom(dataType) ||
-                dataType == Geoshape.class ||
-                dataType == String.class) {
+        Class<?> dataType = information.getDataType();
+        if (Number.class.isAssignableFrom(dataType) || dataType == Geoshape.class) {
+            return true;
+        } else if (AttributeUtil.isString(dataType)) {
             return true;
         }
         return false;
