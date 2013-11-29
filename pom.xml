@@ -1134,33 +1134,4 @@
             </modules>
         </profile>
     </profiles>
-
-    <repositories>
-        <repository>
-            <id>berico-nexus</id>
-            <name>Berico Technologies Maven Repo</name>
-            <url>http://nexus.bericotechnologies.com/content/groups/public/</url>
-            <releases>
-                <enabled>true</enabled>
-            </releases>
-            <snapshots>
-                <enabled>true</enabled>
-            </snapshots>
-        </repository>
-    </repositories>
-
-    <distributionManagement>
-        <repository>
-            <id>berico-nexus</id>
-            <name>Berico Technologies Release Repo</name>
-            <url>http://nexus.bericotechnologies.com/content/repositories/releases</url>
-        </repository>
-
-        <!-- use the following if you're using a snapshot version. -->
-        <snapshotRepository>
-            <id>berico-nexus</id>
-            <name>Berico Technologies Snapshot Repo</name>
-            <url>http://nexus.bericotechnologies.com/content/repositories/snapshots</url>
-        </snapshotRepository>
-    </distributionManagement>
 </project>
