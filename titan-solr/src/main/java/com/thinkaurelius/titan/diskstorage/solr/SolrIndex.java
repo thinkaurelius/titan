@@ -2,6 +2,7 @@ package com.thinkaurelius.titan.diskstorage.solr;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Sets;
+import com.spatial4j.core.exception.InvalidShapeException;
 import com.thinkaurelius.titan.core.Order;
 import com.thinkaurelius.titan.core.attribute.*;
 import com.thinkaurelius.titan.diskstorage.StorageException;
@@ -315,18 +316,29 @@ public class SolrIndex implements IndexProvider {
             return;
         }
 
-        if (numUpdates >= BATCH_SIZE || isLastBatch) {
-            if (isEmbeddedMode) {
-                int commitWithinMs = 10000;
-                for(SolrInputDocument doc : documents) {
-                    server.add(doc, commitWithinMs);
-                    server.commit();
-                }
-            } else {
+        try {
+            if (numUpdates >= BATCH_SIZE || isLastBatch) {
+                if (isEmbeddedMode) {
+                    int commitWithinMs = 10000;
+                    for(SolrInputDocument doc : documents) {
+                        server.add(doc, commitWithinMs);
+                        server.commit();
+                    }
+                } else {
 
-                server.add(documents);
-                server.commit();
-                documents.clear();
+                    server.add(documents);
+                    server.commit();
+                    documents.clear();
+                }
+            }
+        } catch (HttpSolrServer.RemoteSolrException rse) {
+            log.error("Unable to save documents to Solr as one of the shape objects stored were not compatible with Solr.", rse);
+            log.error("Details in failed document batch: ");
+            for (SolrInputDocument d : documents) {
+                Collection<String> fieldNames = d.getFieldNames();
+                for (String name : fieldNames) {
+                    log.error(name + ":" + d.getFieldValue(name).toString());
+                }
             }
         }
     }
@@ -488,7 +500,7 @@ public class SolrIndex implements IndexProvider {
                     return q;
                 } else if (titanPredicate == Text.PREFIX) {
                     String prefixConventionName = "String";
-                    q.addFilterQuery(key + prefixConventionName + ":"+((String) value).toLowerCase()+"*");
+                    q.addFilterQuery(key + prefixConventionName + ":"+((String) value)+"*");
                     return q;
                 } else if (titanPredicate == Text.REGEX) {
                     String prefixConventionName = "String";
@@ -502,6 +514,9 @@ public class SolrIndex implements IndexProvider {
                     return q;
                 } else if (titanPredicate == Cmp.NOT_EQUAL) {
                     q.addFilterQuery("-" + key + ":\"" +((String)value)+"\"");
+                    return q;
+                } else if (titanPredicate == Text.CONTAINS_REGEX) {
+                    q.addFilterQuery(key + ":/"+((String) value)+"/");
                     return q;
                 } else {
                     throw new IllegalArgumentException("Relation is not supported for string value: " + titanPredicate);
@@ -644,7 +659,11 @@ public class SolrIndex implements IndexProvider {
         } else if (dataType == String.class
                 && (titanPredicate == Text.CONTAINS ||
                 titanPredicate == Text.PREFIX ||
-                titanPredicate == Text.REGEX)) {
+                titanPredicate == Text.REGEX ||
+                titanPredicate == Text.CONTAINS_PREFIX ||
+                titanPredicate == Text.CONTAINS_REGEX ||
+                titanPredicate == Cmp.EQUAL ||
+                titanPredicate == Cmp.NOT_EQUAL)) {
             return true;
         } else {
             return false;
