@@ -10,6 +10,7 @@ import com.thinkaurelius.titan.diskstorage.StaticBuffer;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.Entry;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.KeySliceQuery;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.SliceQuery;
+import static com.thinkaurelius.titan.util.datastructures.ByteSize.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,15 +29,9 @@ public class ExpirationStoreCache implements StoreCache {
     private static final Logger log =
             LoggerFactory.getLogger(ExpirationStoreCache.class);
 
-    private static final int CONCURRENCY_LEVEL = 3;
-
     //Weight estimation
-    private static final int STATICBUFFER_AVG_LENGTH = 14;
-    private static final int STATICBUFFER_SIZE = 8 + 2*4 + 8 + 12 + 8 + STATICBUFFER_AVG_LENGTH; // object_size + 2 ints + pointer + array_object_size + overhead + data
-    private static final int KEY_QUERY_SIZE = 8 + 4 + 1 + 3 * (8+STATICBUFFER_SIZE); // object_size + int + boolean + 3 static buffers
-    private static final int ENTRY_SIZE = 8 + 2*(8+STATICBUFFER_SIZE) + 8 + (5*8 + 20 + 20); // object size + 2 static buffers + RelationCache ( pointers + other + map)
-    private static final int LIST_SIZE = 8 + 4 + 8 + 12; // object + size + pointer + array
-    private static final int CACHE_ENTRY_OVERHEAD = 50; //guess
+    private static final int STATICARRAYBUFFER_SIZE = STATICARRAYBUFFER_RAW_SIZE + 10; // 10 = last number is average length
+    private static final int KEY_QUERY_SIZE = OBJECT_HEADER + 4 + 1 + 3 * (OBJECT_REFERENCE + STATICARRAYBUFFER_SIZE); // object_size + int + boolean + 3 static buffers
 
     private static final int INVALIDATE_KEY_FRACTION_PENALTY = 1000;
     private static final int PENALTY_THRESHOLD = 5;
@@ -57,22 +52,25 @@ public class ExpirationStoreCache implements StoreCache {
         Preconditions.checkArgument(cacheTimeMS>0,"Cache expiration must be positive: %s");
         Preconditions.checkArgument(System.currentTimeMillis()+1000l*3600*24*365*100+cacheTimeMS>0,"Cache expiration time too large, overflow may occur: %s",cacheTimeMS);
         this.cacheTimeMS = cacheTimeMS;
+        int concurrencyLevel = Runtime.getRuntime().availableProcessors();
         Preconditions.checkArgument(expirationGracePeriodMS>=0,"Invalid expiration grace peiod: %s",expirationGracePeriodMS);
         this.expirationGracePeriodMS = expirationGracePeriodMS;
         CacheBuilder<KeySliceQuery,List<Entry>> cachebuilder = CacheBuilder.newBuilder()
                 .maximumWeight(maximumByteSize)
-                .concurrencyLevel(CONCURRENCY_LEVEL)
-                .initialCapacity(200)
+                .concurrencyLevel(concurrencyLevel)
+                .initialCapacity(1000)
                 .expireAfterWrite(cacheTimeMS, TimeUnit.MILLISECONDS)
                 .weigher(new Weigher<KeySliceQuery, List<Entry>>() {
                     @Override
                     public int weigh(KeySliceQuery keySliceQuery, List<Entry> entries) {
-                        return KEY_QUERY_SIZE + LIST_SIZE + entries.size() * ENTRY_SIZE + CACHE_ENTRY_OVERHEAD;
+                        int size = GUAVA_CACHE_ENTRY_SIZE + KEY_QUERY_SIZE + ARRAYLIST_SIZE;
+                        for (Entry e : entries) size+=e.getByteSize();
+                        return size;
                     }
                 });
 
         cache = cachebuilder.build();
-        expiredKeys = new ConcurrentHashMap<StaticBuffer, Long>(50,0.75f,CONCURRENCY_LEVEL);
+        expiredKeys = new ConcurrentHashMap<StaticBuffer, Long>(50,0.75f,concurrencyLevel);
         penaltyCountdown = new CountDownLatch(PENALTY_THRESHOLD);
 
         cleanupThread = new CleanupThread();

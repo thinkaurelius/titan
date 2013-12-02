@@ -59,6 +59,8 @@ public class SimpleVertexQueryProcessor implements Iterable<Entry> {
 
     public SimpleVertexQueryProcessor(InternalVertex vertex, TitanKey key) {
         this(vertex);
+        assert key==null || !((InternalType)key).isHidden();
+        assert key==null || !((InternalType)key).isStatic(Direction.OUT);
         RelationQueryCache cache = tx.getGraph().getRelationCache();
         filterHiddenProperties = key==null;
         if (key==null || tx.getConfiguration().hasPropertyPrefetching()) {
@@ -88,9 +90,7 @@ public class SimpleVertexQueryProcessor implements Iterable<Entry> {
         }
 
         this.limit = limit;
-        int baseLimit = tx.getGraph().getConfiguration().getResultSetLoadSize();
-        if (baseLimit>0 || limit!=Query.NO_LIMIT) {
-            if (baseLimit>0) limit = Math.min(limit,baseLimit);
+        if (limit!=Query.NO_LIMIT) {
             sliceQuery = sliceQuery.updateLimit(limit);
         }
     }

@@ -76,19 +76,6 @@ public class GraphDatabaseConfiguration {
     }};
 
     /**
-     * If this value is set to a positive integer, Titan will load the result sets of queries as multiples of this value.
-     * Set to 0 to disable.
-     * </p>
-     * Setting this value enables streaming over partial results sets (iterator-style) for very large results sets without
-     * having to load the entire result set into memory first. The downside of setting this value is that multiple calls
-     * to the backend are required to retrieve the entire results set if the result set size is larger than this value.
-     * </p>
-     * Note, that one should always set the limit on a query if a large result set is expected.
-     */
-    public static final String RESULT_LOAD_SIZE_KEY = "load-size";
-    public static final int RESULT_LOAD_SIZE_DEFAULT = 0;
-
-    /**
      * If this option is enabled, a transaction will retrieval all of a vertex's properties when asking for any property.
      * This will significantly speed up subsequent property lookups on the same vertex, hence this option is enabled by default.
      * Disable this option when the graph contains vertices with very many properties such that retrieving all of them substantially
@@ -712,7 +699,6 @@ public class GraphDatabaseConfiguration {
     private Boolean propertyPrefetching;
     private boolean allowVertexIdSetting;
     private String metricsPrefix;
-    private int resultSetLoadSize;
 
     private StoreFeatures storeFeatures = null;
 
@@ -862,7 +848,6 @@ public class GraphDatabaseConfiguration {
             propertyPrefetching = configuration.getBoolean(PROPERTY_PREFETCHING_KEY);
         else propertyPrefetching = null;
         allowVertexIdSetting = configuration.getBoolean(ALLOW_SETTING_VERTEX_ID_KEY, ALLOW_SETTING_VERTEX_ID_DEFAULT);
-        resultSetLoadSize = configuration.getInteger(RESULT_LOAD_SIZE_KEY,RESULT_LOAD_SIZE_DEFAULT);
 
         configureMetrics();
     }
@@ -1023,10 +1008,6 @@ public class GraphDatabaseConfiguration {
         return metricsPrefix;
     }
 
-    public int getResultSetLoadSize() {
-        return resultSetLoadSize;
-    }
-
     public DefaultTypeMaker getDefaultTypeMaker() {
         return defaultTypeMaker;
     }
@@ -1037,8 +1018,7 @@ public class GraphDatabaseConfiguration {
 
     public boolean hasPropertyPrefetching() {
         if (propertyPrefetching == null) {
-            Preconditions.checkArgument(storeFeatures != null, "Cannot open transaction before the storage backend has been initialized");
-            return storeFeatures.isDistributed();
+            return getStoreFeatures().isDistributed();
         } else {
             return propertyPrefetching;
         }
@@ -1131,8 +1111,12 @@ public class GraphDatabaseConfiguration {
         return backend;
     }
 
+    public StoreFeatures getStoreFeatures() {
+        Preconditions.checkArgument(storeFeatures != null, "Cannot retrieve store features before the storage backend has been initialized");
+        return storeFeatures;
+    }
+
     public StoreCache getEdgeStoreCache() {
-        Preconditions.checkArgument(storeFeatures != null, "Cannot open edge store cache before the storage backend has been initialized");
         Configuration cacheconf = configuration.subset(CACHE_NAMESPACE);
         if (this.batchLoading || !cacheconf.getBoolean(DB_CACHE_KEY,DB_CACHE_DEFAULT))
             return new PassThroughStoreCache();
@@ -1147,9 +1131,9 @@ public class GraphDatabaseConfiguration {
         if (cachesize<1.0) {
             //Its a percentage
             Runtime runtime = Runtime.getRuntime();
-            cacheSizeBytes = (long)(runtime.maxMemory()-(runtime.totalMemory()-runtime.freeMemory()) * cachesize);
+            cacheSizeBytes = (long)((runtime.maxMemory()-(runtime.totalMemory()-runtime.freeMemory())) * cachesize);
         } else {
-            Preconditions.checkArgument(cachesize>100,"Cache size is too small: %s",cachesize);
+            Preconditions.checkArgument(cachesize>1000,"Cache size is too small: %s",cachesize);
             cacheSizeBytes = (long)cachesize;
         }
         log.info("Configuring edge store cache size: {}",cacheSizeBytes);

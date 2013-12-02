@@ -250,8 +250,8 @@ public abstract class TitanIndexTest extends TitanGraphTestCommon {
     }
 
     private void setupChainGraph(int numV, String[] strs) {
-        TitanKey name = graph.makeKey("name").dataType(String.class).indexed(INDEX, Element.class, new Parameter[]{Parameter.of(Mapping.MAPPING_PREFIX,Mapping.STRING)}).single().make();
-        TitanKey text = graph.makeKey("text").dataType(String.class).indexed(INDEX, Element.class, new Parameter[]{Parameter.of(Mapping.MAPPING_PREFIX,Mapping.TEXT)}).single().make();
+        TitanKey name = graph.makeKey("name").dataType(String.class).indexed(INDEX, Element.class, Parameter.of(Mapping.MAPPING_PREFIX,Mapping.STRING)).single().make();
+        TitanKey text = graph.makeKey("text").dataType(String.class).indexed(INDEX, Element.class, Parameter.of(Mapping.MAPPING_PREFIX,Mapping.TEXT)).single().make();
         graph.makeLabel("knows").sortKey(name).sortOrder(Order.DESC).make();
         TitanVertex previous = null;
         for (int i=0;i<numV;i++) {
@@ -270,26 +270,64 @@ public abstract class TitanIndexTest extends TitanGraphTestCommon {
         int numV = 1000;
         String[] strs = {"Uncle Berry has a farm","and on his farm he has five ducks","ducks are beautiful animals","the sky is very blue today"};
         setupChainGraph(numV,strs);
-        clopen();
 
         assertEquals(numV/strs.length*2,Iterables.size(graph.query().has("text",Text.CONTAINS,"ducks").vertices()));
         assertEquals(numV/strs.length*2,Iterables.size(graph.query().has("text",Text.CONTAINS,"farm").vertices()));
         assertEquals(numV/strs.length,Iterables.size(graph.query().has("text",Text.CONTAINS,"beautiful").vertices()));
+        assertEquals(numV/strs.length,Iterables.size(graph.query().has("text",Text.CONTAINS_PREFIX,"beauti").vertices()));
+        assertEquals(numV/strs.length,Iterables.size(graph.query().has("text",Text.CONTAINS_REGEX,"be[r]+y").vertices()));
         assertEquals(0,Iterables.size(graph.query().has("text",Text.CONTAINS,"lolipop").vertices()));
         assertEquals(numV/strs.length,Iterables.size(graph.query().has("name",Cmp.EQUAL,strs[1]).vertices()));
         assertEquals(numV/strs.length,Iterables.size(graph.query().has("name",Cmp.EQUAL,strs[1]).vertices()));
         assertEquals(numV/strs.length*(strs.length-1),Iterables.size(graph.query().has("name",Cmp.NOT_EQUAL,strs[2]).vertices()));
         assertEquals(0,Iterables.size(graph.query().has("name",Cmp.EQUAL,"farm").vertices()));
+        assertEquals(numV/strs.length,Iterables.size(graph.query().has("name",Text.PREFIX,"ducks").vertices()));
+        assertEquals(numV/strs.length*2,Iterables.size(graph.query().has("name",Text.REGEX,"(.*)ducks(.*)").vertices()));
 
-
+        //Same queries for edges
         assertEquals(numV/strs.length*2,Iterables.size(graph.query().has("text",Text.CONTAINS,"ducks").edges()));
         assertEquals(numV/strs.length*2,Iterables.size(graph.query().has("text",Text.CONTAINS,"farm").edges()));
         assertEquals(numV/strs.length,Iterables.size(graph.query().has("text",Text.CONTAINS,"beautiful").edges()));
+        assertEquals(numV/strs.length,Iterables.size(graph.query().has("text",Text.CONTAINS_PREFIX,"beauti").edges()));
+        assertEquals(numV/strs.length,Iterables.size(graph.query().has("text",Text.CONTAINS_REGEX,"be[r]+y").edges()));
         assertEquals(0,Iterables.size(graph.query().has("text",Text.CONTAINS,"lolipop").edges()));
         assertEquals(numV/strs.length,Iterables.size(graph.query().has("name",Cmp.EQUAL,strs[1]).edges()));
         assertEquals(numV/strs.length,Iterables.size(graph.query().has("name",Cmp.EQUAL,strs[1]).edges()));
         assertEquals(numV/strs.length*(strs.length-1),Iterables.size(graph.query().has("name",Cmp.NOT_EQUAL,strs[2]).edges()));
         assertEquals(0,Iterables.size(graph.query().has("name",Cmp.EQUAL,"farm").edges()));
+        assertEquals(numV/strs.length,Iterables.size(graph.query().has("name",Text.PREFIX,"ducks").edges()));
+        assertEquals(numV/strs.length*2,Iterables.size(graph.query().has("name",Text.REGEX,"(.*)ducks(.*)").edges()));
+
+
+        clopen();
+        //Same queries as above but against backend
+
+        assertEquals(numV/strs.length*2,Iterables.size(graph.query().has("text",Text.CONTAINS,"ducks").vertices()));
+        assertEquals(numV/strs.length*2,Iterables.size(graph.query().has("text",Text.CONTAINS,"farm").vertices()));
+        assertEquals(numV/strs.length,Iterables.size(graph.query().has("text",Text.CONTAINS,"beautiful").vertices()));
+        assertEquals(numV/strs.length,Iterables.size(graph.query().has("text",Text.CONTAINS_PREFIX,"beauti").vertices()));
+        assertEquals(numV/strs.length,Iterables.size(graph.query().has("text",Text.CONTAINS_REGEX,"be[r]+y").vertices()));
+        assertEquals(0,Iterables.size(graph.query().has("text",Text.CONTAINS,"lolipop").vertices()));
+        assertEquals(numV/strs.length,Iterables.size(graph.query().has("name",Cmp.EQUAL,strs[1]).vertices()));
+        assertEquals(numV/strs.length,Iterables.size(graph.query().has("name",Cmp.EQUAL,strs[1]).vertices()));
+        assertEquals(numV/strs.length*(strs.length-1),Iterables.size(graph.query().has("name",Cmp.NOT_EQUAL,strs[2]).vertices()));
+        assertEquals(0,Iterables.size(graph.query().has("name",Cmp.EQUAL,"farm").vertices()));
+        assertEquals(numV/strs.length,Iterables.size(graph.query().has("name",Text.PREFIX,"ducks").vertices()));
+        assertEquals(numV/strs.length*2,Iterables.size(graph.query().has("name",Text.REGEX,"(.*)ducks(.*)").vertices()));
+
+        //Same queries for edges
+        assertEquals(numV/strs.length*2,Iterables.size(graph.query().has("text",Text.CONTAINS,"ducks").edges()));
+        assertEquals(numV/strs.length*2,Iterables.size(graph.query().has("text",Text.CONTAINS,"farm").edges()));
+        assertEquals(numV/strs.length,Iterables.size(graph.query().has("text",Text.CONTAINS,"beautiful").edges()));
+        assertEquals(numV/strs.length,Iterables.size(graph.query().has("text",Text.CONTAINS_PREFIX,"beauti").edges()));
+        assertEquals(numV/strs.length,Iterables.size(graph.query().has("text",Text.CONTAINS_REGEX,"be[r]+y").edges()));
+        assertEquals(0,Iterables.size(graph.query().has("text",Text.CONTAINS,"lolipop").edges()));
+        assertEquals(numV/strs.length,Iterables.size(graph.query().has("name",Cmp.EQUAL,strs[1]).edges()));
+        assertEquals(numV/strs.length,Iterables.size(graph.query().has("name",Cmp.EQUAL,strs[1]).edges()));
+        assertEquals(numV/strs.length*(strs.length-1),Iterables.size(graph.query().has("name",Cmp.NOT_EQUAL,strs[2]).edges()));
+        assertEquals(0,Iterables.size(graph.query().has("name",Cmp.EQUAL,"farm").edges()));
+        assertEquals(numV/strs.length,Iterables.size(graph.query().has("name",Text.PREFIX,"ducks").edges()));
+        assertEquals(numV/strs.length*2,Iterables.size(graph.query().has("name",Text.REGEX,"(.*)ducks(.*)").edges()));
 
     }
 
@@ -308,6 +346,7 @@ public abstract class TitanIndexTest extends TitanGraphTestCommon {
         assertEquals(numV/strs.length*2,Iterables.size(graph.indexQuery(INDEX,"v.text:(beautiful are ducks)").vertices()));
         assertEquals(10,Iterables.size(graph.indexQuery(INDEX,"v.\"text\":(beautiful are ducks)").limit(10).vertices()));
 
+        //Same queries for edges
         assertEquals(numV/strs.length*2,Iterables.size(graph.indexQuery(INDEX,"e.text:ducks").edges()));
         assertEquals(numV/strs.length*2,Iterables.size(graph.indexQuery(INDEX,"e.text:(farm uncle berry)").edges()));
         assertEquals(numV/strs.length,Iterables.size(graph.indexQuery(INDEX,"e.text:(farm uncle berry) AND e.name:\"Uncle Berry has a farm\"").edges()));
