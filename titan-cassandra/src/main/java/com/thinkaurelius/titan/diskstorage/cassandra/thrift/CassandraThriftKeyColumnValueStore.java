@@ -290,9 +290,13 @@ public class CassandraThriftKeyColumnValueStore implements KeyColumnValueStore {
                 if (!NetworkUtil.hasLocalAddress(range.endpoints))
                     continue;
 
-                keyRanges.add(CassandraHelper.transformRange(tokenFactory.fromString(range.start_token), tokenFactory.fromString(range.end_token)));
+                KeyRange lr = CassandraHelper.transformRange(tokenFactory.fromString(range.start_token), tokenFactory.fromString(range.end_token));
+                
+                logger.debug("Built local key range {} from start_token={} and end_token={}", new Object[] { lr, range.start_token, range.end_token });
+                
+                keyRanges.add(lr);
             }
-
+            
             return keyRanges;
         } catch (Exception e) {
             throw convertException(e);
