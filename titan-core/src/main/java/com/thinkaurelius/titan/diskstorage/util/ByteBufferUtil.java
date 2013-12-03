@@ -3,6 +3,7 @@ package com.thinkaurelius.titan.diskstorage.util;
 import com.google.common.base.Preconditions;
 import com.thinkaurelius.titan.diskstorage.StaticBuffer;
 
+import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 
@@ -94,6 +95,75 @@ public class ByteBufferUtil {
             next.rewind();
         }
         return next;
+    }
+    
+    public static final StaticBuffer decrementAllowUnderflow(StaticBuffer buffer) {
+        byte raw[] = new byte[buffer.length()];
+        for (int i = 0; i < buffer.length(); i++)
+            raw[i] = buffer.getByte(i);
+        BigInteger modulus = BigInteger.valueOf(2L).pow(buffer.length() * 8);
+        BigInteger decremented = new BigInteger(1, raw).subtract(BigInteger.ONE).mod(modulus);
+        
+        Preconditions.checkArgument(0 >= BigInteger.ZERO.compareTo(decremented));
+        /*
+         * The toByteArray() method returns two's complement, but we want
+         * unsigned representation.
+         * 
+         * We know the value is nonnegative. The sign bit must therefore be
+         * zero. The remaining (magnitude) bits of the two's complement
+         * representation must therefore also correspond to an identical value
+         * under unsigned interpretation. So we just ignore the sign bit and
+         * take the magnitude bits as-is.
+         * 
+         * Note that the toByteArray() method also returns the minimum number of
+         * bytes required to represent the value, whereas we want to return a
+         * StaticBuffer that is the same length as the argument to this method.
+         * So we will pad the start of the array with zeros if necessary.
+         */
+        byte twosComplement[] = decremented.toByteArray();
+        
+        byte result[] = new byte[buffer.length()];
+        
+        int ti = 0;
+        
+        if (twosComplement.length > buffer.length()) {
+            Preconditions.checkArgument(twosComplement.length == buffer.length() + 1);
+            ti++;
+        }
+        
+        int padLength = Math.max(0, buffer.length() - twosComplement.length);
+        
+        for (int i = 0; i < padLength; i++) {
+            result[i] = (byte)0; 
+        }
+        
+        for (int i = padLength; i < result.length; i++) {
+            result[i] = twosComplement[ti++];
+        }
+        
+        return new StaticArrayBuffer(result);
+    }
+    
+    public static final StaticBuffer zeroExtendToLength(StaticBuffer sb, int length) {
+        
+        Preconditions.checkNotNull(sb);
+        
+        if (length <= sb.length())
+            return sb;
+        
+        final byte raw[] = new byte[length];
+        
+        int i = 0;
+
+        while (i < sb.length()) {
+            raw[i++] = sb.getByte(i);
+        }
+        
+        while (i < raw.length) {
+            raw[i++] = (byte)0;
+        }
+        
+        return new StaticArrayBuffer(raw);
     }
 
     public static final StaticBuffer nextBiggerBuffer(StaticBuffer buffer) {

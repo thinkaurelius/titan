@@ -65,6 +65,9 @@ public class HBaseStoreManager extends DistributedStoreManager implements KeyCol
     public static final String HBASE_CONFIGURATION_NAMESPACE = "hbase-config";
 
     public static final ImmutableMap<String, String> HBASE_CONFIGURATION;
+    
+    private static final StaticBuffer MINIMUM_KEY_BUF = ByteBufferUtil.zeroBuffer(4);
+    private static final StaticBuffer MAXIMUM_KEY_BUF = ByteBufferUtil.oneBuffer(4);
 
     static {
         HBASE_CONFIGURATION = new ImmutableMap.Builder<String, String>()
@@ -252,11 +255,40 @@ public class HBaseStoreManager extends DistributedStoreManager implements KeyCol
                     byte startKey[] = regionInfo.getStartKey();
                     byte endKey[]   = regionInfo.getEndKey();
                     
-                    StaticBuffer startBuf =
-                            new StaticArrayBuffer(startKey);
-                    StaticBuffer endBuf = 
-                            new StaticByteBuffer(ByteBufferUtil.nextBiggerBufferAllowOverflow(ByteBuffer.wrap(endKey)));
+                    if (null == startKey)
+                        startKey = new byte[0];
                     
+                    if (null == endKey)
+                        endKey = new byte[0];
+                    
+                    StaticBuffer startBuf;
+                    if (0 == startKey.length) {
+                        startBuf = MINIMUM_KEY_BUF;
+                        logger.debug("Overrode empty start key with {}", MINIMUM_KEY_BUF);
+                    } else {
+                        startBuf = ByteBufferUtil.zeroExtendToLength(new StaticArrayBuffer(startKey), 4);
+                        logger.debug("Copied start key {}", startBuf);
+                    }
+                    
+                    StaticBuffer endBuf;
+                    if (0 == endKey.length) {
+                        endBuf = MAXIMUM_KEY_BUF;
+                        logger.debug("Overrode empty end key with {}", MAXIMUM_KEY_BUF);
+                    } else {
+                        // end key provided by HBase is inclusive; convert to exclusive
+                        StaticBuffer incr = new StaticByteBuffer(ByteBufferUtil.nextBiggerBufferAllowOverflow(ByteBuffer.wrap(endKey)));
+                        endBuf = ByteBufferUtil.zeroExtendToLength(incr, 4);
+                        logger.debug("Incremented end key to {}", endBuf);
+                    }
+                    
+                    // it's theoretically possible that incrementing the endkey made it equal startkey
+                    // this can only happen in single-node configurations likely to be test environments or on
+                    // multi-node configurations that are totally broken, but it can still happen
+                    if (endBuf.equals(startBuf)) {
+                        endBuf = ByteBufferUtil.zeroExtendToLength(new StaticArrayBuffer(endKey), 4);
+                        logger.warn("Using decremented KeyRange end={} to avoid equality with start={}", endBuf, startBuf);
+                    }
+                                        
                     KeyRange kr = new KeyRange(startBuf, endBuf);
                     
                     result.add(kr);
@@ -284,6 +316,7 @@ public class HBaseStoreManager extends DistributedStoreManager implements KeyCol
         
         return result;
     }
+
 
     private String shortenCfName(String longName) throws PermanentStorageException {
         final String s;

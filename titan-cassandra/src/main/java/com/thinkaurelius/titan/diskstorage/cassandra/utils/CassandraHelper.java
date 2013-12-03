@@ -11,7 +11,9 @@ import com.google.common.base.Preconditions;
 import com.thinkaurelius.titan.diskstorage.StaticBuffer;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.Entry;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.KeyRange;
+import com.thinkaurelius.titan.diskstorage.util.ByteBufferUtil;
 import com.thinkaurelius.titan.diskstorage.util.StaticArrayBuffer;
+
 import org.apache.cassandra.dht.BytesToken;
 import org.apache.cassandra.dht.Range;
 import org.apache.cassandra.dht.Token;
@@ -46,6 +48,7 @@ public class CassandraHelper {
     }
 
     public static KeyRange transformRange(Token<?> leftKeyExclusive, Token<?> rightKeyInclusive) {
+        
         if (!(leftKeyExclusive instanceof BytesToken))
             throw new UnsupportedOperationException();
 
@@ -55,31 +58,26 @@ public class CassandraHelper {
         // l is exclusive, r is inclusive
         BytesToken l = (BytesToken) leftKeyExclusive;
         BytesToken r = (BytesToken) rightKeyInclusive;
+        
 
-        Preconditions.checkArgument(l.token.length == r.token.length, "Tokens have unequal length");
-        int tokenLength = l.token.length;
-
-        byte[][] tokens = new byte[][]{l.token, r.token};
-        byte[][] plusOne = new byte[2][tokenLength];
-
-        for (int j = 0; j < 2; j++) {
-            boolean carry = true;
-            for (int i = tokenLength - 1; i >= 0; i--) {
-                byte b = tokens[j][i];
-                if (carry) {
-                    b++;
-                    carry = false;
-                }
-                if (b == 0) carry = true;
-                plusOne[j][i] = b;
-            }
+        final StaticBuffer lb, rb;
+        if (l.equals(r)) {
+            /* Special case: if start and end tokens are equal, then only decrement the end.
+             * This wastes a key, but it is necessary because Titan core does not allow
+             * the start and end keys in a KeyRange to be the same.
+             */
+            lb = new StaticArrayBuffer(l.token);
+            rb = ByteBufferUtil.decrementAllowUnderflow(new StaticArrayBuffer(r.token));
+        } else {
+            lb = ByteBufferUtil.decrementAllowUnderflow(new StaticArrayBuffer(l.token));
+            rb = ByteBufferUtil.decrementAllowUnderflow(new StaticArrayBuffer(r.token));
         }
-
-        StaticBuffer lb = new StaticArrayBuffer(plusOne[0]);
-        StaticBuffer rb = new StaticArrayBuffer(plusOne[1]);
-        Preconditions.checkArgument(lb.length() == tokenLength, lb.length());
-        Preconditions.checkArgument(rb.length() == tokenLength, rb.length());
-
-        return new KeyRange(lb, rb);
+        
+        final StaticBuffer lbe = ByteBufferUtil.zeroExtendToLength(lb, 4);
+        final StaticBuffer rbe = ByteBufferUtil.zeroExtendToLength(rb, 4);
+        
+        Preconditions.checkArgument(!lbe.equals(rbe));
+                
+        return new KeyRange(lbe, rbe);
     }
 }
