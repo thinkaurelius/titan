@@ -2,6 +2,7 @@ package com.thinkaurelius.titan.diskstorage;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 import java.util.List;
 
@@ -33,5 +34,8 @@ public abstract class DistributedStoreManagerTest<T extends DistributedStoreMana
         assertEquals(1, local.size());
         assertNotNull(local.get(0).getStart());
         assertNotNull(local.get(0).getEnd());
+        assertTrue(4 <= local.get(0).getStart().length());
+        assertTrue(4 <= local.get(0).getEnd().length());
+        assertTrue(!local.get(0).getStart().equals(local.get(0).getEnd()));
     }
 }
