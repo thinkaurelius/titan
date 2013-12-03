@@ -168,13 +168,26 @@ public interface KeyColumnValueStore {
 
 
     /**
-     * Returns an array that describes the key boundaries of the locally hosted partition of this store.
-     * <p/>
-     * The array has two entries: the first marks the lower bound for the keys stored locally (inclusive) and the other
-     * marks the upper bound (exclusive).
-     *
-     * @return An array with two entries describing the locally hosted partition of this store.
-     * @throws UnsupportedOperationException if the underlying store does not support this operation. Check {@link StoreFeatures#hasLocalKeyPartition()} first.
+     * Returns a list of keys whose data are locally stored on this host. Data
+     * under these keys should generally be faster or more cache-efficient to
+     * access than data under other keys.
+     * <p>
+     * Each {@code KeyRange} in the return list has a {@code start} and
+     * {@code end}. The {@code start} is inclusive, but the {@code end} is
+     * exclusive. Both {@code start} and {@code end} must be at least four bytes
+     * long. When faced with values shorter than four bytes, implementations of
+     * this method should pad the end with zero bytes until the total length is
+     * four bytes. The first four bytes of {@code start} must not equal
+     * {@code end}. In the case of a single local partition that covers the
+     * whole keyspace, it would be natural to return {@code start} equal to
+     * {@code end}; in this case, implementations should either return two
+     * {@code KeyRange} instances or omit the final key in the keyspace from the
+     * return value.
+     * 
+     * @return A list of possibly non-contiguous locally-hosted key ranges
+     * @throws UnsupportedOperationException
+     *             if the underlying store does not support this operation.
+     *             Check {@link StoreFeatures#hasLocalKeyPartition()} first.
      */
     public List<KeyRange> getLocalKeyPartition() throws StorageException;
 
