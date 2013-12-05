@@ -122,5 +122,72 @@
                 </directory>
             </testResource>
         </testResources>
+        
+        <plugins>
+            <plugin>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>2.2</version>
+                <executions>
+                    <execution>
+                        <id>minor-version-uberjar</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <configuration>
+                            <generateUniqueDependencyReducedPom>false</generateUniqueDependencyReducedPom>
+                            <minimizeJar>false</minimizeJar>
+                            <shadedArtifactAttached>true</shadedArtifactAttached>
+                            <!-- Doesn't affect deploy or install plugins, merely renames the jar file.  Not that useful for build automation. 
+                            <shadedArtifactId>titan03-core</shadedArtifactId> -->
+                            <shadedClassifierName>shaded03</shadedClassifierName>
+                            <artifactSet>
+                                <excludes>
+                                    <exclude>asm:*:3.2</exclude>
+                                </excludes>
+                            </artifactSet>
+                            <relocations>
+                                <!-- Don't do this. The shade plugin relocates absolutely all classes and class 
+                                references with this kind of configuration. This results to garbage classfiles that contain 
+                                references to "titan03.java.lang.String", for example.
+                        
+                                <relocation>
+                                    <shadedPattern>titan03.</shadedPattern>
+                                </relocation>
+                                -->
+                                <relocation>
+                                    <pattern>cern</pattern>
+                                    <shadedPattern>titan03.cern</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>com</pattern>
+                                    <shadedPattern>titan03.com</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>corejava</pattern>
+                                    <shadedPattern>titan03.corejava</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>EDU</pattern>
+                                    <shadedPattern>titan03.EDU</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>hep</pattern>
+                                    <shadedPattern>titan03.hep</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>javassist</pattern>
+                                    <shadedPattern>titan03.javassist</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>org</pattern>
+                                    <shadedPattern>titan03.org</shadedPattern>
+                                </relocation>
+                            </relocations>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
     </build>
 </project>

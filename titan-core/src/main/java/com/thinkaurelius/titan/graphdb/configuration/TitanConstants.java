@@ -14,7 +14,7 @@ import java.util.Properties;
  */
 public class TitanConstants {
     
-    public static final String TITAN_PROPERTIES_FILE = "titan.properties";
+    public static final String TITAN_PROPERTIES_FILE = "titan03.properties";
 
     /**
      * Version of this TitanGraph
