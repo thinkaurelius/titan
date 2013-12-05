@@ -1,15 +1,22 @@
 package com.thinkaurelius.titan.tinkerpop.rexster;
 
-import com.google.common.base.Joiner;
-import com.thinkaurelius.titan.core.TitanFactory;
-import com.tinkerpop.blueprints.Graph;
-import com.tinkerpop.rexster.Tokens;
-import com.tinkerpop.rexster.config.GraphConfiguration;
-import com.tinkerpop.rexster.config.GraphConfigurationException;
-import org.apache.commons.configuration.*;
-
 import java.io.File;
 import java.util.Iterator;
+
+import org.apache.commons.configuration.AbstractConfiguration;
+import org.apache.commons.configuration.BaseConfiguration;
+import org.apache.commons.configuration.CompositeConfiguration;
+import org.apache.commons.configuration.Configuration;
+import org.apache.commons.configuration.HierarchicalConfiguration;
+
+import com.google.common.base.Joiner;
+import com.thinkaurelius.titan.core.TitanFactory;
+import com.thinkaurelius.titan.graphdb.database.StandardTitanGraph;
+import com.tinkerpop.blueprints.Graph;
+import com.tinkerpop.rexster.Tokens;
+import com.tinkerpop.rexster.config.GraphConfigurationException;
+import com.tinkerpop.rexster.config.hinted.HintedGraph;
+import com.tinkerpop.rexster.config.hinted.HintedGraphConfiguration;
 
 /**
  * Implements a Rexster GraphConfiguration for Titan
@@ -18,11 +25,14 @@ import java.util.Iterator;
  * @author Stephen Mallette (http://stephen.genoprime.com)
  */
 
-public class TitanGraphConfiguration implements GraphConfiguration {
+public class TitanGraphConfiguration implements HintedGraphConfiguration {
+    
+    private StandardTitanGraph latestGraph;
 
     @Override
     public Graph configureGraphInstance(final Configuration properties) throws GraphConfigurationException {
-        return TitanFactory.open(convertConfiguration(properties));
+        latestGraph = (StandardTitanGraph)TitanFactory.open(convertConfiguration(properties));
+        return latestGraph;
     }
 
     public Configuration convertConfiguration(final Configuration properties) throws GraphConfigurationException {
@@ -76,5 +86,10 @@ public class TitanGraphConfiguration implements GraphConfiguration {
             }
             throw new GraphConfigurationException(cause);
         }
+    }
+
+    @Override
+    public HintedGraph<?> getHintedGraph() {
+        return new HintedTitanGraph(latestGraph);
     }
 }

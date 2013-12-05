@@ -3,6 +3,7 @@ package com.thinkaurelius.titan.diskstorage;
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.thinkaurelius.titan.core.Titan;
 import com.thinkaurelius.titan.core.TitanConfigurationException;
@@ -26,6 +27,7 @@ import com.thinkaurelius.titan.graphdb.configuration.TitanConstants;
 import com.thinkaurelius.titan.graphdb.database.indexing.StandardIndexInformation;
 import com.thinkaurelius.titan.graphdb.transaction.TransactionConfiguration;
 import com.thinkaurelius.titan.util.system.ConfigurationUtil;
+
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
@@ -296,6 +298,19 @@ public class Backend {
         return mergeBasicMetrics ? MERGED_METRICS : storeName;
     }
 
+    public List<KeyRange> getEdgeStoreLocalKeyPartition() {
+        if (getStoreFeatures().hasLocalKeyPartition()) {
+            return BackendOperation.execute(new Callable<List<KeyRange>>() {
+                
+                public List<KeyRange> call() throws StorageException {
+                    return edgeStore.getLocalKeyPartition();
+                }
+            }, 60000L); // TODO configure
+        } else {
+            return ImmutableList.<KeyRange>of();
+        }
+    }
+    
     private final static KeyColumnValueStoreManager getStorageManager(Configuration storageConfig) {
         StoreManager manager = getImplementationClass(storageConfig, GraphDatabaseConfiguration.STORAGE_BACKEND_KEY,
                 GraphDatabaseConfiguration.STORAGE_BACKEND_DEFAULT,

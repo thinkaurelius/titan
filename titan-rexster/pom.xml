@@ -25,6 +25,39 @@
             <artifactId>rexster-core</artifactId>
             <version>${tinkerpop.version}</version>
         </dependency>
+        <dependency>
+            <groupId>com.tinkerpop.rexster</groupId>
+            <artifactId>rexster-server</artifactId>
+            <version>${tinkerpop.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.thinkaurelius.titan</groupId>
+            <artifactId>titan-test</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.thinkaurelius.titan</groupId>
+            <artifactId>titan-berkeleyje</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
+
+    <build>
+        <testResources>
+            <testResource>
+                <directory>${basedir}/src/test/resources</directory>
+                <filtering>true</filtering>
+            </testResource>
+        </testResources>
+    </build>
+
 </project>
 

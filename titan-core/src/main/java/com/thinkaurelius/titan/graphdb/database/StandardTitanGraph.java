@@ -118,6 +118,10 @@ public class StandardTitanGraph extends TitanBlueprintsGraph {
     public Features getFeatures() {
         return TitanFeatures.getFeatures(getConfiguration(), backend.getStoreFeatures());
     }
+    
+    public List<KeyRange> getEdgeStoreLocalKeyPartition() {
+        return backend.getEdgeStoreLocalKeyPartition();
+    }
 
     @Override
     public TitanTransaction newTransaction() {
