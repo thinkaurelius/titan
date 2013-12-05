@@ -46,11 +46,11 @@ public class EdgeSerializer {
     private static final int DEFAULT_PRIMARY_CAPACITY = 60;
     private static final int DEFAULT_VALUE_CAPACITY = 128;
 
-    private static final long DIRECTION_ID = -101;
-    private static final long TYPE_ID = -102;
-    private static final long VALUE_ID = -103;
-    private static final long OTHER_VERTEX_ID = -104;
-    private static final long RELATION_ID = -105;
+    public static final long DIRECTION_ID = -101;
+    public static final long TYPE_ID = -102;
+    public static final long VALUE_ID = -103;
+    public static final long OTHER_VERTEX_ID = -104;
+    public static final long RELATION_ID = -105;
 
     private final Serializer serializer;
     private final IDManager idManager;
