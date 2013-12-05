@@ -126,7 +126,7 @@ public class EdgeSerializer {
     }
 
 
-    private ImmutableLongObjectMap parseProperties(long vertexid, Entry data, boolean parseHeaderOnly, StandardTitanTx tx) {
+    public ImmutableLongObjectMap parseProperties(long vertexid, Entry data, boolean parseHeaderOnly, StandardTitanTx tx) {
         Preconditions.checkArgument(vertexid>0);
         ImmutableLongObjectMap.Builder builder = new ImmutableLongObjectMap.Builder();
 
