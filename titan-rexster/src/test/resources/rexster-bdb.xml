@@ -49,8 +49,6 @@
         <script-engine>
             <name>gremlin-groovy</name>
             <reset-threshold>-1</reset-threshold>
-            <imports>${imports}</imports>
-            <static-imports>${staticimports}</static-imports>
         </script-engine>
     </script-engines>
     <security>
