@@ -179,10 +179,12 @@
                                     <pattern>javassist</pattern>
                                     <shadedPattern>titan03.javassist</shadedPattern>
                                 </relocation>
+                                <!--
                                 <relocation>
                                     <pattern>org</pattern>
                                     <shadedPattern>titan03.org</shadedPattern>
                                 </relocation>
+                                -->
                             </relocations>
                         </configuration>
                     </execution>
