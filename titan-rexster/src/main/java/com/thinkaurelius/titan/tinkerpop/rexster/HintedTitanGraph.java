@@ -67,4 +67,11 @@ public class HintedTitanGraph implements HintedGraph<StaticBuffer> {
         result.addAll(Lists.transform(local, new KeyRangeToElementRange<E>(token)));
         return result;
     }
+    
+    @Override
+    public String toString() {
+        return "HintedTitanGraph[vertexRanges=" + vertexRanges
+                + ", edgeRanges=" + edgeRanges + "]";
+    }
+
 }
