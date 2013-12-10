@@ -56,8 +56,15 @@ public class TitanRexsterTest {
     @Before
     public void setUpRexsterServer() throws Exception {
         
-        FileUtils.deleteQuietly(new File("target" + File.separator + "db"));
-        
+        final File dbDir = new File("target" + File.separator + "db");
+        final boolean dbDirExisted = dbDir.exists();
+
+        FileUtils.deleteQuietly(dbDir);
+
+        if (dbDirExisted && dbDir.exists()) {
+            log.warn("Unable to delete directory {}" , dbDir);
+        }
+
         String args[] = new String[] { "-s", "-wr", "public", "-c",
                 Joiner.on(File.separator).join("target", "test-classes", "rexster-bdb.xml") };
         
