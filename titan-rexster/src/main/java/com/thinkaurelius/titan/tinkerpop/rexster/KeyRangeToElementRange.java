@@ -5,6 +5,7 @@ import java.io.Serializable;
 import com.google.common.base.Function;
 import com.thinkaurelius.titan.diskstorage.StaticBuffer;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.KeyRange;
+import com.thinkaurelius.titan.diskstorage.util.StaticArrayBuffer;
 import com.tinkerpop.blueprints.Element;
 import com.tinkerpop.rexster.config.hinted.ElementRange;
 
@@ -23,8 +24,17 @@ public class KeyRangeToElementRange<E extends Element> implements
 
     @Override
     public ElementRange<StaticBuffer, E> apply(KeyRange input) {
-        return new ElementRange<StaticBuffer, E>(token, input.getStart(),
-                input.getEnd(), ELEMENT_RANGE_PRIORITY);
+
+        /*
+         * Make start and end buffers StaticArrayBuffer. This class is
+         * serializable. Other implementations of the StaticBuffer interface
+         * (e.g. StaticByteBuffer) may not necessarily be serializable.
+         */
+
+        StaticBuffer start = new StaticArrayBuffer(input.getStart());
+        StaticBuffer end   = new StaticArrayBuffer(input.getEnd());
+
+        return new ByteElementRange<E>(token, start, end, ELEMENT_RANGE_PRIORITY);
     }
 
 }

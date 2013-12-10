@@ -4,6 +4,7 @@ import com.google.common.base.Preconditions;
 import com.thinkaurelius.titan.diskstorage.ReadBuffer;
 import com.thinkaurelius.titan.diskstorage.StaticBuffer;
 
+import java.io.Serializable;
 import java.nio.ByteBuffer;
 
 /**
@@ -15,7 +16,9 @@ import java.nio.ByteBuffer;
  * @author Matthias Broecheler (me@matthiasb.com)
  */
 
-public class StaticArrayBuffer implements StaticBuffer {
+public class StaticArrayBuffer implements StaticBuffer, Serializable {
+
+    private static final long serialVersionUID = 2008964436496138544L;
 
     private final byte[] array;
     private final int offset;
@@ -43,6 +46,19 @@ public class StaticArrayBuffer implements StaticBuffer {
         this(buffer.array, buffer.offset, buffer.limit);
     }
 
+    public StaticArrayBuffer(StaticBuffer other) {
+        if (null == other) {
+            array = new byte[0];
+            offset = 0;
+            limit = 0;
+        } else {
+            array = new byte[other.length()];
+            offset = 0;
+            limit = other.length();
+            for (int i = 0; i < other.length(); i++)
+                array[i] = other.getByte(i);
+        }
+    }
 
     private int require(int position, int size) {
         int base = position + offset;
