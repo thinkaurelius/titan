@@ -127,11 +127,11 @@ public class ByteElementRange<E extends Element> implements ElementRange<StaticB
         if (s.length() == MIN_BYTES)
             return s;
 
-        assert MIN_BYTES <= s.length();
+        assert MIN_BYTES < s.length();
 
         byte raw[] = new byte[MIN_BYTES];
 
-        for (int i = 0; i < s.length(); i++)
+        for (int i = 0; i < raw.length; i++)
             raw[i] = s.getByte(i);
 
         return new StaticArrayBuffer(raw);
