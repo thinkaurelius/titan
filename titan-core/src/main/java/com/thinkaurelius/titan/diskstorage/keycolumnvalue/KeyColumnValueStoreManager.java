@@ -17,7 +17,7 @@ public interface KeyColumnValueStoreManager extends StoreManager {
 
 
     /**
-     * Opens an ordered database by the given name. If the database does not exist, it is
+     * Opens an key-column-value database by the given name. If the database does not exist, it is
      * created. If it has already been opened, the existing handle is returned.
      *
      * @param name Name of database
@@ -33,6 +33,7 @@ public interface KeyColumnValueStoreManager extends StoreManager {
      * that specifies all the mutations to execute against the particular store for that key.
      *
      * This is an optional operation. Check {@link #getFeatures()} if it is supported by a particular implementation.
+     * Bulk mutations only apply to {@link KeyColumnValueStore}s.
      *
      * @param mutations
      * @param txh
@@ -40,5 +41,15 @@ public interface KeyColumnValueStoreManager extends StoreManager {
      */
     public void mutateMany(Map<String, Map<StaticBuffer, KCVMutation>> mutations, StoreTransaction txh) throws StorageException;
 
+    /**
+     * Opens an key-column-counter database by the given name. If the database does not exist, it is
+     * created. If it has already been opened, the existing handle is returned.
+     *
+     * @param name Name of database
+     * @return Database Handle
+     * @throws com.thinkaurelius.titan.diskstorage.StorageException
+     *
+     */
+    public KeyColumnCounterStore openCounters(String name) throws StorageException;
 
 }
