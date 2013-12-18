@@ -21,6 +21,8 @@ public class StoreFeatures {
     public Boolean supportsConsistentKeyOperations;
     public Boolean supportsLocking;
 
+    public Boolean supportsCounters;
+
     public Boolean isKeyOrdered;
     public Boolean isDistributed;
     public Boolean hasLocalKeyPartition;
@@ -134,6 +136,16 @@ public class StoreFeatures {
     public boolean supportsLocking() {
         assert verify();
         return supportsLocking;
+    }
+
+    /**
+     * Whether this store supports counters via {@link KeyColumnValueStoreManager#openCounters(String)}.
+     *
+     * @return
+     */
+    public boolean supportsCounters() {
+        assert verify();
+        return supportsCounters;
     }
 
     /**

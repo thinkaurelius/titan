@@ -52,6 +52,7 @@ public class BerkeleyJEStoreManager extends LocalStoreManager implements Ordered
         features.isDistributed = false;
         features.hasLocalKeyPartition = false;
         features.supportsMultiQuery = false;
+        features.supportsCounters = false;
     }
 
     private void initialize(int cachePercent) throws StorageException {

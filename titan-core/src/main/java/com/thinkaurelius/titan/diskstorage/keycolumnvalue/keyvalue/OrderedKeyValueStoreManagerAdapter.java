@@ -41,7 +41,9 @@ public class OrderedKeyValueStoreManagerAdapter implements KeyColumnValueStoreMa
 
     @Override
     public StoreFeatures getFeatures() {
-        return manager.getFeatures();
+        StoreFeatures f = manager.getFeatures();
+        f.supportsCounters=false;
+        return f;
     }
 
     @Override
@@ -95,6 +97,11 @@ public class OrderedKeyValueStoreManagerAdapter implements KeyColumnValueStoreMa
             converted.put(storeEntry.getKey(), mut);
         }
         manager.mutateMany(converted, txh);
+    }
+
+    @Override
+    public KeyColumnCounterStore openCounters(String name) throws StorageException {
+        throw new UnsupportedOperationException();
     }
 
     private static final OrderedKeyValueStoreAdapter wrapKeyValueStore(OrderedKeyValueStore store, Map<String, Integer> keyLengths) {
