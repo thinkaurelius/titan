@@ -10,8 +10,8 @@
     <name>Titan-HBase: Distributed Graph Database</name>
     <url>http://thinkaurelius.github.com/titan/</url>
     <properties>
-        <hbase.version>0.94.12</hbase.version>
-        <hadoop.version>1.0.4</hadoop.version>
+        <hbase.version>0.96.0-hadoop2</hbase.version>
+        <hadoop.version>2.2.0</hadoop.version>
         <hadoop.artifact>hadoop-core</hadoop.artifact>
         <titan.hbase.mvn.opts />
         <default.test.jvm.opts>-Xms256m -Xmx1280m -XX:+HeapDumpOnOutOfMemoryError -ea ${test.extra.jvm.opts}</default.test.jvm.opts>
@@ -37,8 +37,13 @@
             <scope>test</scope>
         </dependency>
         <dependency>
+                <groupId>org.apache.hbase</groupId>
+                <artifactId>hbase-common</artifactId>
+                <version>${hbase.version}</version>
+        </dependency>
+        <dependency>
             <groupId>org.apache.hbase</groupId>
-            <artifactId>hbase</artifactId>
+            <artifactId>hbase-client</artifactId>
             <!-- Update the hadoop-core artifact version when you update this -->
             <version>${hbase.version}</version>
             <exclusions>
