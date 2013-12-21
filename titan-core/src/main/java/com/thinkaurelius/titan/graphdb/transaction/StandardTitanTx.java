@@ -570,13 +570,13 @@ public class StandardTitanTx extends TitanBlueprintsTransaction {
             type = new TitanLabelVertex(this, temporaryID.decrementAndGet(), ElementLifeCycle.New);
         }
         graph.assignID(type);
-        addProperty(type, SystemKey.VertexState, SystemKey.VertexStates.DEFAULT.getValue());
+        Preconditions.checkArgument(type.getID() > 0);
         addProperty(type, SystemKey.TypeName, name);
+        addProperty(type, SystemKey.VertexState, SystemKey.VertexStates.DEFAULT.getValue());
         addProperty(type, SystemKey.TypeClass, typeClass);
         for (TypeAttribute attribute : definition.getAttributes()) {
             addProperty(type, SystemKey.TypeDefinition, attribute);
         }
-        Preconditions.checkArgument(type.getID() > 0);
         vertexCache.add(type, type.getID());
         typeCache.put(name, type.getID());
         return type;
@@ -696,7 +696,7 @@ public class StandardTitanTx extends TitanBlueprintsTransaction {
             List<List<Entry>> results = graph.edgeMultiQuery(vids, sq, txHandle);
             int pos = 0;
             for (TitanVertex v : vertices) {
-                if (vids.get(pos) == v.getID()) {
+                if (pos<vids.size() && vids.get(pos) == v.getID()) {
                     final List<Entry> vresults = results.get(pos);
                     ((CacheVertex) v).loadRelations(sq, new Retriever<SliceQuery, List<Entry>>() {
                         @Override
@@ -704,8 +704,8 @@ public class StandardTitanTx extends TitanBlueprintsTransaction {
                             return vresults;
                         }
                     });
+                    pos++;
                 }
-                pos++;
             }
         }
     }

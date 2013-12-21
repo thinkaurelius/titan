@@ -1,5 +1,6 @@
 package com.thinkaurelius.titan.graphdb.database;
 
+import com.carrotsearch.hppc.LongArrayList;
 import com.carrotsearch.hppc.LongObjectOpenHashMap;
 import com.carrotsearch.hppc.LongOpenHashSet;
 import com.carrotsearch.hppc.LongSet;
@@ -30,6 +31,8 @@ import com.tinkerpop.blueprints.Direction;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.Arrays;
 
 import static com.thinkaurelius.titan.graphdb.database.idhandling.IDHandler.*;
 
@@ -282,10 +285,6 @@ public class EdgeSerializer {
         }
     }
 
-    public Entry writeRelation(InternalRelation relation, int pos, StandardTitanTx tx) {
-        return writeRelation(relation, pos, true, tx);
-    }
-
     private void writeInlineTypes(long[] typeids, InternalRelation relation, DataOutput out, StandardTitanTx tx) {
         for (long typeid : typeids) {
             TitanType t = tx.getExistingType(typeid);
@@ -293,7 +292,7 @@ public class EdgeSerializer {
         }
     }
 
-    public Entry writeRelation(InternalRelation relation, int position, boolean writeValue, StandardTitanTx tx) {
+    public Entry writeRelation(InternalRelation relation, int position, StandardTitanTx tx) {
         Preconditions.checkArgument(position < relation.getLen());
         TitanType type = relation.getType();
         long typeid = type.getID();
@@ -319,7 +318,6 @@ public class EdgeSerializer {
             vertexIdDiff = relation.getVertex((position + 1) % 2).getID() - relation.getVertex(position).getID();
 
         if (type.isUnique(dir)) {
-            if (!writeValue) return new StaticBufferEntry(colOut.getStaticBuffer(), null);
             writer = serializer.getDataOutput(DEFAULT_VALUE_CAPACITY, true);
             if (relation.isEdge()) VariableLong.write(writer, vertexIdDiff);
             VariableLong.write(writer, relationIdDiff);
@@ -329,7 +327,6 @@ public class EdgeSerializer {
         }
 
         if (!type.isUnique(dir)) {
-            if (!writeValue) return new StaticBufferEntry(colOut.getStaticBuffer(), null);
             writer = serializer.getDataOutput(DEFAULT_VALUE_CAPACITY, true);
         }
 
@@ -360,10 +357,19 @@ public class EdgeSerializer {
             for (long id : sortKey) writtenTypes.add(id);
             for (long id : signature) writtenTypes.add(id);
         }
+        LongArrayList remainingTypes = new LongArrayList(8);
         for (TitanType t : relation.getPropertyKeysDirect()) {
             if (!writtenTypes.contains(t.getID())) {
-                writeInline(writer, t, relation.getProperty(t), true);
+                remainingTypes.add(t.getID());
+
             }
+        }
+        //Sort types before writing to ensure that value is always written the same way
+        long[] remaining = remainingTypes.toArray();
+        Arrays.sort(remaining);
+        for (long tid : remaining) {
+            TitanType t = tx.getExistingType(tid);
+            writeInline(writer, t, relation.getProperty(t), true);
         }
 
         StaticBuffer column = ((InternalType)type).getSortOrder()==Order.DESC?
