@@ -89,7 +89,7 @@ public class HBaseKeyColumnValueStore implements KeyColumnValueStore {
     @Override
     public void close() throws StorageException {
         try {
-            pool.close();
+            pool.closeTablePool(tableName);
         } catch (IOException e) {
             throw new TemporaryStorageException(e);
         }
@@ -97,22 +97,17 @@ public class HBaseKeyColumnValueStore implements KeyColumnValueStore {
 
     @Override
     public boolean containsKey(StaticBuffer key, StoreTransaction txh) throws StorageException {
-        byte[] keyBytes = key.as(StaticBuffer.ARRAY_FACTORY);
-
-        Get g = new Get(keyBytes).addFamily(columnFamilyBytes);
+        HTableInterface table = null;
 
         try {
-            HTableInterface table = null;
-
-            try {
-                table = pool.getTable(tableName);
-                return table.exists(g);
-            } finally {
-                IOUtils.closeQuietly(table);
-            }
+            table = pool.getTable(tableName);
+            return table.exists(new Get(key.as(StaticBuffer.ARRAY_FACTORY)).addFamily(columnFamilyBytes));
         } catch (IOException e) {
             throw new TemporaryStorageException(e);
+        } finally {
+            IOUtils.closeQuietly(table);
         }
+
     }
 
     @Override
