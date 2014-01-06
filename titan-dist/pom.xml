@@ -165,26 +165,26 @@
                 <executions>
                     <execution>
                         <id>compile-tests</id>
-			<phase>test-compile</phase>
-			<goals>
-  			    <goal>testCompile</goal>
-			</goals>
-		    </execution>
-		</executions>
-	    </plugin>
+                        <phase>test-compile</phase>
+                        <goals>
+                            <goal>testCompile</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
 
             <plugin>
                 <artifactId>maven-jar-plugin</artifactId>
                 <executions>
                     <execution>
                         <id>pack-test-jar</id>
-			<phase>package</phase>
-			<goals>
-  			    <goal>test-jar</goal>
-			</goals>
-		    </execution>
-		</executions>
-	    </plugin>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>test-jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
     </build>
 

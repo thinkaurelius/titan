@@ -27,6 +27,17 @@
                     <groupId>com.thinkaurelius.titan</groupId>
                     <artifactId>titan-accumulo-core</artifactId>
                     <version>${project.version}</version>
+                    <exclusions>
+                        <exclusion>
+                            <artifactId>libthrift</artifactId>
+                            <groupId>org.apache.thrift</groupId>
+                        </exclusion>
+                    </exclusions>
+                </dependency>
+                <dependency>
+                    <groupId>org.apache.thrift</groupId>
+                    <artifactId>libthrift</artifactId>
+                    <version>0.6.1</version>
                 </dependency>
             </dependencies> 
         </profile>
