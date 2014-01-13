@@ -7,6 +7,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Sets;
 import com.thinkaurelius.titan.core.*;
+import com.thinkaurelius.titan.core.attribute.Cmp;
 import com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfiguration;
 import com.thinkaurelius.titan.graphdb.internal.InternalType;
 import com.thinkaurelius.titan.graphdb.serializer.SpecialInt;
@@ -82,7 +83,6 @@ public abstract class TitanGraphTest extends TitanGraphTestCommon {
 
         TitanKey someid = tx.makeKey("someid").single().dataType(Object.class).indexed(Vertex.class).make();
 
-
         TitanKey boolval = tx.makeKey("boolval").dataType(Boolean.class).single().make();
 
         TitanKey sint = tx.makeKey("int").dataType(SpecialInt.class).single().make();
@@ -98,6 +98,8 @@ public abstract class TitanGraphTest extends TitanGraphTestCommon {
         TitanLabel spouse = tx.makeLabel("spouse").oneToOne().make();
         assertTrue(spouse.isUnique(IN));
         assertTrue(spouse.isUnique(OUT));
+
+        assertEquals("weight",weight.toString());
 
 
         try {
@@ -180,8 +182,7 @@ public abstract class TitanGraphTest extends TitanGraphTestCommon {
 //            fail();
 //        } catch (IllegalArgumentException e) {
 //        }
-        tx.makeLabel("link2").unidirected().
-                sortKey(id, weight).make();
+        TitanLabel link2 = tx.makeLabel("link2").unidirected().sortKey(id, weight).make();
 
         // Data types and serialization
         TitanVertex v = tx.addVertex();
@@ -279,6 +280,11 @@ public abstract class TitanGraphTest extends TitanGraphTestCommon {
         assertEquals(154, ((SpecialInt) v2.getProperty("int")).getValue());
         assertEquals(v2, Iterables.getOnlyElement(tx.getVertices("someid", 200l)));
         assertEquals(v2, Iterables.getOnlyElement(tx.getVertices(id, "v2")));
+
+        assertEquals(5, Iterables.size(tx.getVertices()));
+
+        assertEquals(1, Iterables.size(tx.query().has("someid", Cmp.GREATER_THAN, 150).vertices()));
+        assertEquals(2, Iterables.size(tx.query().has("someid", Cmp.GREATER_THAN, 50).vertices()));
 
         clopen();
 
@@ -552,35 +558,47 @@ public abstract class TitanGraphTest extends TitanGraphTestCommon {
     //Add more removal operations, different transaction contexts
     @Test
     public void testCreateDelete() {
-        TitanKey weight = makeWeightPropertyKey("weight");
-        TitanKey id = makeIntegerUIDPropertyKey("uid");
-        TitanLabel knows = makeKeyedEdgeLabel("knows", id, weight);
+        TitanKey weight = graph.makeKey("weight").single().dataType(Double.class).make();
+        TitanKey id = graph.makeKey("uid").single().unique().indexed(Vertex.class).dataType(Integer.class).make();
+        TitanLabel knows = graph.makeLabel("knows").sortKey(id).sortOrder(Order.DESC).directed().make();
+        TitanLabel father = graph.makeLabel("father").manyToOne().make();
 
-        TitanVertex n1 = tx.addVertex(), n3 = tx.addVertex();
+        TitanVertex n1 = graph.addVertex(null), n3 = graph.addVertex(null);
         TitanEdge e = n3.addEdge(knows, n1);
+        Edge e2 = n1.addEdge("friend",n3);
         e.setProperty(id, 111);
         n3.addProperty(id, 445);
         assertEquals(111, e.getProperty(id));
-        clopen();
-        Object eid = e.getId();
-        long nid = n3.getID();
+        graph.commit();
 
-        n3 = tx.getVertex(nid);
+        n3 = graph.getVertex(n3.getID());
         assertEquals(445, n3.getProperty("uid"));
-        e = Iterables.getOnlyElement(n3.getTitanEdges(OUT, tx.getEdgeLabel("knows")));
+        e = (TitanEdge) Iterables.getOnlyElement(n3.getEdges(OUT, "knows"));
         assertEquals(111, e.getProperty("uid"));
-        assertEquals(e, tx.getEdge(eid));
-        assertEquals(e, tx.getEdge(eid.toString()));
+        assertEquals(e, graph.getEdge(e.getId()));
+        assertEquals(e, graph.getEdge(e.getId().toString()));
         TitanProperty p = Iterables.getOnlyElement(n3.getProperties("uid"));
         p.remove();
         n3.addProperty("uid", 353);
 
+        e = (TitanEdge)Iterables.getOnlyElement(n3.getEdges(Direction.OUT,"knows"));
+        e.setProperty(id,222);
+
+        e2 = Iterables.getOnlyElement(n1.getEdges(OUT,"friend"));
+        e2.setProperty("uid",1);
+        e2.setProperty("weight",2.0);
+
+        assertEquals(1,e2.getProperty("uid"));
+        assertEquals(2.0,e2.getProperty("weight"));
+
 
         clopen();
 
-        n3 = tx.getVertex(nid);
+        n3 = graph.getVertex(n3.getID());
         assertEquals(353, n3.getProperty("uid"));
-        TitanEdge e2 = n3.addEdge("knows", tx.addVertex());
+
+        e = (TitanEdge)Iterables.getOnlyElement(n3.getEdges(Direction.OUT,"knows"));
+        assertEquals(222,e.getProperty(id));
     }
 
     @Test
@@ -640,6 +658,22 @@ public abstract class TitanGraphTest extends TitanGraphTestCommon {
             assertEquals(numV - deleteV, Iterables.size(tx.getVertices()));
             clopen();
             assertEquals(numV - deleteV, Iterables.size(graph.getVertices()));
+        }
+    }
+
+    @Test
+    public void testRepeatingIterationOverAllVertices() {
+        if (graph.getFeatures().supportsVertexIteration) {
+            TitanVertex vertex = tx.addVertex();
+            vertex.setProperty("key", "value");
+            tx.commit();
+            for (int i = 0; i < 100; i++) {
+                tx = graph.newTransaction();
+                Iterable<Vertex> vertices = tx.getVertices();
+                assertEquals(1, Iterables.size(vertices));
+                assertEquals("value", Iterables.getOnlyElement(vertices).getProperty("key"));
+                tx.commit();
+            }
         }
     }
 
@@ -1308,6 +1342,19 @@ public abstract class TitanGraphTest extends TitanGraphTestCommon {
         assertNotNull(v);
         assertEquals(2, v.query().has("weight", 1.5).interval("time", 10, 30).limit(2).count());
         assertEquals(10, v.query().has("weight", 1.5).interval("time", 10, 30).count());
+
+
+        newTx();
+        //Test partially new vertex queries
+        TitanVertex[] qvs2 = new TitanVertex[qvs.length+2];
+        qvs2[0]=tx.addVertex();
+        for (int i=0;i<qvs.length;i++) qvs2[i+1]=tx.getVertex(qvs[i].getID());
+        qvs2[qvs2.length-1]=tx.addVertex();
+        qvs2[0].addEdge("connect",qvs2[qvs2.length-1]);
+        qvs2[qvs2.length-1].addEdge("connect", qvs2[0]);
+        results = tx.multiQuery(qvs2).direction(IN).labels("connect").titanEdges();
+        for (Iterable<TitanEdge> result : results.values()) assertEquals(1, Iterables.size(result));
+
     }
 
     //Merge above
