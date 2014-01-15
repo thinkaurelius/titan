@@ -50,7 +50,7 @@ public class AccumuloStoreManager extends DistributedStoreManager implements Key
     // Default parameters 
     private static final Authorizations AUTHORIZATIONS_DEFAULT = new Authorizations();
     // Configuration namespace
-    public static final String ACCUMULO_CONFIGURATION_NAMESPACE = "accumulo-config";
+    public static final String ACCUMULO_NAMESPACE = "accumulo";
     // Configuration keys
     public static final String ACCUMULO_INTSANCE_KEY = "instance";
     public static final String TABLE_NAME_KEY = "tablename";
@@ -81,7 +81,7 @@ public class AccumuloStoreManager extends DistributedStoreManager implements Key
         tableName = config.getString(TABLE_NAME_KEY, TABLE_NAME_DEFAULT);
 
         // Accumulo specific keys
-        Configuration accumuloConfig = config.subset(ACCUMULO_CONFIGURATION_NAMESPACE);
+        Configuration accumuloConfig = config.subset(ACCUMULO_NAMESPACE);
         instanceName = accumuloConfig.getString(ACCUMULO_INTSANCE_KEY);
 
         serverSideIterators = accumuloConfig.getBoolean(SERVER_SIDE_ITERATORS_KEY, SERVER_SIDE_ITERATORS_DEFAULT);
@@ -108,7 +108,7 @@ public class AccumuloStoreManager extends DistributedStoreManager implements Key
         features.supportsMultiQuery = true;
         features.supportsConsistentKeyOperations = true;
         features.supportsLocking = false;
-        features.isKeyOrdered = false;
+        features.isKeyOrdered = true;
         features.isDistributed = true;
         features.hasLocalKeyPartition = false;
 

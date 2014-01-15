@@ -47,7 +47,7 @@ public class AccumuloStorageSetup {
         storageConfig.addProperty(GraphDatabaseConfiguration.AUTH_USERNAME_KEY, "root");
         storageConfig.addProperty(GraphDatabaseConfiguration.AUTH_PASSWORD_KEY, "");
 
-        Configuration accumuloConfig = storageConfig.subset(AccumuloStoreManager.ACCUMULO_CONFIGURATION_NAMESPACE);
+        Configuration accumuloConfig = storageConfig.subset(AccumuloStoreManager.ACCUMULO_NAMESPACE);
 
         accumuloConfig.addProperty(AccumuloStoreManager.ACCUMULO_INTSANCE_KEY, "devdb");
         accumuloConfig.addProperty(AccumuloStoreManager.SERVER_SIDE_ITERATORS_KEY, false);

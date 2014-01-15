@@ -2,9 +2,9 @@
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <groupId>com.thinkaurelius.titan</groupId>
-        <artifactId>titan-dist</artifactId>
-        <version>0.4.2-SNAPSHOT</version>
-        <relativePath>../pom.xml</relativePath>
+        <artifactId>titan-dist-parent</artifactId>
+        <version>0.4.2</version>
+        <relativePath>../titan-dist-parent/pom.xml</relativePath>
     </parent>
     <packaging>pom</packaging>
     <artifactId>titan-dist-accumulo</artifactId>
