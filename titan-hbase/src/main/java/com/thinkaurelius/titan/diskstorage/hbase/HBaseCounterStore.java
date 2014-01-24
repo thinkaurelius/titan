@@ -8,11 +8,8 @@ import com.thinkaurelius.titan.diskstorage.TemporaryStorageException;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.KeyColumnCounterStore;
 import com.thinkaurelius.titan.util.system.IOUtils;
 
-import org.apache.hadoop.hbase.client.Get;
-import org.apache.hadoop.hbase.client.HTableInterface;
-import org.apache.hadoop.hbase.client.HTablePool;
+import org.apache.hadoop.hbase.client.*;
 
-import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -61,6 +58,20 @@ public class HBaseCounterStore implements KeyColumnCounterStore {
                 return 0;
 
             return Bytes.toLong(count.getValue(columnFamilyBytes, columnName));
+        } catch (IOException e) {
+            throw new TemporaryStorageException(e);
+        } finally {
+            IOUtils.closeQuietly(table);
+        }
+    }
+
+    @Override
+    public void clear(StaticBuffer key, StaticBuffer column) throws StorageException {
+        HTableInterface table = null;
+
+        try {
+            table = pool.getTable(tableName);
+            table.delete(new Delete(toBytes(key)).deleteColumn(columnFamilyBytes, toBytes(column)));
         } catch (IOException e) {
             throw new TemporaryStorageException(e);
         } finally {

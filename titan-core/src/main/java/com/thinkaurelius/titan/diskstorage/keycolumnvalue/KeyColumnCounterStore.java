@@ -36,6 +36,15 @@ public interface KeyColumnCounterStore {
      */
     public long get(StaticBuffer key, StaticBuffer column) throws StorageException;
 
+    /**
+     * Clear counter effectively dropping it's value to 0.
+     *
+     * @param key Row key
+     * @param column Counter column
+     *
+     * @throws StorageException
+     */
+    public void clear(StaticBuffer key, StaticBuffer column) throws StorageException;
 
     /**
      * Returns the name of this store. Each store has a unique name which is used to open it.

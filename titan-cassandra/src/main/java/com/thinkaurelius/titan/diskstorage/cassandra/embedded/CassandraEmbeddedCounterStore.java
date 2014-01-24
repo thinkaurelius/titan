@@ -53,6 +53,15 @@ public class CassandraEmbeddedCounterStore implements KeyColumnCounterStore {
     }
 
     @Override
+    public void clear(StaticBuffer key, StaticBuffer column) throws StorageException {
+        try {
+            StorageProxy.mutate(Collections.singletonList(newCounterRemoveMutation(key, column)), ConsistencyLevel.ONE);
+        } catch (Exception e) {
+            throw new PermanentStorageException(e);
+        }
+    }
+
+    @Override
     public String getName() {
         return String.format("counter(%s, %s)", keyspace, columnFamily);
     }
@@ -65,6 +74,12 @@ public class CassandraEmbeddedCounterStore implements KeyColumnCounterStore {
     private CounterMutation newCounterMutation(StaticBuffer key, StaticBuffer column, long delta) {
         RowMutation rm = new RowMutation(keyspace, key.asByteBuffer());
         rm.addCounter(new QueryPath(columnFamily, null, column.asByteBuffer()), delta);
+        return new CounterMutation(rm, ConsistencyLevel.ONE);
+    }
+
+    private CounterMutation newCounterRemoveMutation(StaticBuffer key, StaticBuffer column) {
+        RowMutation rm = new RowMutation(keyspace, key.asByteBuffer());
+        rm.delete(new QueryPath(columnFamily, null, column.asByteBuffer()), System.currentTimeMillis());
         return new CounterMutation(rm, ConsistencyLevel.ONE);
     }
 

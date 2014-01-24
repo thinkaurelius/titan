@@ -8,9 +8,9 @@ import com.netflix.astyanax.model.Column;
 import com.netflix.astyanax.model.ColumnFamily;
 import com.netflix.astyanax.serializers.ByteBufferSerializer;
 
-import com.thinkaurelius.titan.diskstorage.PermanentStorageException;
 import com.thinkaurelius.titan.diskstorage.StaticBuffer;
 import com.thinkaurelius.titan.diskstorage.StorageException;
+import com.thinkaurelius.titan.diskstorage.TemporaryStorageException;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.KeyColumnCounterStore;
 
 @SuppressWarnings("unused")
@@ -28,7 +28,7 @@ public class CassandraAstyanaxCounterStore implements KeyColumnCounterStore {
         try {
             keyspace.prepareColumnMutation(counter, key.asByteBuffer(), column.asByteBuffer()).incrementCounterColumn(delta).execute();
         } catch (ConnectionException e) {
-            throw new PermanentStorageException(e);
+            throw new TemporaryStorageException(e);
         }
     }
 
@@ -39,10 +39,19 @@ public class CassandraAstyanaxCounterStore implements KeyColumnCounterStore {
             result = keyspace.prepareQuery(counter).getKey(key.asByteBuffer()).getColumn(column.asByteBuffer())
                              .execute().getResult();
         } catch (ConnectionException e) {
-            throw new PermanentStorageException(e);
+            throw new TemporaryStorageException(e);
         }
 
         return result == null ? 0 : result.getLongValue();
+    }
+
+    @Override
+    public void clear(StaticBuffer key, StaticBuffer column) throws StorageException {
+        try {
+            keyspace.prepareColumnMutation(counter, key.asByteBuffer(), column.asByteBuffer()).deleteCounterColumn().execute();
+        } catch (ConnectionException e) {
+            throw new TemporaryStorageException(e);
+        }
     }
 
     @Override

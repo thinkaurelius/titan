@@ -5,6 +5,7 @@ import java.util.Collections;
 import com.thinkaurelius.titan.diskstorage.PermanentStorageException;
 import com.thinkaurelius.titan.diskstorage.StaticBuffer;
 import com.thinkaurelius.titan.diskstorage.StorageException;
+import com.thinkaurelius.titan.diskstorage.TemporaryStorageException;
 import com.thinkaurelius.titan.diskstorage.cassandra.thrift.thriftpool.CTConnection;
 import com.thinkaurelius.titan.diskstorage.cassandra.thrift.thriftpool.CTConnectionPool;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.KeyColumnCounterStore;
@@ -30,7 +31,7 @@ public class CassandraThriftCounterStore implements KeyColumnCounterStore {
             conn = pool.borrowObject(keyspace);
             conn.getClient().add(key.asByteBuffer(), new ColumnParent(columnFamily), new CounterColumn(column.asByteBuffer(), delta), ConsistencyLevel.ONE);
         } catch (Exception e) {
-            throw new PermanentStorageException(e);
+            throw new TemporaryStorageException(e);
         } finally {
             pool.returnObjectUnsafe(keyspace, conn);
         }
@@ -47,7 +48,22 @@ public class CassandraThriftCounterStore implements KeyColumnCounterStore {
                                                   .setColumn_names(Collections.singletonList(column.asByteBuffer())),
                                               ConsistencyLevel.ONE);
         } catch (Exception e) {
-            throw new PermanentStorageException(e);
+            throw new TemporaryStorageException(e);
+        } finally {
+            pool.returnObjectUnsafe(keyspace, conn);
+        }
+    }
+
+    @Override
+    public void clear(StaticBuffer key, StaticBuffer column) throws StorageException {
+        CTConnection conn = null;
+        try {
+            conn = pool.borrowObject(keyspace);
+            conn.getClient().remove_counter(key.asByteBuffer(),
+                                            new ColumnPath(columnFamily).setColumn(column.asByteBuffer()),
+                                            ConsistencyLevel.ONE);
+        } catch (Exception e) {
+            throw new TemporaryStorageException(e);
         } finally {
             pool.returnObjectUnsafe(keyspace, conn);
         }
