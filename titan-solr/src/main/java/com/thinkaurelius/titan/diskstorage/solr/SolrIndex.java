@@ -435,8 +435,9 @@ public class SolrIndex implements IndexProvider {
             result = new ArrayList<RawQuery.Result<String>>(totalHits);
 
             for (SolrDocument hit : response.getResults()) {
-                result.add(new RawQuery.Result<String>(hit.getFieldValue(keyIdField).toString(),
-                        Double.parseDouble(hit.getFieldValue("score").toString())));
+                double score = Double.parseDouble(hit.getFieldValue("score").toString());
+                result.add(
+                        new RawQuery.Result<String>(hit.getFieldValue(keyIdField).toString(), score));
             }
         } catch (HttpSolrServer.RemoteSolrException e) {
             log.error("Query did not complete because parameters were not recognized : ", e);
