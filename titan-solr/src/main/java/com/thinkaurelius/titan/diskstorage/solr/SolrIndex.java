@@ -414,7 +414,7 @@ public class SolrIndex implements IndexProvider {
         SolrQuery solrQuery = new SolrQuery();
         solrQuery.setQuery("*:*");
         solrQuery.addFilterQuery(query.getQuery());
-        solrQuery.addField("*");
+        solrQuery.addField(keyIdField);
         solrQuery.addField("score");
 
         if (query.hasLimit()) {
