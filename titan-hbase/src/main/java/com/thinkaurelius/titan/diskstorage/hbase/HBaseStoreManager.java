@@ -30,13 +30,13 @@ import org.apache.hadoop.hbase.ZooKeeperConnectionException;
 import org.apache.hadoop.hbase.client.*;
 import org.apache.hadoop.hbase.io.hfile.Compression;
 import org.apache.hadoop.hbase.util.Pair;
+import org.cliffc.high_scale_lib.NonBlockingHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 import static com.thinkaurelius.titan.diskstorage.Backend.EDGESTORE_NAME;
@@ -77,6 +77,8 @@ public class HBaseStoreManager extends DistributedStoreManager implements KeyCol
     private final org.apache.hadoop.conf.Configuration hconf;
 
     private final ConcurrentMap<String, HBaseKeyColumnValueStore> openStores;
+    private final ConcurrentMap<String, HBaseCounterStore> openCounterStores;
+
     private final HTablePool connectionPool;
 
     private final boolean shortCfNames;
@@ -133,7 +135,8 @@ public class HBaseStoreManager extends DistributedStoreManager implements KeyCol
 
         this.shortCfNames = config.getBoolean(SHORT_CF_NAMES_KEY, SHORT_CF_NAMES_DEFAULT);
 
-        openStores = new ConcurrentHashMap<String, HBaseKeyColumnValueStore>();
+        openStores = new NonBlockingHashMap<String, HBaseKeyColumnValueStore>();
+        openCounterStores = new NonBlockingHashMap<String, HBaseCounterStore>();
     }
 
     @Override
@@ -150,6 +153,7 @@ public class HBaseStoreManager extends DistributedStoreManager implements KeyCol
     @Override
     public void close() {
         openStores.clear();
+        openCounterStores.clear();
     }
 
 
@@ -216,20 +220,40 @@ public class HBaseStoreManager extends DistributedStoreManager implements KeyCol
 
     @Override
     public KeyColumnValueStore openDatabase(final String longName) throws StorageException {
-
         HBaseKeyColumnValueStore store = openStores.get(longName);
 
         if (store == null) {
-
             final String cfName = shortCfNames ? shortenCfName(longName) : longName;
 
             HBaseKeyColumnValueStore newStore = new HBaseKeyColumnValueStore(this, connectionPool, tableName, cfName, longName);
-
             store = openStores.putIfAbsent(longName, newStore); // nothing bad happens if we loose to other thread
 
             if (store == null) { // ensure that CF exists only first time somebody tries to open it
                 ensureColumnFamilyExists(tableName, cfName);
                 store = newStore;
+            } else {
+                newStore.close();
+            }
+        }
+
+        return store;
+    }
+
+    @Override
+    public KeyColumnCounterStore openCounters(final String storeName) throws StorageException {
+        HBaseCounterStore store = openCounterStores.get(storeName);
+
+        if (store == null) {
+            final String cfName = shortCfNames ? shortenCfName(storeName) : storeName;
+
+            HBaseCounterStore newStore = new HBaseCounterStore(this, connectionPool, tableName, cfName, storeName);
+            store = openCounterStores.putIfAbsent(storeName, newStore); // nothing bad happens if we loose to other thread
+
+            if (store == null) { // ensure that CF exists only first time somebody tries to open it
+                ensureColumnFamilyExists(tableName, cfName);
+                store = newStore;
+            } else {
+                newStore.close();
             }
         }
 

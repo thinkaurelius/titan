@@ -3,7 +3,6 @@ package com.thinkaurelius.titan.diskstorage.cassandra.thrift;
 import static com.thinkaurelius.titan.diskstorage.cassandra.CassandraTransaction.getTx;
 import static org.apache.cassandra.db.Table.SYSTEM_KS;
 
-import java.net.InetAddress;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -13,9 +12,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.SortedMap;
 import java.util.TreeMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import com.thinkaurelius.titan.diskstorage.keycolumnvalue.KeyColumnCounterStore;
 import com.thinkaurelius.titan.util.system.NetworkUtil;
 import org.apache.cassandra.dht.ByteOrderedPartitioner;
 import org.apache.cassandra.dht.IPartitioner;
@@ -69,6 +70,8 @@ public class CassandraThriftStoreManager extends AbstractCassandraStoreManager {
     private static final Logger log = LoggerFactory.getLogger(CassandraThriftStoreManager.class);
 
     private final Map<String, CassandraThriftKeyColumnValueStore> openStores;
+    private final ConcurrentMap<String, CassandraThriftCounterStore> openCounterStores;
+
     private final CTConnectionPool pool;
     private final CTConnectionFactory factory;
     private final Deployment deployment;
@@ -102,6 +105,7 @@ public class CassandraThriftStoreManager extends AbstractCassandraStoreManager {
         this.pool = p;
 
         this.openStores = new HashMap<String, CassandraThriftKeyColumnValueStore>();
+        this.openCounterStores = new NonBlockingHashMap<String, CassandraThriftCounterStore>();
 
         // Only watch the ring and change endpoints with BOP
         if (getCassandraPartitioner() instanceof ByteOrderedPartitioner) {
@@ -142,6 +146,8 @@ public class CassandraThriftStoreManager extends AbstractCassandraStoreManager {
     @Override
     public void close() throws StorageException {
         openStores.clear();
+        openCounterStores.clear();
+
         closePool();
         if (null != backgroundThread && backgroundThread.isAlive()) {
             backgroundThread.interrupt();
@@ -223,18 +229,37 @@ public class CassandraThriftStoreManager extends AbstractCassandraStoreManager {
         }
     }
 
-    @Override // TODO: *BIG FAT WARNING* 'synchronized is always *bad*, change openStores to use ConcurrentLinkedHashMap
+    @Override // TODO: *BIG FAT WARNING* 'synchronized is always *bad*, change openStores to use ConcurrentHashMap e.g. openCounters(String)
     public synchronized CassandraThriftKeyColumnValueStore openDatabase(final String name) throws StorageException {
-        if (openStores.containsKey(name))
-            return openStores.get(name);
+        CassandraThriftKeyColumnValueStore store = openStores.get(name);
 
-        ensureColumnFamilyExists(keySpaceName, name);
+        if (store == null) {
+            ensureColumnFamilyExists(keySpaceName, name);
+            store = new CassandraThriftKeyColumnValueStore(keySpaceName, name, this, pool);
+            openStores.put(name, store);
+        }
 
-        CassandraThriftKeyColumnValueStore store = new CassandraThriftKeyColumnValueStore(keySpaceName, name, this, pool);
-        openStores.put(name, store);
         return store;
     }
 
+    @Override
+    public CassandraThriftCounterStore openCounters(String name) throws StorageException {
+        CassandraThriftCounterStore store = openCounterStores.get(name);
+
+        if (store == null) {
+
+            CassandraThriftCounterStore newStore = new CassandraThriftCounterStore(keySpaceName, name, pool);
+            store = openCounterStores.putIfAbsent(name, newStore);
+
+            if (store == null) {
+                ensureCounterColumnFamilyExists(keySpaceName, name);
+                store = newStore;
+            } else // somebody beat as to opening but that's not a big deal
+                newStore.close();
+        }
+
+        return store;
+    }
 
     /**
      * Connect to Cassandra via Thrift on the specified host and port and attempt to truncate the named keyspace.
@@ -252,6 +277,8 @@ public class CassandraThriftStoreManager extends AbstractCassandraStoreManager {
      */
     public void clearStorage() throws StorageException {
         openStores.clear();
+        openCounterStores.clear();
+
         final String lp = "ClearStorage: "; // "log prefix"
         /*
          * log4j is capable of automatically writing the name of a method that
@@ -360,10 +387,14 @@ public class CassandraThriftStoreManager extends AbstractCassandraStoreManager {
     }
 
     private void ensureColumnFamilyExists(String ksName, String cfName) throws StorageException {
-        ensureColumnFamilyExists(ksName, cfName, "org.apache.cassandra.db.marshal.BytesType");
+        ensureColumnFamilyExists(ksName, cfName, DEFAULT_COMPARATOR, DEFAULT_VALIDATOR);
     }
 
-    private void ensureColumnFamilyExists(String ksName, String cfName, String comparator) throws StorageException {
+    private void ensureCounterColumnFamilyExists(String ksName, String cfName) throws StorageException {
+        ensureColumnFamilyExists(ksName, cfName, DEFAULT_COMPARATOR, COUNTER_COLUMN_VALIDATOR);
+    }
+
+    private void ensureColumnFamilyExists(String ksName, String cfName, String comparator, String defaultValidator) throws StorageException {
         CTConnection conn = null;
         try {
             KsDef keyspaceDef = ensureKeyspaceExists(ksName);
@@ -381,7 +412,7 @@ public class CassandraThriftStoreManager extends AbstractCassandraStoreManager {
             }
 
             if (!foundColumnFamily) {
-                createColumnFamily(client, ksName, cfName, comparator);
+                createColumnFamily(client, ksName, cfName, comparator, defaultValidator);
             } else {
                 log.debug("Keyspace {} and ColumnFamily {} were found.", ksName, cfName);
             }
@@ -397,7 +428,8 @@ public class CassandraThriftStoreManager extends AbstractCassandraStoreManager {
     private void createColumnFamily(Cassandra.Client client,
                                     String ksName,
                                     String cfName,
-                                    String comparator) throws StorageException {
+                                    String comparator,
+                                    String defaultValidator) throws StorageException {
 
         CfDef createColumnFamily = new CfDef();
         createColumnFamily.setName(cfName);
@@ -419,6 +451,9 @@ public class CassandraThriftStoreManager extends AbstractCassandraStoreManager {
         } else if (cfName.startsWith(Backend.VERTEXINDEX_STORE_NAME)) {
             createColumnFamily.setCaching("rows_only");
         }
+
+        if (defaultValidator != null)
+            createColumnFamily.setDefault_validation_class(defaultValidator);
 
         log.debug("Adding column family {} to keyspace {}...", cfName, ksName);
         try {

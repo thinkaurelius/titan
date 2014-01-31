@@ -1,10 +1,9 @@
 package com.thinkaurelius.titan.diskstorage.cassandra.embedded;
 
 import static com.thinkaurelius.titan.diskstorage.cassandra.CassandraTransaction.getTx;
-import static com.thinkaurelius.titan.diskstorage.cassandra.embedded.CassandraEmbeddedKeyColumnValueStore.getInternal;
 
-import java.nio.ByteBuffer;
 import java.util.*;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeoutException;
 
 import com.thinkaurelius.titan.diskstorage.cassandra.utils.CassandraHelper;
@@ -15,13 +14,11 @@ import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.config.KSMetaData;
 import org.apache.cassandra.config.Schema;
 import org.apache.cassandra.db.ColumnFamilyType;
-import org.apache.cassandra.db.ConsistencyLevel;
 import org.apache.cassandra.db.RowMutation;
 import org.apache.cassandra.db.filter.QueryPath;
 import org.apache.cassandra.db.marshal.AbstractType;
 import org.apache.cassandra.db.marshal.BytesType;
-import org.apache.cassandra.db.marshal.UTF8Type;
-import org.apache.cassandra.dht.BytesToken;
+import org.apache.cassandra.db.marshal.CounterColumnType;
 import org.apache.cassandra.dht.IPartitioner;
 import org.apache.cassandra.dht.Range;
 import org.apache.cassandra.dht.Token;
@@ -32,8 +29,8 @@ import org.apache.cassandra.scheduler.IRequestScheduler;
 import org.apache.cassandra.service.MigrationManager;
 import org.apache.cassandra.service.StorageProxy;
 import org.apache.cassandra.service.StorageService;
-import org.apache.cassandra.thrift.ColumnPath;
 import org.apache.commons.configuration.Configuration;
+import org.cliffc.high_scale_lib.NonBlockingHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,7 +43,6 @@ import com.thinkaurelius.titan.diskstorage.StorageException;
 import com.thinkaurelius.titan.diskstorage.TemporaryStorageException;
 import com.thinkaurelius.titan.diskstorage.cassandra.AbstractCassandraStoreManager;
 import com.thinkaurelius.titan.diskstorage.cassandra.utils.CassandraDaemonWrapper;
-import com.thinkaurelius.titan.diskstorage.util.StaticArrayBuffer;
 
 public class CassandraEmbeddedStoreManager extends AbstractCassandraStoreManager {
 
@@ -76,6 +72,7 @@ public class CassandraEmbeddedStoreManager extends AbstractCassandraStoreManager
     public static final String CASSANDRA_CONFIG_DIR_KEY = "cassandra-config-dir";
 
     private final Map<String, CassandraEmbeddedKeyColumnValueStore> openStores;
+    private final ConcurrentMap<String, CassandraEmbeddedCounterStore> openCounterStores;
 
     private final IRequestScheduler requestScheduler;
 
@@ -95,6 +92,8 @@ public class CassandraEmbeddedStoreManager extends AbstractCassandraStoreManager
         CassandraDaemonWrapper.start(cassandraConfigDir);
 
         this.openStores = new HashMap<String, CassandraEmbeddedKeyColumnValueStore>(8);
+        this.openCounterStores = new NonBlockingHashMap<String, CassandraEmbeddedCounterStore>();
+
         this.requestScheduler = DatabaseDescriptor.getRequestScheduler();
     }
 
@@ -123,6 +122,7 @@ public class CassandraEmbeddedStoreManager extends AbstractCassandraStoreManager
     @Override
     public void close() {
         openStores.clear();
+        openCounterStores.clear();
         CassandraDaemonWrapper.stop();
     }
 
@@ -137,6 +137,24 @@ public class CassandraEmbeddedStoreManager extends AbstractCassandraStoreManager
 
         CassandraEmbeddedKeyColumnValueStore store = new CassandraEmbeddedKeyColumnValueStore(keySpaceName, name, this);
         openStores.put(name, store);
+        return store;
+    }
+
+    @Override
+    public CassandraEmbeddedCounterStore openCounters(String name) throws StorageException {
+        CassandraEmbeddedCounterStore store = openCounterStores.get(name);
+
+        if (store == null) {
+            CassandraEmbeddedCounterStore newStore = new CassandraEmbeddedCounterStore(keySpaceName, name);
+            store = openCounterStores.putIfAbsent(name, newStore);
+
+            if (store == null) {
+                ensureCounterColumnFamilyExists(keySpaceName, name);
+                store = newStore;
+            } else // somebody beat as to opening but that's not a big deal
+                newStore.close();
+        }
+
         return store;
     }
 
@@ -230,6 +248,8 @@ public class CassandraEmbeddedStoreManager extends AbstractCassandraStoreManager
     @Override
     public void clearStorage() throws StorageException {
         openStores.clear();
+        openCounterStores.clear();
+
         try {
             KSMetaData ksMetaData = Schema.instance.getKSMetaData(keySpaceName);
 
@@ -272,15 +292,22 @@ public class CassandraEmbeddedStoreManager extends AbstractCassandraStoreManager
     }
 
     private void ensureColumnFamilyExists(String ksName, String cfName) throws StorageException {
-        ensureColumnFamilyExists(ksName, cfName, BytesType.instance);
+        ensureColumnFamilyExists(ksName, cfName, BytesType.instance, BytesType.instance);
     }
 
-    private void ensureColumnFamilyExists(String keyspaceName, String columnfamilyName, AbstractType comparator) throws StorageException {
+    private void ensureCounterColumnFamilyExists(String ksName, String cfName) throws StorageException {
+        ensureColumnFamilyExists(ksName, cfName, BytesType.instance, CounterColumnType.instance);
+    }
+
+    private void ensureColumnFamilyExists(String keyspaceName, String columnfamilyName, AbstractType comparator, AbstractType defaultValidator) throws StorageException {
         if (null != Schema.instance.getCFMetaData(keyspaceName, columnfamilyName))
             return;
 
         // Column Family not found; create it
         CFMetaData cfm = new CFMetaData(keyspaceName, columnfamilyName, ColumnFamilyType.Standard, comparator, null);
+
+        if (defaultValidator != null)
+            cfm.defaultValidator(defaultValidator);
 
         // Hard-coded caching settings
         if (columnfamilyName.startsWith(Backend.EDGESTORE_NAME)) {

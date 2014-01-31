@@ -7,7 +7,6 @@ import com.thinkaurelius.titan.diskstorage.StorageException;
 import com.thinkaurelius.titan.diskstorage.common.DistributedStoreManager;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.*;
 
-import com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfiguration;
 import org.apache.cassandra.dht.IPartitioner;
 import org.apache.cassandra.dht.Token;
 import org.apache.commons.configuration.Configuration;
@@ -110,6 +109,9 @@ public abstract class AbstractCassandraStoreManager extends DistributedStoreMana
     public static final String REPLICATION_FACTOR_KEY = "replication-factor";
     public static final int REPLICATION_FACTOR_DEFAULT = 1;
 
+    public static final String DEFAULT_COMPARATOR = "org.apache.cassandra.db.marshal.BytesType";
+    public static final String DEFAULT_VALIDATOR  = "org.apache.cassandra.db.marshal.BytesType";
+    public static final String COUNTER_COLUMN_VALIDATOR = "org.apache.cassandra.db.marshal.CounterColumnType";
 
     protected final String keySpaceName;
     protected final int replicationFactor;
@@ -126,7 +128,6 @@ public abstract class AbstractCassandraStoreManager extends DistributedStoreMana
     protected final boolean compressionEnabled;
     protected final int compressionChunkSizeKB;
     protected final String compressionClass;
-
 
     public AbstractCassandraStoreManager(Configuration storageConfig) {
         super(storageConfig, PORT_DEFAULT);
@@ -239,5 +240,4 @@ public abstract class AbstractCassandraStoreManager extends DistributedStoreMana
     public String getName() {
         return getClass().getSimpleName() + keySpaceName;
     }
-
 }

@@ -18,14 +18,16 @@ import org.slf4j.LoggerFactory;
 public class HBaseCounterStore implements KeyColumnCounterStore {
     private static final Logger logger = LoggerFactory.getLogger(HBaseCounterStore.class);
 
+    private final String storeName;
     private final String tableName;
     private final byte[] columnFamilyBytes;
     private final HTablePool pool;
 
     private final HBaseStoreManager storeManager;
 
-    HBaseCounterStore(HBaseStoreManager storeManager,  HTablePool pool, String tableName, String columnFamily) {
+    HBaseCounterStore(HBaseStoreManager storeManager,  HTablePool pool, String tableName, String columnFamily, String storeName) {
         this.storeManager = storeManager;
+        this.storeName = storeName;
         this.tableName = tableName;
         this.pool = pool;
         this.columnFamilyBytes = columnFamily.getBytes();
@@ -81,7 +83,7 @@ public class HBaseCounterStore implements KeyColumnCounterStore {
 
     @Override
     public String getName() {
-        return String.format("HBase:counter(%s, %s)", tableName, new String(columnFamilyBytes));
+        return String.format("HBase:counter(%s, %s)", storeName, new String(columnFamilyBytes));
     }
 
     @Override

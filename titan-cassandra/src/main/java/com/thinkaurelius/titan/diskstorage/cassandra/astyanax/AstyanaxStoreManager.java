@@ -30,6 +30,7 @@ import org.apache.cassandra.exceptions.ConfigurationException;
 import org.apache.cassandra.utils.FBUtilities;
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.lang.StringUtils;
+import org.cliffc.high_scale_lib.NonBlockingHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,6 +38,7 @@ import java.lang.reflect.Constructor;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentMap;
 
 import static com.thinkaurelius.titan.diskstorage.cassandra.CassandraTransaction.getTx;
 
@@ -127,6 +129,7 @@ public class AstyanaxStoreManager extends AbstractCassandraStoreManager {
     private final RetryPolicy retryPolicy;
 
     private final Map<String, AstyanaxOrderedKeyColumnValueStore> openStores;
+    private final ConcurrentMap<String, CassandraAstyanaxCounterStore> openCounterStores;
 
     public AstyanaxStoreManager(Configuration config) throws StorageException {
         super(config);
@@ -159,6 +162,7 @@ public class AstyanaxStoreManager extends AbstractCassandraStoreManager {
         this.keyspaceContext.start();
 
         openStores = new HashMap<String, AstyanaxOrderedKeyColumnValueStore>(8);
+        openCounterStores = new NonBlockingHashMap<String, CassandraAstyanaxCounterStore>();
     }
 
     @Override
@@ -188,19 +192,41 @@ public class AstyanaxStoreManager extends AbstractCassandraStoreManager {
     public void close() {
         // Shutdown the Astyanax contexts
         openStores.clear();
+        openCounterStores.clear();
+
         keyspaceContext.shutdown();
         clusterContext.shutdown();
     }
 
     @Override
     public synchronized AstyanaxOrderedKeyColumnValueStore openDatabase(String name) throws StorageException {
-        if (openStores.containsKey(name)) return openStores.get(name);
-        else {
+        AstyanaxOrderedKeyColumnValueStore store = openStores.get(name);
+
+        if (store == null) {
             ensureColumnFamilyExists(name);
-            AstyanaxOrderedKeyColumnValueStore store = new AstyanaxOrderedKeyColumnValueStore(name, keyspaceContext.getClient(), this, retryPolicy);
+            store = new AstyanaxOrderedKeyColumnValueStore(name, keyspaceContext.getClient(), this, retryPolicy);
             openStores.put(name, store);
-            return store;
         }
+
+        return store;
+    }
+
+    @Override
+    public CassandraAstyanaxCounterStore openCounters(String name) throws StorageException {
+        CassandraAstyanaxCounterStore store = openCounterStores.get(name);
+
+        if (store == null) {
+            CassandraAstyanaxCounterStore newStore = new CassandraAstyanaxCounterStore(keyspaceContext.getClient(), name);
+            store = openCounterStores.putIfAbsent(name, newStore);
+
+            if (store == null) {
+                ensureCounterColumnFamilyExists(name);
+                store = newStore;
+            } else
+                newStore.close();
+        }
+
+        return store;
     }
 
     public AstyanaxRecipeLocker openLocker(String cfName) throws StorageException {
@@ -282,10 +308,14 @@ public class AstyanaxStoreManager extends AbstractCassandraStoreManager {
     }
 
     private void ensureColumnFamilyExists(String name) throws StorageException {
-        ensureColumnFamilyExists(name, "org.apache.cassandra.db.marshal.BytesType");
+        ensureColumnFamilyExists(name, DEFAULT_COMPARATOR, DEFAULT_VALIDATOR);
     }
 
-    private void ensureColumnFamilyExists(String name, String comparator) throws StorageException {
+    private void ensureCounterColumnFamilyExists(String name) throws StorageException {
+        ensureColumnFamilyExists(name, DEFAULT_COMPARATOR, COUNTER_COLUMN_VALIDATOR);
+    }
+
+    private void ensureColumnFamilyExists(String name, String comparator, String defaultValidator) throws StorageException {
         Cluster cl = clusterContext.getClient();
         try {
             KeyspaceDefinition ksDef = cl.describeKeyspace(keySpaceName);
@@ -301,6 +331,9 @@ public class AstyanaxStoreManager extends AbstractCassandraStoreManager {
                                 .setName(name)
                                 .setKeyspace(keySpaceName)
                                 .setComparatorType(comparator);
+
+                if (defaultValidator != null)
+                    cfDef.setDefaultValidationClass(defaultValidator);
 
                 ImmutableMap.Builder<String, String> compressionOptions = new ImmutableMap.Builder<String, String>();
 
