@@ -78,6 +78,11 @@ public class InMemoryStorageAdapter implements KeyColumnValueStoreManager {
     }
 
     @Override
+    public KeyColumnCounterStore openCounters(String name) throws StorageException {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public void mutateMany(Map<String, Map<StaticBuffer, KCVMutation>> mutations, StoreTransaction txh) throws StorageException {
         //Do nothing
     }

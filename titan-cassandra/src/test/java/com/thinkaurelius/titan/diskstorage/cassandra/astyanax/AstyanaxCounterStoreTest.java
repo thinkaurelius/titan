@@ -1,9 +1,10 @@
 package com.thinkaurelius.titan.diskstorage.cassandra.astyanax;
 
-import com.thinkaurelius.titan.diskstorage.CounterStoreTest;
+import com.thinkaurelius.titan.diskstorage.StorageException;
+import com.thinkaurelius.titan.diskstorage.cassandra.AbstractCassandraCounterStoreTest;
 
-public class AstyanaxCounterStoreTest extends CounterStoreTest {
-    public AstyanaxCounterStoreTest() {
-        super(new CassandraAstyanaxCounterStore(null, ""));
+public class AstyanaxCounterStoreTest extends AbstractCassandraCounterStoreTest {
+    public AstyanaxCounterStoreTest() throws StorageException {
+        super(new AstyanaxStoreManager(getBaseStorageConfiguration(AstyanaxCounterStoreTest.class.getSimpleName())).openCounters("ASTYANAX_COUNTERS"));
     }
 }

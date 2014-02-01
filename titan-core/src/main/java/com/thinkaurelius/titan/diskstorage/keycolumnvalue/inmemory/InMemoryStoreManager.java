@@ -82,6 +82,11 @@ public class InMemoryStoreManager implements KeyColumnValueStoreManager {
     }
 
     @Override
+    public KeyColumnCounterStore openCounters(String name) throws StorageException {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public void mutateMany(Map<String, Map<StaticBuffer, KCVMutation>> mutations, StoreTransaction txh) throws StorageException {
         for (Map.Entry<String, Map<StaticBuffer, KCVMutation>> storeMut : mutations.entrySet()) {
             KeyColumnValueStore store = stores.get(storeMut.getKey());
@@ -91,6 +96,7 @@ public class InMemoryStoreManager implements KeyColumnValueStoreManager {
             }
         }
     }
+
 
     @Override
     public String getName() {

@@ -54,6 +54,11 @@ public class CacheStoreManagerAdapter implements KeyColumnValueStoreManager {
     }
 
     @Override
+    public KeyColumnCounterStore openCounters(String name) throws StorageException {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public void mutateMany(Map<String, Map<StaticBuffer, KCVMutation>> mutations, StoreTransaction txh) throws StorageException {
         Map<String, KVMutation> converted = new HashMap<String, KVMutation>(mutations.size());
         for (Map.Entry<String, Map<StaticBuffer, KCVMutation>> storeEntry : mutations.entrySet()) {
