@@ -69,8 +69,8 @@ public class CassandraTransaction extends AbstractStoreTransaction {
         }
     }
 
-    private final Consistency readConsistency;
-    private final Consistency writeConsistency;
+    private Consistency readConsistency;
+    private Consistency writeConsistency;
 
     public CassandraTransaction(StoreTxConfig config, Consistency readConsistency, Consistency writeConsistency) {
         super(config);
@@ -93,9 +93,17 @@ public class CassandraTransaction extends AbstractStoreTransaction {
     public Consistency getReadConsistencyLevel() {
         return readConsistency;
     }
+    
+    public void setReadConsistencyLevel(String readConsistency) {
+        this.readConsistency = CassandraTransaction.Consistency.parse(readConsistency);
+    }
 
     public Consistency getWriteConsistencyLevel() {
         return writeConsistency;
+    }
+    
+    public void setWriteConsistencyLevel(String writeConsistency) {
+        this.writeConsistency = CassandraTransaction.Consistency.parse(writeConsistency);
     }
 
     public static CassandraTransaction getTx(StoreTransaction txh) {
