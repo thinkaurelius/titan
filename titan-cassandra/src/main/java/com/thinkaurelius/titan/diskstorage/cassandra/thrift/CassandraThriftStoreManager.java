@@ -87,14 +87,20 @@ public class CassandraThriftStoreManager extends AbstractCassandraStoreManager {
 
         CTConnectionPool p = new CTConnectionPool(factory);
         p.setTestOnBorrow(true);
-        p.setTestOnReturn(true);
+        p.setTestOnReturn(false);
         p.setTestWhileIdle(false);
-        p.setWhenExhaustedAction(GenericKeyedObjectPool.WHEN_EXHAUSTED_BLOCK);
-        p.setMaxActive(-1); // "A negative value indicates no limit"
-        p.setMaxTotal(maxTotalConnections); // maxTotal limits active + idle
-        p.setMinIdle(0); // prevent evictor from eagerly creating unused connections
-        p.setMinEvictableIdleTimeMillis(60 * 1000L);
-        p.setTimeBetweenEvictionRunsMillis(30 * 1000L);
+        p.setTimeBetweenEvictionRunsMillis(0L); // Don't run evctor
+        p.setMaxIdle(-1); // let there be idle connections. (maxTotalConnections at most)
+        
+        if(maxTotalConnections == -1) {
+        	p.setMaxActive(-1);
+            p.setMaxTotal(-1);
+            warmupPool(p, this.keySpaceName, GraphDatabaseConfiguration.CONNECTION_POOL_SIZE_DEFAULT);
+        } else {
+	        p.setMaxActive(maxTotalConnections); // "A negative value indicates no limit"
+	        p.setMaxTotal((int)(maxTotalConnections*1.2)); // maxTotal limits active + idle // *WAS* maxTotalConnections
+	        warmupPool(p, this.keySpaceName, maxTotalConnections);
+        }
 
         this.pool = p;
 
@@ -107,6 +113,20 @@ public class CassandraThriftStoreManager extends AbstractCassandraStoreManager {
         }
     }
 
+    private void warmupPool(CTConnectionPool p, String keyspanceName, int maxTotalConnections) {
+        try {
+	    	ArrayList<CTConnection> conns = new ArrayList<CTConnection>();
+        	for(int i=0; i<maxTotalConnections; i++) {
+	        	conns.add(p.borrowObject(keyspanceName));
+	        }
+	        
+	        for(CTConnection conn: conns) {
+	        	p.returnObjectUnsafe(keyspanceName, conn);
+	        }
+        } catch (Exception e) {
+        	throw new RuntimeException("Failed to warmup the connection pool.", e);
+        }
+    }
 
     @Override
     public Deployment getDeployment() {
