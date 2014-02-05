@@ -89,13 +89,17 @@ public class CassandraThriftStoreManager extends AbstractCassandraStoreManager {
         p.setTestOnBorrow(true);
         p.setTestOnReturn(true);
         p.setTestWhileIdle(false);
-        p.setWhenExhaustedAction(GenericKeyedObjectPool.WHEN_EXHAUSTED_BLOCK);
-        p.setMaxActive(-1); // "A negative value indicates no limit"
-        p.setMaxTotal(maxTotalConnections); // maxTotal limits active + idle
-        p.setMinIdle(0); // prevent evictor from eagerly creating unused connections
-        p.setMinEvictableIdleTimeMillis(60 * 1000L);
-        p.setTimeBetweenEvictionRunsMillis(30 * 1000L);
-
+        p.setTimeBetweenEvictionRunsMillis(0L);
+        p.setMaxIdle(-1);
+        
+        if(maxTotalConnections == -1) {
+        	p.setMaxActive(-1);
+        	p.setMaxTotal(-1);
+        } else {
+        	p.setMaxActive(maxTotalConnections);
+        	p.setMaxTotal((int)(maxTotalConnections*1.2));
+        }
+        
         this.pool = p;
 
         this.openStores = new HashMap<String, CassandraThriftKeyColumnValueStore>();
