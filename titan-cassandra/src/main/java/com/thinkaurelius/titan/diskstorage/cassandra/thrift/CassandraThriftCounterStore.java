@@ -1,5 +1,6 @@
 package com.thinkaurelius.titan.diskstorage.cassandra.thrift;
 
+import java.nio.ByteBuffer;
 import java.util.Collections;
 
 import com.thinkaurelius.titan.diskstorage.PermanentStorageException;
@@ -10,6 +11,7 @@ import com.thinkaurelius.titan.diskstorage.cassandra.thrift.thriftpool.CTConnect
 import com.thinkaurelius.titan.diskstorage.cassandra.thrift.thriftpool.CTConnectionPool;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.KeyColumnCounterStore;
 
+import org.apache.cassandra.db.marshal.LongType;
 import org.apache.cassandra.thrift.*;
 
 @SuppressWarnings("unused")
@@ -42,11 +44,13 @@ public class CassandraThriftCounterStore implements KeyColumnCounterStore {
         CTConnection conn = null;
         try {
             conn = pool.borrowObject(keyspace);
-            return conn.getClient().get_count(key.asByteBuffer(),
-                                              new ColumnParent(columnFamily),
-                                              new SlicePredicate()
-                                                  .setColumn_names(Collections.singletonList(column.asByteBuffer())),
-                                              ConsistencyLevel.ONE);
+            ColumnOrSuperColumn counter = conn.getClient().get(key.asByteBuffer(),
+                                                  new ColumnPath(columnFamily).setColumn(column.asByteBuffer()),
+                                                  ConsistencyLevel.ONE);
+
+            return counter == null ? 0L : counter.getCounter_column().getValue();
+        } catch (NotFoundException e) {
+            return 0L;
         } catch (Exception e) {
             throw new TemporaryStorageException(e);
         } finally {

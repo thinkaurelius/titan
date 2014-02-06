@@ -4,6 +4,7 @@ import java.nio.ByteBuffer;
 
 import com.netflix.astyanax.Keyspace;
 import com.netflix.astyanax.connectionpool.exceptions.ConnectionException;
+import com.netflix.astyanax.connectionpool.exceptions.NotFoundException;
 import com.netflix.astyanax.model.Column;
 import com.netflix.astyanax.model.ColumnFamily;
 import com.netflix.astyanax.serializers.ByteBufferSerializer;
@@ -38,11 +39,13 @@ public class CassandraAstyanaxCounterStore implements KeyColumnCounterStore {
         try {
             result = keyspace.prepareQuery(counter).getKey(key.asByteBuffer()).getColumn(column.asByteBuffer())
                              .execute().getResult();
+        } catch (NotFoundException e) {
+            return 0L;
         } catch (ConnectionException e) {
             throw new TemporaryStorageException(e);
         }
 
-        return result == null ? 0 : result.getLongValue();
+        return result == null ? 0L : result.getLongValue();
     }
 
     @Override

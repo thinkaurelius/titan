@@ -12,6 +12,7 @@ import org.apache.cassandra.db.filter.QueryPath;
 import org.apache.cassandra.db.marshal.LongType;
 import org.apache.cassandra.service.StorageProxy;
 import org.apache.cassandra.thrift.ColumnParent;
+import org.apache.cassandra.thrift.NotFoundException;
 
 @SuppressWarnings("unused")
 public class CassandraEmbeddedCounterStore implements KeyColumnCounterStore {
@@ -45,11 +46,19 @@ public class CassandraEmbeddedCounterStore implements KeyColumnCounterStore {
         assert rows != null && rows.size() == 1;
 
         Row row = rows.get(0);
-        if (row.cf == null)
-            return 0; // TODO: it depends if we want to return 0 or throw an error when column does not exist
+        if (row.cf == null || row.cf.isEmpty())
+            return 0L; // TODO: it depends if we want to return 0 or throw an error when column does not exist
 
         IColumn counter = row.cf.getColumn(column.asByteBuffer());
-        return counter == null ? 0 : LongType.instance.compose(counter.value());
+
+        if (counter.isMarkedForDelete())
+            return 0L;
+
+        try {
+            return counter == null ? 0 : ((CounterColumn) counter).total();
+        } catch (ClassCastException e) {
+            throw new PermanentStorageException("Trying to get a counter from non-counter CF", e);
+        }
     }
 
     @Override

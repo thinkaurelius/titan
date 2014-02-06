@@ -27,19 +27,19 @@ public abstract class CounterStoreTest {
 
     @Test
     public void testCounterOfNoExistingColumn() throws Exception {
-        Assert.assertEquals(0L, store.get(KEY, new StaticArrayBuffer("DefinitelyNotExists".getBytes())));
+        Assert.assertEquals(0L, store.get(KEY, new StaticArrayBuffer("DefinitelyDoesNotExist".getBytes())));
     }
 
     private void testIncrements(int numOfColumns) throws Exception {
         for (int i = 0; i < numOfColumns; i++) {
-            StaticBuffer column = new StaticArrayBuffer((store.hashCode() + "_simple_counter").getBytes());
+            StaticBuffer column = new StaticArrayBuffer((store.hashCode() + "_simple_counter_" + i).getBytes());
 
             store.clear(KEY, column);
             Assert.assertEquals(0L, store.get(KEY, column));
 
             // let's first increment by positive number
             store.increment(KEY, column, 2);
-            Assert.assertEquals(0L, store.get(KEY, column));
+            Assert.assertEquals(2L, store.get(KEY, column));
 
             // then let's do decrement to see if we can fall to negative numbers
             store.increment(KEY, column, -3);

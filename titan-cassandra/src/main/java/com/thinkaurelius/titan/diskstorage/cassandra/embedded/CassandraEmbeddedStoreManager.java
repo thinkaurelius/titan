@@ -149,6 +149,7 @@ public class CassandraEmbeddedStoreManager extends AbstractCassandraStoreManager
             store = openCounterStores.putIfAbsent(name, newStore);
 
             if (store == null) {
+                ensureKeyspaceExists(keySpaceName);
                 ensureCounterColumnFamilyExists(keySpaceName, name);
                 store = newStore;
             } else // somebody beat as to opening but that's not a big deal
