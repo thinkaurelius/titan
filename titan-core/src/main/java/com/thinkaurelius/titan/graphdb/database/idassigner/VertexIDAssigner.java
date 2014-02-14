@@ -117,6 +117,7 @@ public class VertexIDAssigner {
                 else partition[0] = (partition[0] >>> 2);
                 //Upper bound needs to be exclusive
                 partition[1] = (partition[1] >>> 2) - 1;
+                partition[1] &= 0x3FFFFFFF;
                 Preconditions.checkArgument(partition[0] != partition[1]);
                 log.info("Setting partition bound [{},{}]", partition[0], partition[1]);
                 placementStrategy.setLocalPartitionBounds(partition[0], partition[1], maxPartitionID + 1);
