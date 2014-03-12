@@ -387,8 +387,10 @@ public class HBaseStoreManager extends DistributedStoreManager implements KeyCol
                 }
 
                 if (mutation.hasDeletions()) {
-                    if (commands.getSecond() == null)
-                        commands.setSecond(new Delete(key.as(StaticBuffer.ARRAY_FACTORY), delTimestamp, null));
+                    if (commands.getSecond() == null) {
+                        Delete d = new Delete(key.as(StaticBuffer.ARRAY_FACTORY));
+                        d.setTimestamp(delTimestamp);
+                    }
 
                     for (StaticBuffer b : mutation.getDeletions()) {
                         commands.getSecond().deleteColumns(cfName, b.as(StaticBuffer.ARRAY_FACTORY), delTimestamp);
