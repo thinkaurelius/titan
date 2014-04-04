@@ -27,7 +27,7 @@ public class CassandraProcessStarter {
     private CassandraOutputReader outputReader;
     private Thread cassandraKiller;
     private boolean delete = true;
-    
+
     private final ExecutorService cassandraOutputLogger =
             Executors.newSingleThreadExecutor();
     private boolean logCassandraOutput = true;
@@ -153,10 +153,10 @@ public class CassandraProcessStarter {
                 }
             }
 
-			/* 
+			/*
 			 * Check that the Cassandra process logged that it
 			 * successfully bound its Thrift port.
-			 * 
+			 *
 			 * This detects
 			 */
             log.debug("Waiting for Cassandra process to log successful Thrift-port bind...");
@@ -198,7 +198,8 @@ public class CassandraProcessStarter {
     }
 
     public void waitForClusterSize(int minSize) throws InterruptedException, StorageException {
-        CTConnectionFactory f = new CTConnectionFactory(address, port,
+        CTConnectionFactory f = new CTConnectionFactory(new String[]{ address }, port,
+                null, null, // username, password
                 GraphDatabaseConfiguration.CONNECTION_TIMEOUT_DEFAULT,
                 AbstractCassandraStoreManager.THRIFT_DEFAULT_FRAME_SIZE);
         CTConnection conn = null;
@@ -219,7 +220,7 @@ public class CassandraProcessStarter {
             log.debug("Already started embedded cassandra; subsequent attempts to start do nothing");
             return;
         }
-        
+
         try {
             FileUtils.deleteDirectory(new File(CassandraStorageSetup.DATA_PATH));
         } catch (IOException e) {
