@@ -38,3 +38,4 @@ titan-*/pom.xml.versionsBackup
 /debian/
 /redhat/
 /pkgcommon/
+.metadata/
