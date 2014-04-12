@@ -1,5 +1,6 @@
 package com.thinkaurelius.titan.graphdb.database.serialize;
 
+import com.esotericsoftware.kryo.serializers.DefaultSerializers;
 import com.google.common.base.Preconditions;
 import com.thinkaurelius.titan.core.Parameter;
 import com.thinkaurelius.titan.core.attribute.FullDouble;
@@ -17,11 +18,14 @@ public class SerializerInitialization {
     private static final int KRYO_OFFSET = 40;
     public static final int RESERVED_ID_OFFSET = 256;
 
-    public static final void initialize(Serializer serializer) {
+    public static final void initialize(Serializer serializer,boolean stringUtf8) {
         serializer.registerClass(String[].class, KRYO_OFFSET + 1);
         serializer.registerClass(TypeAttributeType.class, KRYO_OFFSET + 2);
         serializer.registerClass(TypeAttribute.class, KRYO_OFFSET + 3);
-        serializer.registerClass(String.class, new StringSerializer(), KRYO_OFFSET + 4);
+        if(stringUtf8) //default kryo serialization is utf8
+            serializer.registerClass(String.class,KRYO_OFFSET+4);
+        else
+            serializer.registerClass(String.class,new StringSerializer(),KRYO_OFFSET+4);
         serializer.registerClass(Date.class, new DateSerializer(), KRYO_OFFSET + 6);
         serializer.registerClass(ArrayList.class, KRYO_OFFSET + 7);
         serializer.registerClass(HashMap.class, KRYO_OFFSET + 8);

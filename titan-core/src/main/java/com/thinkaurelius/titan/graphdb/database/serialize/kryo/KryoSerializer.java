@@ -12,18 +12,26 @@ import com.thinkaurelius.titan.core.AttributeHandler;
 import com.thinkaurelius.titan.core.AttributeSerializer;
 import com.thinkaurelius.titan.diskstorage.ReadBuffer;
 import com.thinkaurelius.titan.diskstorage.StaticBuffer;
+import com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfiguration;
 import com.thinkaurelius.titan.graphdb.database.serialize.DataOutput;
 import com.thinkaurelius.titan.graphdb.database.serialize.Serializer;
 import com.thinkaurelius.titan.graphdb.database.serialize.SerializerInitialization;
 import com.thinkaurelius.titan.graphdb.database.serialize.DefaultAttributeHandling;
+import org.apache.commons.configuration.Configuration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Constructor;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
+import static com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfiguration.*;
+
 public class KryoSerializer extends DefaultAttributeHandling implements Serializer {
 
+    private static final Logger log =
+            LoggerFactory.getLogger(KryoSerializer.class);
     private static final int MAX_OUTPUT_SIZE = 10 * 1024 * 1024;
 
     private final boolean registerRequired;
@@ -41,9 +49,14 @@ public class KryoSerializer extends DefaultAttributeHandling implements Serializ
     private boolean initialized=false;
 
 
-    public KryoSerializer(final boolean allowAllSerializable) {
+    public KryoSerializer(Configuration config) {
+        final boolean allowAllSerializable = config.getBoolean(ATTRIBUTE_ALLOW_ALL_SERIALIZABLE_KEY,ATTRIBUTE_ALLOW_ALL_SERIALIZABLE_DEFAULT);
+        final boolean utf8 = config.getBoolean(STRING_UTF_SERIALIZATION,STRING_UTF_SERIZLIZATION_DEFAULT);
+
         this.registerRequired=!allowAllSerializable;
         this.registrations = new HashMap<Integer,TypeRegistration>();
+
+        log.info("Kryo serializer enabled with utf8: " + utf8);
 
         kryos = new ThreadLocal<Kryo>() {
             public Kryo initialValue() {
@@ -61,7 +74,7 @@ public class KryoSerializer extends DefaultAttributeHandling implements Serializ
                 return k;
             }
         };
-        SerializerInitialization.initialize(this);
+        SerializerInitialization.initialize(this,utf8);
     }
 
     @Override
