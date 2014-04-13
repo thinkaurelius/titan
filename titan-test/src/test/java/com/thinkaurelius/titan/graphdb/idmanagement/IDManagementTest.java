@@ -86,7 +86,7 @@ public class IDManagementTest {
         int trails = 1000000;
         assertEquals(eid.getMaxPartitionCount(), (1 << partitionBits) - 1);
 
-        KryoSerializer serializer = new KryoSerializer(true);
+        KryoSerializer serializer = new KryoSerializer();
         for (int t = 0; t < trails; t++) {
             long count = RandomGenerator.randomLong(1, eid.getMaxTitanTypeCount());
             long id;

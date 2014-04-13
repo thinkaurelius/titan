@@ -18,6 +18,7 @@ import com.thinkaurelius.titan.graphdb.database.serialize.Serializer;
 import com.thinkaurelius.titan.graphdb.database.serialize.SerializerInitialization;
 import com.thinkaurelius.titan.graphdb.database.serialize.DefaultAttributeHandling;
 import org.apache.commons.configuration.Configuration;
+import org.apache.commons.configuration.PropertiesConfiguration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -48,6 +49,9 @@ public class KryoSerializer extends DefaultAttributeHandling implements Serializ
 
     private boolean initialized=false;
 
+    public KryoSerializer(){
+	    this(new PropertiesConfiguration());
+    }
 
     public KryoSerializer(Configuration config) {
         final boolean allowAllSerializable = config.getBoolean(ATTRIBUTE_ALLOW_ALL_SERIALIZABLE_KEY,ATTRIBUTE_ALLOW_ALL_SERIALIZABLE_DEFAULT);
@@ -56,7 +60,7 @@ public class KryoSerializer extends DefaultAttributeHandling implements Serializ
         this.registerRequired=!allowAllSerializable;
         this.registrations = new HashMap<Integer,TypeRegistration>();
 
-        log.info("Kryo serializer enabled with utf8: " + utf8);
+        log.warn("Kryo serializer enabled with utf8: " + utf8);
 
         kryos = new ThreadLocal<Kryo>() {
             public Kryo initialValue() {

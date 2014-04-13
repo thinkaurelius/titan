@@ -15,7 +15,7 @@ import java.util.Arrays;
 public class KeyValueStoreUtil {
 
     private static final Logger log = LoggerFactory.getLogger(KeyValueStoreUtil.class);
-    public static final Serializer serial = new KryoSerializer(true);
+    public static final Serializer serial = new KryoSerializer();
     public static final long idOffset = 1000;
 
     public static final StaticBuffer MIN_KEY = ByteBufferUtil.getLongBuffer(0);

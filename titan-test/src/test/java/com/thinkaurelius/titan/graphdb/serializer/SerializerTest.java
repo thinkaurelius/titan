@@ -3,6 +3,7 @@ package com.thinkaurelius.titan.graphdb.serializer;
 
 import com.thinkaurelius.titan.diskstorage.ReadBuffer;
 import com.thinkaurelius.titan.diskstorage.StaticBuffer;
+import com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfiguration;
 import com.thinkaurelius.titan.graphdb.database.serialize.DataOutput;
 import com.thinkaurelius.titan.graphdb.database.serialize.Serializer;
 import com.thinkaurelius.titan.graphdb.database.serialize.attribute.DoubleSerializer;
@@ -10,6 +11,8 @@ import com.thinkaurelius.titan.graphdb.database.serialize.attribute.FloatSeriali
 import com.thinkaurelius.titan.graphdb.database.serialize.kryo.KryoSerializer;
 import com.thinkaurelius.titan.testutil.PerformanceTest;
 import com.thinkaurelius.titan.testutil.RandomGenerator;
+import org.apache.commons.configuration.Configuration;
+import org.apache.commons.configuration.PropertiesConfiguration;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -31,7 +34,9 @@ public class SerializerTest {
 
     @Before
     public void setUp() throws Exception {
-        serialize = new KryoSerializer(false);
+        Configuration conf = new PropertiesConfiguration();
+        conf.setProperty(GraphDatabaseConfiguration.ATTRIBUTE_ALLOW_ALL_SERIALIZABLE_KEY,true);
+        serialize = new KryoSerializer(conf);
         serialize.registerClass(TestEnum.class, RESERVED_ID_OFFSET + 1);
         serialize.registerClass(TestClass.class, RESERVED_ID_OFFSET + 2);
         serialize.registerClass(short[].class, RESERVED_ID_OFFSET + 3);
@@ -94,6 +99,7 @@ public class SerializerTest {
             assertEquals(s1 + " vs " + s2, Integer.signum(s1.compareTo(s2)), Integer.signum(b1.compareTo(b2)));
         }
     }
+
 
     @Test
     public void classSerialization() {
@@ -227,7 +233,7 @@ public class SerializerTest {
 
     @Test
     public void testObjectVerification() {
-        KryoSerializer s = new KryoSerializer(true);
+        KryoSerializer s = new KryoSerializer();
         DataOutput out = s.getDataOutput(128, true);
         Long l = Long.valueOf(128);
         out.writeClassAndObject(l);
