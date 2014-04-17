@@ -15,32 +15,18 @@ import org.junit.Before;
 /**
  * @author janar@
  */
-public class InMemoryKeyColumnValueStoreUTF8Test extends KeyColumnValueStoreTest {
+public class InMemoryKeyColumnValueStoreUTF8Test extends InMemoryKeyColumnValueStoreTest {
 
     @Before
     @Override
-    public void setUp() throws Exception
-    {
+    public void setUp() throws Exception {
         super.setUp();
-        Configuration conf  = new PropertiesConfiguration();
-        conf.setProperty(GraphDatabaseConfiguration.STRING_UTF_SERIALIZATION,true);
-        KeyValueStoreUtil.serial = new KryoSerializer(conf);
+        KeyValueStoreUtil.setUTF8Serializer();
     }
 
     @After
-    public void tearDown() throws Exception
-    {
-        KeyValueStoreUtil.serial = new KryoSerializer();
-    }
-
-    @Override
-    public KeyColumnValueStoreManager openStorageManager() throws StorageException {
-        return new InMemoryStoreManager();
-    }
-
-    @Override
-    public void clopen() {
-        //Do nothing
+    public void tearDown() throws Exception {
+        KeyValueStoreUtil.setDefaultSerializer();
     }
 
 }

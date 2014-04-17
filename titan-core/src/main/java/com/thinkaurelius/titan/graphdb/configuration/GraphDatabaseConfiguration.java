@@ -457,8 +457,17 @@ public class GraphDatabaseConfiguration {
 
     public static final String ATTRIBUTE_NAMESPACE = "attributes";
 
+
     public static final String ATTRIBUTE_ALLOW_ALL_SERIALIZABLE_KEY = "allow-all";
     public static final boolean ATTRIBUTE_ALLOW_ALL_SERIALIZABLE_DEFAULT = true;
+
+    /**
+     * If enabled, uses the default Kryo string serialization which is more compact
+     * than the binary preserving one provided by Titan ({@link com.thinkaurelius.titan.graphdb.database.serialize.attribute.StringSerializer})
+     */
+    public static final String STRING_COMPACT_SERIALIZE = "compact-string";
+    public static final boolean STRING_COMPACT_SERIALIZE_DEFAULT = false;
+
     private static final String ATTRIBUTE_PREFIX = "attribute";
     private static final String SERIALIZER_PREFIX = "serializer";
 
@@ -699,13 +708,6 @@ public class GraphDatabaseConfiguration {
      */
     public static final String GRAPHITE_PREFIX_KEY = "prefix";
     public static final String GRAPHITE_PREFIX_DEFAULT = null;
-
-    /**
-     * String attribute serialization could be by default Kryo serialization
-     * By default, set to false to maintain backward compatibility
-     */
-    public static final String STRING_UTF_SERIALIZATION = SERIALIZER_PREFIX + ".string.utf8";
-    public static final boolean STRING_UTF_SERIZLIZATION_DEFAULT = false;
 
 
     private final Configuration configuration;

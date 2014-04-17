@@ -15,17 +15,13 @@ public class HBaseKeyColumnValueUTF8Test extends HBaseKeyColumnValueTest
 {
     @Before
     @Override
-    public void setUp() throws Exception
-    {
+    public void setUp() throws Exception {
         super.setUp();
-        Configuration conf  = new PropertiesConfiguration();
-        conf.setProperty(GraphDatabaseConfiguration.STRING_UTF_SERIALIZATION,true);
-        KeyValueStoreUtil.serial = new KryoSerializer(conf);
+        KeyValueStoreUtil.setUTF8Serializer();
     }
 
     @After
-    public void tearDown() throws Exception
-    {
-        KeyValueStoreUtil.serial = new KryoSerializer();
+    public void tearDown() throws Exception {
+        KeyValueStoreUtil.setDefaultSerializer();
     }
 }

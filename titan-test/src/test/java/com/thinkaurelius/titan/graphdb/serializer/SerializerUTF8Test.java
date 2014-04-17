@@ -23,7 +23,7 @@ public class SerializerUTF8Test extends SerializerTest
     @Before
     public void setUp() throws Exception {
         Configuration conf = new PropertiesConfiguration();
-        conf.setProperty(GraphDatabaseConfiguration.STRING_UTF_SERIALIZATION,true);
+        conf.setProperty(GraphDatabaseConfiguration.STRING_COMPACT_SERIALIZE,true);
         serialize = new KryoSerializer(conf);
         serialize.registerClass(TestEnum.class, RESERVED_ID_OFFSET + 1);
         serialize.registerClass(TestClass.class, RESERVED_ID_OFFSET + 2);

@@ -55,12 +55,12 @@ public class KryoSerializer extends DefaultAttributeHandling implements Serializ
 
     public KryoSerializer(Configuration config) {
         final boolean allowAllSerializable = config.getBoolean(ATTRIBUTE_ALLOW_ALL_SERIALIZABLE_KEY,ATTRIBUTE_ALLOW_ALL_SERIALIZABLE_DEFAULT);
-        final boolean utf8 = config.getBoolean(STRING_UTF_SERIALIZATION,STRING_UTF_SERIZLIZATION_DEFAULT);
+        final boolean utf8 = config.getBoolean(STRING_COMPACT_SERIALIZE,STRING_COMPACT_SERIALIZE_DEFAULT);
 
         this.registerRequired=!allowAllSerializable;
         this.registrations = new HashMap<Integer,TypeRegistration>();
 
-        log.warn("Kryo serializer enabled with utf8: " + utf8);
+        log.info("Kryo serializer enabled with utf8: " + utf8);
 
         kryos = new ThreadLocal<Kryo>() {
             public Kryo initialValue() {

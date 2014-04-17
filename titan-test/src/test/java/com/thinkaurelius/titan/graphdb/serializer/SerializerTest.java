@@ -35,7 +35,7 @@ public class SerializerTest {
     @Before
     public void setUp() throws Exception {
         Configuration conf = new PropertiesConfiguration();
-        conf.setProperty(GraphDatabaseConfiguration.ATTRIBUTE_ALLOW_ALL_SERIALIZABLE_KEY,true);
+        conf.setProperty(GraphDatabaseConfiguration.ATTRIBUTE_ALLOW_ALL_SERIALIZABLE_KEY,false);
         serialize = new KryoSerializer(conf);
         serialize.registerClass(TestEnum.class, RESERVED_ID_OFFSET + 1);
         serialize.registerClass(TestClass.class, RESERVED_ID_OFFSET + 2);
