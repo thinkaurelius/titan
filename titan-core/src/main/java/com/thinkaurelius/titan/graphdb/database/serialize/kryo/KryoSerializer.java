@@ -17,6 +17,7 @@ import com.thinkaurelius.titan.graphdb.database.serialize.DataOutput;
 import com.thinkaurelius.titan.graphdb.database.serialize.Serializer;
 import com.thinkaurelius.titan.graphdb.database.serialize.SerializerInitialization;
 import com.thinkaurelius.titan.graphdb.database.serialize.DefaultAttributeHandling;
+import org.apache.commons.configuration.BaseConfiguration;
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.PropertiesConfiguration;
 import org.slf4j.Logger;
@@ -50,7 +51,7 @@ public class KryoSerializer extends DefaultAttributeHandling implements Serializ
     private boolean initialized=false;
 
     public KryoSerializer(){
-	    this(new PropertiesConfiguration());
+	    this(new BaseConfiguration());
     }
 
     public KryoSerializer(Configuration config) {
