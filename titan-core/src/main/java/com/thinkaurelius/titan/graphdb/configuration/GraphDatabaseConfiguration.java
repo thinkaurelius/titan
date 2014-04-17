@@ -700,6 +700,14 @@ public class GraphDatabaseConfiguration {
     public static final String GRAPHITE_PREFIX_KEY = "prefix";
     public static final String GRAPHITE_PREFIX_DEFAULT = null;
 
+    /**
+     * String attribute serialization could be by default Kryo serialization
+     * By default, set to false to maintain backward compatibility
+     */
+    public static final String STRING_UTF_SERIALIZATION = SERIALIZER_PREFIX + ".string.utf8";
+    public static final boolean STRING_UTF_SERIZLIZATION_DEFAULT = false;
+
+
     private final Configuration configuration;
 
     private boolean readOnly;
@@ -1205,7 +1213,7 @@ public class GraphDatabaseConfiguration {
 
     public Serializer getSerializer() {
         Configuration config = configuration.subset(ATTRIBUTE_NAMESPACE);
-        Serializer serializer = new KryoSerializer(config.getBoolean(ATTRIBUTE_ALLOW_ALL_SERIALIZABLE_KEY, ATTRIBUTE_ALLOW_ALL_SERIALIZABLE_DEFAULT));
+        Serializer serializer = new KryoSerializer(config);
         for (RegisteredAttributeClass<?> clazz : getRegisteredAttributeClasses(config)) {
             clazz.registerWith(serializer);
         }
