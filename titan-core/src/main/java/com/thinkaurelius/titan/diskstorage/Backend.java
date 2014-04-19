@@ -518,6 +518,7 @@ public class Backend implements LockerProvider {
         put("infinispan", "com.thinkaurelius.titan.diskstorage.infinispan.InfinispanCacheStoreManager");
         put("cassandra", "com.thinkaurelius.titan.diskstorage.cassandra.astyanax.AstyanaxStoreManager");
         put("cassandrathrift", "com.thinkaurelius.titan.diskstorage.cassandra.thrift.CassandraThriftStoreManager");
+        put("cassandracql", "com.thinkaurelius.titan.diskstorage.cassandra.cql.CqlStoreManager");
         put("astyanax", "com.thinkaurelius.titan.diskstorage.cassandra.astyanax.AstyanaxStoreManager");
         put("hbase", "com.thinkaurelius.titan.diskstorage.hbase.HBaseStoreManager");
         put("embeddedcassandra", "com.thinkaurelius.titan.diskstorage.cassandra.embedded.CassandraEmbeddedStoreManager");
