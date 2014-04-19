@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+    <title>Using Hazelcast</title>
+    <link rel="stylesheet" href="./css/screen.css" type="text/css" charset="utf-8" />
+    <link rel="stylesheet" href="./css/gollum.css" type="text/css" charset="utf-8" />
+    <link rel="stylesheet" href="./css/syntax.css" type="text/css" charset="utf-8" />
+    <script src="./javascript/jquery-1.4.2.min.js" type="text/javascript"></script>
+    <script src="./javascript/jquery.text_selection-1.0.0.min.js" type="text/javascript"></script>
+    <script src="./javascript/jquery.previewable_comment_form.js" type="text/javascript"></script>
+    <script src="./javascript/jquery.tabs.js" type="text/javascript"></script>
+    <script src="./javascript/gollum.js" type="text/javascript"></script>
+  </head>
+
+  <body>
+    <div id="main">
+      <div class="site">
+        <div id="guides">
+          <div class="guide">
+            <div class="main">
+              <div class="actions">
+                <div>
+                  <a href="./Home.html">Aurelius Titan</a>
+                </div>
+              </div>
+              <h1>Using Hazelcast</h1>
+              <div class="content wikistyle gollum textile">
+                <p><a href="http://www.hazelcast.com"><span class="float-left"><span><img src="https://db56fe3126-custmedia.vresp.com/36365bb450/hazelcast%20logo.jpg" width="300px"></span></span></a></p>
+<p><a href="http://www.hazelcast.com">Hazelcast</a> is a distributed in-memory data-grid that provides fast access to large amounts of data distributed across a cluster of machines. The Hazelcast storage backend for Titan is a low latency optimized alternative that excels at read-mostly workloads that uniformly access a graph. Note, that Hazelcast does not provide durable persistence. For production deployments, Hazelcast is operated as a data-grid where data is replicated to multiple machine for safety. Hazelcast runs in the same <span class="caps">JVM</span> as Titan.</p>
+<p>Note, that the Hazelcast storage backend was first included in Titan 0.4.0 and is considered experimental for now.</p>
+<blockquote>
+<p>Hazelcast is the leading open source in-memory data grid it provides java developers an easy-to-use and powerful solution for data distribution that can be used as a clustering solution, a distributed cache and a NoSQL key-value store. — <a href="http://www.hazelcast.com">Hazelcast Homepage</a></p>
+</blockquote>
+<h2>Hazelcast Setup</h2>
+<p>Since Hazelcast runs in the same <span class="caps">JVM</span> as Titan, connecting the two only requires a simple configuration and no additional setup:</p>
+<div class="highlight">
+<pre><span class="n">Configuration</span> <span class="n">conf</span> <span class="o">=</span> <span class="k">new</span> <span class="n">BaseConfiguration</span><span class="o">();</span>
+<span class="n">conf</span><span class="o">.</span><span class="na">setProperty</span><span class="o">(</span><span class="s">"storage.directory"</span><span class="o">,</span> <span class="s">"/tmp/graph"</span><span class="o">);</span>
+<span class="n">conf</span><span class="o">.</span><span class="na">setProperty</span><span class="o">(</span><span class="s">"storage.backend"</span><span class="o">,</span> <span class="s">"hazelcastcache"</span><span class="o">);</span>
+<span class="n">TitanGraph</span> <span class="n">graph</span> <span class="o">=</span> <span class="n">TitanFactory</span><span class="o">.</span><span class="na">open</span><span class="o">(</span><span class="n">conf</span><span class="o">);</span>
+</pre>
+</div>
+
+<p>Currently, the Hazelcast storage backend adapter stores some properties in local files (i.e. not in the data-grid) and hence the necessity to provide a local directory. This will likely change in future releases.</p>
+<h2>Hazelcast Specific Configuration</h2>
+<p>In addition to the general <a href="Graph-Configuration">Titan Graph Configuration</a>, there are the following Hazelcast specific Titan configuration options:</p>
+<table>
+<tr>
+<th>Option </th>
+		<th>Description </th>
+		<th>Value </th>
+		<th>Default </th>
+		<th>Modifiable </th>
+	</tr>
+<tr>
+<td> storage.transactions </td>
+		<td> Enables transactions and detects conflicting database operations. <strong><span class="caps">CAUTION</span>:</strong> While disabling transactions can lead to better performance it can cause to inconsistencies and even corrupt the database if multiple Titan instances interact with the same Hazelcast grid. </td>
+		<td> <em>true</em> or <em>false</em> </td>
+		<td> <em>true</em> </td>
+		<td> yes </td>
+	</tr>
+</table><p>Further configuration options can be set in the Hazelcast configuration <span class="caps">XML</span> file. Please see the Hazelcast documentation for more information.</p>
+<h2>Ideal Use Case</h2>
+<p>The Hazelcast storage backend is best suited for read-mostly graph workloads on medium size graphs that can fit entirely into memory on one or multiple machines. <em>Read-mostly</em> means that most of the transactions read data from the graph and very few updates occur. For write-heavy applications, other storage backends will yield much better performance.</p>
+<p>Also, for this storage backend to be cost effective, most of the graph should be accessed regularly. If large parts of the graph go stale (e.g. old elements are rarely accessed) it might be more cost effective to use a disk-backed storage backend where stale data can reside on disk where it is rarely accessed.</p>
+<p>For uniformly read graphs with few updates, the Hazelcast storage backend provides low latency query times that are hard to match by disk-backed storage backends.</p>
+              </div>
+            </div>
+          </div>
+          <div class="admin">
+            <div style="float: left;">
+              <small>Last edited by <b>Dan LaRocque</b>, 2013-12-25 12:42:26</small>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

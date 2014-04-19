@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+    <title>Transaction Configuration</title>
+    <link rel="stylesheet" href="./css/screen.css" type="text/css" charset="utf-8" />
+    <link rel="stylesheet" href="./css/gollum.css" type="text/css" charset="utf-8" />
+    <link rel="stylesheet" href="./css/syntax.css" type="text/css" charset="utf-8" />
+    <script src="./javascript/jquery-1.4.2.min.js" type="text/javascript"></script>
+    <script src="./javascript/jquery.text_selection-1.0.0.min.js" type="text/javascript"></script>
+    <script src="./javascript/jquery.previewable_comment_form.js" type="text/javascript"></script>
+    <script src="./javascript/jquery.tabs.js" type="text/javascript"></script>
+    <script src="./javascript/gollum.js" type="text/javascript"></script>
+  </head>
+
+  <body>
+    <div id="main">
+      <div class="site">
+        <div id="guides">
+          <div class="guide">
+            <div class="main">
+              <div class="actions">
+                <div>
+                  <a href="./Home.html">Aurelius Titan</a>
+                </div>
+              </div>
+              <h1>Transaction Configuration</h1>
+              <div class="content wikistyle gollum textile">
+                <p>Titan’s <code>TitanGraph.buildTransaction()</code> method gives the user the ability to configure and start a new <a class="internal present" href="./Multi-Threaded-Transactions.html">thread-independent transaction</a> against a <code>TitanGraph</code>. Hence, it is identical to <code>TitanGraph.newTransaction()</code> with additional configuration options.</p>
+<p><code>buildTransaction()</code> returns a <code>TransactionBuilder</code> which allows the following aspects of a transaction to be configured:</p>
+<ul>
+<li>
+<strong>readOnly()</strong><br>
+makes the transaction read-only and any attempt to modify the graph will result in an exception.</li>
+	<li>
+<strong>enableBatchLoading()</strong><br>
+ enables batch-loading for an individual transaction. This setting results in similar efficiencies as the graph-wide setting <code>storage.batch-loading</code> due to the disabling of consistency checks and other optimizations. Unlike <code>storage.batch-loading</code> this option will not change the behavior of the storage backend.</li>
+	<li>
+<strong>setTimestamp(long)</strong><br>
+Sets the timestamp for this transaction as communicated to the storage backend for persistence. Depending on the storage backend, this setting may be ignored. For eventually consistent backends, this is the timestamp used to resolve write conflicts. If this setting is not explicitly specified, Titan uses the current time.</li>
+	<li>
+<strong>setCacheSize(long size)</strong> <br>
+The number of vertices this transaction caches in memory. The larger this number, the more memory a transaction can potentially consume. If this number is too small, a transaction might have to re-fetch data which causes delays in particular for long running transactions.</li>
+	<li>
+<strong>checkInternalVertexExistence()</strong> <br>
+Wether this transaction should double-check the existence of vertices during query execution. This can be useful to avoid <em>phantom vertices</em> on eventually consistent storage backends. Disabled by default. Enabling this setting can slow down query processing.</li>
+</ul><p>Once, the desired configuration options have been specified, the new transaction is started via <code>start()</code> which returns a <code>TitanTransaction</code>.</p>
+              </div>
+            </div>
+          </div>
+          <div class="admin">
+            <div style="float: left;">
+              <small>Last edited by <b>Dan LaRocque</b>, 2013-12-25 12:42:26</small>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

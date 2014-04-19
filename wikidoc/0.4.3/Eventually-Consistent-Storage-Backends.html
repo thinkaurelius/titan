@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+    <title>Eventually Consistent Storage Backends</title>
+    <link rel="stylesheet" href="./css/screen.css" type="text/css" charset="utf-8" />
+    <link rel="stylesheet" href="./css/gollum.css" type="text/css" charset="utf-8" />
+    <link rel="stylesheet" href="./css/syntax.css" type="text/css" charset="utf-8" />
+    <script src="./javascript/jquery-1.4.2.min.js" type="text/javascript"></script>
+    <script src="./javascript/jquery.text_selection-1.0.0.min.js" type="text/javascript"></script>
+    <script src="./javascript/jquery.previewable_comment_form.js" type="text/javascript"></script>
+    <script src="./javascript/jquery.tabs.js" type="text/javascript"></script>
+    <script src="./javascript/gollum.js" type="text/javascript"></script>
+  </head>
+
+  <body>
+    <div id="main">
+      <div class="site">
+        <div id="guides">
+          <div class="guide">
+            <div class="main">
+              <div class="actions">
+                <div>
+                  <a href="./Home.html">Aurelius Titan</a>
+                </div>
+              </div>
+              <h1>Eventually Consistent Storage Backends</h1>
+              <div class="content wikistyle gollum textile">
+                <p>This page summarizes some of the aspects to consider when running Titan on top of an eventually consistent storage backend like Apache Cassandra or Apache HBase.</p>
+<h2>Data Degradation</h2>
+<p>On eventually consistent storage backends, certain failure conditions can cause the graph to become inconsistent. This is an inherent property of eventual consistency, in the sense, that accepted updates might not be persisted under certain operational circumstances or failures.</p>
+<p>From Titan’s perspective, these conditions might cause the following graph inconsistencies.</p>
+<ul>
+<li>
+<strong>Ghost Vertices</strong>: <br>
+If a vertex gets deleted while it is concurrently being modified, the vertex might re-appear as a <em>ghost</em>.</li>
+</ul><ul>
+<li>
+<strong>Stale Index entries</strong>: <br>
+Index entries might point to nonexistent vertices in case of partial mutation persistence.</li>
+</ul><ul>
+<li>
+<strong>Half-Edges</strong>: <br>
+Only one direction of an edge gets persisted or deleted which might lead to the edge not being or incorrectly being retrieved.</li>
+</ul><ul>
+<li>
+<strong>Uni-directed Ghost Edges</strong>: <br>
+A uni-directed edge points to a deleted vertex.</li>
+</ul><p>While Titan attempts to combine mutations to make the occurrence of such inconsistencies less likely, they can never be completely avoided and will likely arise on sufficiently large graphs.</p>
+<p>The following strategies can be used to mitigate this issue:</p>
+<ul>
+<li>
+<strong>Buffer Size:</strong> <br>
+Configure the buffer-size in the <a class="internal present" href="./Graph-Configuration.html">graph configuration</a> to be large enough for all mutations in a transaction. This will reduce the likelihood of partial mutations causing inconsistencies.</li>
+	<li>
+<strong>Existence checks:</strong> <br>
+Configure transactions to (double) check for the existence of vertices prior to returning them. Please see <a class="internal present" href="./Transaction-Configuration.html">Transaction Configuration</a> for more information and note that this can significantly decrease performance.<br>
+Note, that this does not fix the inconsistencies but hides some of them from the user.</li>
+	<li>
+<strong>Regular clean-ups:</strong> <br>
+Run regular batch-jobs to repair inconsistencies in the graph using <a class="internal present" href="./Global-Graph-Analytics.html">Faunus</a>.<br>
+This is the only strategy that can address all inconsistencies and effectively repair them. We will provide increasing support for such repairs in future versions of Faunus.</li>
+</ul><h2>Locking</h2>
+<p>On eventually consistent storage backends, Titan must obtain locks in order to ensure consistency.</p>
+<p>When updating an element that is guarded by a uniqueness constraint, Titan uses the following protocol at the end of a transaction when calling <code>tx.commit()</code>:</p>
+<ol>
+<li>Acquire a lock on all elements that have a consistency constraint</li>
+	<li>Re-read those elements from the storage backend and verify that they match the state of the element in the current transaction prior to modification. If not, the element was concurrently modified and a PermanentLocking exception is thrown.</li>
+	<li>Persist the state of the transaction against the storage backend.</li>
+	<li>Release all locks.</li>
+</ol><p>This is a brief description of the locking protocol which leaves out optimizations (e.g. local conflict detection) and detection of failure scenarios (e.g. expired locks).</p>
+<p>The actual lock application mechanism is abstracted such that Titan can use multiple implementations of a locking provider. Currently, two locking providers are supported in the Titan distribution:</p>
+<ol>
+<li>A locking implementation based on key-consistent read and write operations that is agnostic to the underlying storage backend as long as it supports key-consistent operations (which includes Cassandra and HBase). This is the default implementation and uses timestamp based lock applications to determine which transaction holds the lock. For this implementation to work correctly, it is crucial to specify a unique machine-id in the <a class="internal present" href="./Graph-Configuration.html">graph configuration</a> when running multiple Titan instance on the same machine.</li>
+	<li>A Cassandra specific locking implementation based on the Astyanax locking recipe.</li>
+</ol><p>Both locking providers require that clocks are synchronized across all machines in the cluster.</p>
+<p><strong>Important</strong>: Note, that the locking implementation is not robust against all failure scenarios. For instance, when a Cassandra cluster drops below quorum, consistency is now longer ensured. Hence, it is suggested to use locking-based consistency constraints sparingly with eventually consistent storage backends.<br>
+For use cases that require strict and or frequent consistency constraint enforcement, it is suggested to use a storage backend that provides transactional isolation.</p>
+              </div>
+            </div>
+          </div>
+          <div class="admin">
+            <div style="float: left;">
+              <small>Last edited by <b>Dan LaRocque</b>, 2013-12-25 12:42:26</small>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

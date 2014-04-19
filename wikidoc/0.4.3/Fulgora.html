@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+    <title>Fulgora</title>
+    <link rel="stylesheet" href="./css/screen.css" type="text/css" charset="utf-8" />
+    <link rel="stylesheet" href="./css/gollum.css" type="text/css" charset="utf-8" />
+    <link rel="stylesheet" href="./css/syntax.css" type="text/css" charset="utf-8" />
+    <script src="./javascript/jquery-1.4.2.min.js" type="text/javascript"></script>
+    <script src="./javascript/jquery.text_selection-1.0.0.min.js" type="text/javascript"></script>
+    <script src="./javascript/jquery.previewable_comment_form.js" type="text/javascript"></script>
+    <script src="./javascript/jquery.tabs.js" type="text/javascript"></script>
+    <script src="./javascript/gollum.js" type="text/javascript"></script>
+  </head>
+
+  <body>
+    <div id="main">
+      <div class="site">
+        <div id="guides">
+          <div class="guide">
+            <div class="main">
+              <div class="actions">
+                <div>
+                  <a href="./Home.html">Aurelius Titan</a>
+                </div>
+              </div>
+              <h1>Fulgora</h1>
+              <div class="content wikistyle gollum textile">
+                <p>Fulgora is a set of extensions to Titan with the purpose of making Titan capable of in-memory data processing for low latency query answering of both <span class="caps">OLTP</span> (real-time) and <span class="caps">OLAP</span> (batch) queries.</p>
+<p>To make integration with Titan seamless, Fulgora is not a separate project or release but part of the Titan project. Fulgora encompasses a number of features and modules inside Titan geared toward optimized in-memory processing.</p>
+<p>Fulgora is currently comprised of:</p>
+<ol>
+<li>The <a class="internal present" href="./Using-Hazelcast.html">Hazelcast</a> distributed in-memory storage backend optimized for read-mostly graphs.</li>
+	<li>
+<em>Rolling transactions</em> with internal priority caches which provide support for long running transactions with smart memory management.</li>
+</ol><p>Note, that Fulgora is a new extension of Titan (introduced with Titan 0.4.0) and hence considered experimental. Additional Fulgora extensions will be rolled out with future versions of Titan.</p>
+              </div>
+            </div>
+          </div>
+          <div class="admin">
+            <div style="float: left;">
+              <small>Last edited by <b>Dan LaRocque</b>, 2013-12-25 12:42:26</small>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

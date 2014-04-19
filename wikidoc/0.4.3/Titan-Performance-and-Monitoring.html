@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+    <title>Metrics in Titan</title>
+    <link rel="stylesheet" href="./css/screen.css" type="text/css" charset="utf-8" />
+    <link rel="stylesheet" href="./css/gollum.css" type="text/css" charset="utf-8" />
+    <link rel="stylesheet" href="./css/syntax.css" type="text/css" charset="utf-8" />
+    <script src="./javascript/jquery-1.4.2.min.js" type="text/javascript"></script>
+    <script src="./javascript/jquery.text_selection-1.0.0.min.js" type="text/javascript"></script>
+    <script src="./javascript/jquery.previewable_comment_form.js" type="text/javascript"></script>
+    <script src="./javascript/jquery.tabs.js" type="text/javascript"></script>
+    <script src="./javascript/gollum.js" type="text/javascript"></script>
+  </head>
+
+  <body>
+    <div id="main">
+      <div class="site">
+        <div id="guides">
+          <div class="guide">
+            <div class="main">
+              <div class="actions">
+                <div>
+                  <a href="./Home.html">Aurelius Titan</a>
+                </div>
+              </div>
+              <h1>Metrics in Titan</h1>
+              <div class="content wikistyle gollum markdown">
+                <h1>Metrics in Titan</h1>
+
+<p>Starting in version 0.4.0, Titan supports <a href="http://metrics.codahale.com/">Metrics</a>.  Titan can measure the following:</p>
+
+<ul>
+<li>The number of transactions begun, comitted, and rolled back</li>
+<li>The number of attempts and failures of each storage backend operation type</li>
+<li>The response time distribution of each storage backend operation type</li>
+</ul><h2>Configuring Metrics Collection</h2>
+
+<p>To enable Metrics collection, set the following in Titan's properties file:</p>
+
+<div class="highlight">
+<pre><span class="c"># Required to enable Metrics in Titan</span>
+<span class="n">storage</span><span class="p">.</span><span class="n">enable</span><span class="o">-</span><span class="n">basic</span><span class="o">-</span><span class="n">metrics</span> <span class="p">=</span> <span class="nb">true</span>
+</pre>
+</div>
+
+
+<p>This setting makes Titan record measurements at runtime using Metrics classes like Timer, Counter, Histogram, etc.  To access these measurements, one or more Metrics reporters must be configured as described in the section <a href="Titan-Performance-and-Monitoring#configuring-metrics-reporting">Configuring Metrics Reporting</a>.</p>
+
+<h3>Customizing the Default Metric Names</h3>
+
+<p>Titan prefixes all metric names with "com.thinkaurelius.titan" by default.  This prefix can be set through the <code>metrics.prefix</code> configuration property.  For example, to shorten the default "com.thinkaurelius.titan" prefix to just "titan":</p>
+
+<div class="highlight">
+<pre><span class="c"># Optional</span>
+<span class="n">metrics</span><span class="p">.</span><span class="n">prefix</span> <span class="p">=</span> <span class="n">titan</span>
+</pre>
+</div>
+
+
+<h3>Transaction-Specific Metrics Names</h3>
+
+<p>Each Titan transaction may optionally specify its own Metrics name prefix, overridding both the default Metrics name prefix and the <code>metrics.prefix</code> configuration property.  For example, the prefix could be changed to the name of the frontend application that opened the Titan transaction.  Note that Metrics maintains a ConcurrentHashMap of metric names and their associated objects in memory, so it's probably a good idea to keep the number of distinct metric prefixes small.</p>
+
+<p>To do this, call <code>TransactionBuilder.setMetricsPrefix(String)</code>:</p>
+
+<div class="highlight">
+<pre><span class="n">TitanGraph</span> <span class="n">graph</span> <span class="o">=</span> <span class="o">...;</span>
+<span class="n">TransactionBuilder</span> <span class="n">tbuilder</span> <span class="o">=</span> <span class="n">graph</span><span class="o">.</span><span class="na">buildTransaction</span><span class="o">();</span>
+<span class="n">TitanTransaction</span> <span class="n">tx</span> <span class="o">=</span> <span class="n">tbuilder</span><span class="o">.</span><span class="na">setMetricsPrefix</span><span class="o">(</span><span class="s">"foobar"</span><span class="o">).</span><span class="na">start</span><span class="o">();</span>
+</pre>
+</div>
+
+
+<h3>Separating Metrics by Backend Store</h3>
+
+<p>Titan combines the Metrics for its various internal storage backend handles by default.  All Metrics for storage backend interactions follow the pattern ".stores.", regardless of whether they come from the ID store, edge store, etc.  When <code>metrics.merge-basic-metrics = false</code> is set in Titan's properties file, the "stores" string in metric names is replaced by "idStore", "edgeStore", "vertexIndexStore", or "edgeIndexStore".</p>
+
+<h2>Configuring Metrics Reporting</h2>
+
+<p>Titan supports the following Metrics reporters:</p>
+
+<ul>
+<li><a href="Titan-Performance-and-Monitoring#console-reporter-configuration">Console</a></li>
+<li><a href="Titan-Performance-and-Monitoring#csv-file-reporter-configuration">CSV</a></li>
+<li><a href="Titan-Performance-and-Monitoring#ganglia-reporter-configuration">Ganglia</a></li>
+<li><a href="Titan-Performance-and-Monitoring#graphite-reporter-configuration">Graphite</a></li>
+<li><a href="Titan-Performance-and-Monitoring#jmx-reporter-configuration">JMX</a></li>
+<li><a href="Titan-Performance-and-Monitoring#slf4j-reporter-configuration">Slf4j</a></li>
+<li><a href="Titan-Performance-and-Monitoring#user-providedcustom-reporter-configuration">User-provided/Custom</a></li>
+</ul><p>Each reporter type is independent of and can coexist with the others.  For example, it's possible to configure Ganglia, JMX, and Slf4j Metrics reporters to operate simultaneously.  Just set all their respective configuration keys in titan.properties (and enable metrics as directed above).</p>
+
+<h3>Console Reporter Configuration</h3>
+
+<table>
+<thead><tr>
+<th>Config Key</th>
+<th>Required?</th>
+<th>Value</th>
+<th>Default</th>
+</tr></thead>
+<tbody><tr>
+<td>metrics.console.interval</td>
+<td>yes</td>
+<td>Milliseconds to wait between dumping metrics to the console</td>
+<td>null</td>
+</tr></tbody>
+</table><p>Example titan.properties snippet that prints metrics to the console once a minute:</p>
+
+<div class="highlight">
+<pre><span class="n">storage</span><span class="p">.</span><span class="n">enable</span><span class="o">-</span><span class="n">basic</span><span class="o">-</span><span class="n">metrics</span> <span class="p">=</span> <span class="n">true</span>
+# <span class="n">Required</span><span class="p">;</span> <span class="n">specify</span> <span class="n">logging</span> <span class="n">interval</span> <span class="n">in</span> <span class="n">milliseconds</span>
+<span class="n">metrics</span><span class="p">.</span><span class="n">console</span><span class="p">.</span><span class="n">interval</span> <span class="p">=</span> 60000
+</pre>
+</div>
+
+
+<h3>CSV File Reporter Configuration</h3>
+
+<table>
+<thead><tr>
+<th>Config Key</th>
+<th>Required?</th>
+<th>Value</th>
+<th>Default</th>
+</tr></thead>
+<tbody>
+<tr>
+<td>metrics.csv.interval</td>
+<td>yes</td>
+<td>Milliseconds to wait between writing CSV lines</td>
+<td>null</td>
+</tr>
+<tr>
+<td>metrics.csv.dir</td>
+<td>yes</td>
+<td>Directory in which CSV files are written (will be created if it does not exist)</td>
+<td>null</td>
+</tr>
+</tbody>
+</table><p>Example titan.properties snippet that writes CSV files once a minute to the directory <code>./foo/bar/</code> (relative to the process's working directory):</p>
+
+<div class="highlight">
+<pre><span class="n">storage</span><span class="p">.</span><span class="n">enable</span><span class="o">-</span><span class="n">basic</span><span class="o">-</span><span class="n">metrics</span> <span class="p">=</span> <span class="n">true</span>
+# <span class="n">Required</span><span class="p">;</span> <span class="n">specify</span> <span class="n">logging</span> <span class="n">interval</span> <span class="n">in</span> <span class="n">milliseconds</span>
+<span class="n">metrics</span><span class="p">.</span><span class="n">csv</span><span class="p">.</span><span class="n">interval</span> <span class="p">=</span> 60000
+<span class="n">metrics</span><span class="p">.</span><span class="n">csv</span><span class="p">.</span><span class="n">dir</span> <span class="p">=</span> <span class="n">foo</span><span class="o">/</span><span class="n">bar</span>
+</pre>
+</div>
+
+
+<h3>Ganglia Reporter Configuration</h3>
+
+<table>
+<thead><tr>
+<th>Config Key</th>
+<th>Required?</th>
+<th>Value</th>
+<th>Default</th>
+</tr></thead>
+<tbody>
+<tr>
+<td>metrics.ganglia.hostname</td>
+<td>yes</td>
+<td>Unicast host or multicast group to which our Metrics are sent</td>
+<td>null</td>
+</tr>
+<tr>
+<td>metrics.ganglia.interval</td>
+<td>yes</td>
+<td>Milliseconds to wait between sending datagrams</td>
+<td>null</td>
+</tr>
+<tr>
+<td>metrics.ganglia.port</td>
+<td>no</td>
+<td>UDP port to which we send Metrics datagrams</td>
+<td>8649</td>
+</tr>
+<tr>
+<td>metrics.ganglia.addressing-mode</td>
+<td>no</td>
+<td>Must be "unicast" or "multicast"</td>
+<td>unicast</td>
+</tr>
+<tr>
+<td>metrics.ganglia.ttl</td>
+<td>no</td>
+<td>Multicast datagram TTL; ignore for unicast</td>
+<td>1</td>
+</tr>
+<tr>
+<td>metrics.ganglia.protocol-31</td>
+<td>no</td>
+<td>Boolean; true to use Ganglia protocol 3.1, false to use 3.0</td>
+<td>true</td>
+</tr>
+<tr>
+<td>metrics.ganglia.uuid</td>
+<td>no</td>
+<td><a href="https://github.com/ganglia/monitor-core/wiki/UUIDSources">Host UUID to report instead of IP:hostname</a></td>
+<td>null</td>
+</tr>
+<tr>
+<td>metrics.ganglia.spoof</td>
+<td>no</td>
+<td><a href="http://sourceforge.net/apps/trac/ganglia/wiki/gmetric_spoofing">Override IP:hostname reported to Ganglia</a></td>
+<td>null</td>
+</tr>
+</tbody>
+</table><p>Example titan.properties snippet that sends unicast UDP datagrams to localhost on the default port once every 30 seconds:</p>
+
+<div class="highlight">
+<pre><span class="n">storage</span><span class="p">.</span><span class="n">enable</span><span class="o">-</span><span class="n">basic</span><span class="o">-</span><span class="n">metrics</span> <span class="p">=</span> <span class="n">true</span>
+# <span class="n">Required</span><span class="p">;</span> <span class="n">IP</span> <span class="n">or</span> <span class="n">hostname</span> <span class="n">string</span>
+<span class="n">metrics</span><span class="p">.</span><span class="n">ganglia</span><span class="p">.</span><span class="n">hostname</span> <span class="p">=</span> 127<span class="p">.</span>0<span class="p">.</span>0<span class="p">.</span>1 
+# <span class="n">Required</span><span class="p">;</span> <span class="n">specify</span> <span class="n">logging</span> <span class="n">interval</span> <span class="n">in</span> <span class="n">milliseconds</span>
+<span class="n">metrics</span><span class="p">.</span><span class="n">ganglia</span><span class="p">.</span><span class="n">interval</span> <span class="p">=</span> 30000
+</pre>
+</div>
+
+
+<p>Example titan.properties snippet that sends unicast UDP datagrams to a non-default destination port and which also spoofs the IP and hostname reported to Ganglia:</p>
+
+<div class="highlight">
+<pre><span class="n">storage</span><span class="p">.</span><span class="n">enable</span><span class="o">-</span><span class="n">basic</span><span class="o">-</span><span class="n">metrics</span> <span class="p">=</span> <span class="n">true</span>
+# <span class="n">Required</span><span class="p">;</span> <span class="n">IP</span> <span class="n">or</span> <span class="n">hostname</span> <span class="n">string</span>
+<span class="n">metrics</span><span class="p">.</span><span class="n">ganglia</span><span class="p">.</span><span class="n">hostname</span> <span class="p">=</span> 1<span class="p">.</span>2<span class="p">.</span>3<span class="p">.</span>4 
+# <span class="n">Required</span><span class="p">;</span> <span class="n">specify</span> <span class="n">logging</span> <span class="n">interval</span> <span class="n">in</span> <span class="n">milliseconds</span>
+<span class="n">metrics</span><span class="p">.</span><span class="n">ganglia</span><span class="p">.</span><span class="n">interval</span> <span class="p">=</span> 60000
+# <span class="n">Optional</span>
+<span class="n">metrics</span><span class="p">.</span><span class="n">ganglia</span><span class="p">.</span><span class="n">port</span> <span class="p">=</span> 6789
+<span class="n">metrics</span><span class="p">.</span><span class="n">ganglia</span><span class="p">.</span><span class="n">spoof</span> <span class="p">=</span> 10<span class="p">.</span>0<span class="p">.</span>0<span class="p">.</span>1<span class="p">:</span><span class="n">zombo</span><span class="p">.</span><span class="n">com</span>
+</pre>
+</div>
+
+
+<h3>Graphite Reporter Configuration</h3>
+
+<table>
+<thead><tr>
+<th>Config Key</th>
+<th>Required?</th>
+<th>Value</th>
+<th>Default</th>
+</tr></thead>
+<tbody>
+<tr>
+<td>metrics.graphite.hostname</td>
+<td>yes</td>
+<td>IP address or hostname to which <a href="https://graphite.readthedocs.org/en/latest/feeding-carbon.html#the-plaintext-protocol">Graphite plaintext protocol</a> data are sent</td>
+<td>null</td>
+</tr>
+<tr>
+<td>metrics.graphite.interval</td>
+<td>yes</td>
+<td>Milliseconds to wait between pushing data to Graphite</td>
+<td>null</td>
+</tr>
+<tr>
+<td>metrics.graphite.port</td>
+<td>no</td>
+<td>Port to which Graphite plaintext protocol reports are sent</td>
+<td>2003</td>
+</tr>
+<tr>
+<td>metrics.graphite.prefix</td>
+<td>no</td>
+<td>Arbitrary string prepended to all metric names sent to Graphite</td>
+<td>null</td>
+</tr>
+</tbody>
+</table><p>Example titan.properties snippet that sends metrics to a Graphite server on 192.168.0.1 every minute:</p>
+
+<div class="highlight">
+<pre><span class="n">storage</span><span class="p">.</span><span class="n">enable</span><span class="o">-</span><span class="n">basic</span><span class="o">-</span><span class="n">metrics</span> <span class="p">=</span> <span class="n">true</span>
+# <span class="n">Required</span><span class="p">;</span> <span class="n">IP</span> <span class="n">or</span> <span class="n">hostname</span> <span class="n">string</span>
+<span class="n">metrics</span><span class="p">.</span><span class="n">graphite</span><span class="p">.</span><span class="n">hostname</span> <span class="p">=</span> 192<span class="p">.</span>168<span class="p">.</span>0<span class="p">.</span>1
+# <span class="n">Required</span><span class="p">;</span> <span class="n">specify</span> <span class="n">logging</span> <span class="n">interval</span> <span class="n">in</span> <span class="n">milliseconds</span>
+<span class="n">metrics</span><span class="p">.</span><span class="n">graphite</span><span class="p">.</span><span class="n">interval</span> <span class="p">=</span> 60000
+</pre>
+</div>
+
+
+<h3>JMX Reporter Configuration</h3>
+
+<table>
+<thead><tr>
+<th>Config Key</th>
+<th>Required?</th>
+<th>Value</th>
+<th>Default</th>
+</tr></thead>
+<tbody>
+<tr>
+<td>metrics.jmx.enabled</td>
+<td>yes</td>
+<td>Boolean</td>
+<td>false</td>
+</tr>
+<tr>
+<td>metrics.jmx.domain</td>
+<td>no</td>
+<td>Metrics will appear in this JMX domain</td>
+<td>Metrics's own default</td>
+</tr>
+<tr>
+<td>metrics.jmx.agentid</td>
+<td>no</td>
+<td>Metrics will be reported with this JMX agent ID</td>
+<td>Metrics's own default</td>
+</tr>
+</tbody>
+</table><p>Example titan.properties snippet:</p>
+
+<div class="highlight">
+<pre><span class="n">storage</span><span class="p">.</span><span class="n">enable</span><span class="o">-</span><span class="n">basic</span><span class="o">-</span><span class="n">metrics</span> <span class="p">=</span> <span class="n">true</span>
+# <span class="n">Required</span>
+<span class="n">metrics</span><span class="p">.</span><span class="n">jmx</span><span class="p">.</span><span class="n">enabled</span> <span class="p">=</span> <span class="n">true</span>
+# <span class="n">Optional</span><span class="p">;</span> <span class="k">if</span> <span class="n">omitted</span><span class="p">,</span> <span class="n">then</span> <span class="n">Metrics</span> <span class="n">uses</span> <span class="n">its</span> <span class="n">default</span> <span class="n">values</span>
+<span class="n">metrics</span><span class="p">.</span><span class="n">jmx</span><span class="p">.</span><span class="n">domain</span> <span class="p">=</span> <span class="n">foo</span>
+<span class="n">metrics</span><span class="p">.</span><span class="n">jmx</span><span class="p">.</span><span class="n">agentid</span> <span class="p">=</span> <span class="n">baz</span>
+</pre>
+</div>
+
+
+<h3>Slf4j Reporter Configuration</h3>
+
+<table>
+<thead><tr>
+<th>Config Key</th>
+<th>Required?</th>
+<th>Value</th>
+<th>Default</th>
+</tr></thead>
+<tbody>
+<tr>
+<td>metrics.slf4j.interval</td>
+<td>yes</td>
+<td>Milliseconds to wait between dumping metrics to the logger</td>
+<td>null</td>
+</tr>
+<tr>
+<td>metrics.slf4j.logger</td>
+<td>no</td>
+<td>Slf4j logger name to use</td>
+<td>"metrics"</td>
+</tr>
+</tbody>
+</table><p>Example titan.properties snippet that logs metrics once a minute to the logger named <code>foo</code>:</p>
+
+<div class="highlight">
+<pre><span class="n">storage</span><span class="p">.</span><span class="n">enable</span><span class="o">-</span><span class="n">basic</span><span class="o">-</span><span class="n">metrics</span> <span class="p">=</span> <span class="n">true</span>
+# <span class="n">Required</span><span class="p">;</span> <span class="n">specify</span> <span class="n">logging</span> <span class="n">interval</span> <span class="n">in</span> <span class="n">milliseconds</span>
+<span class="n">metrics</span><span class="p">.</span><span class="n">slf4j</span><span class="p">.</span><span class="n">interval</span> <span class="p">=</span> 60000
+# <span class="n">Optional</span><span class="p">;</span> <span class="n">uses</span> <span class="n">Metrics</span> <span class="n">default</span> <span class="n">when</span> <span class="n">unset</span>
+<span class="n">metrics</span><span class="p">.</span><span class="n">slf4j</span><span class="p">.</span><span class="n">logger</span> <span class="p">=</span> <span class="n">foo</span>
+</pre>
+</div>
+
+
+<h3>User-Provided/Custom Reporter Configuration</h3>
+
+<p>In case the Metrics reporter configuration options listed above are insufficient, Titan provides a utility method to access the single <code>MetricRegistry</code> instance which holds all of its measurements.</p>
+
+<div class="highlight">
+<pre><span class="n">com</span><span class="o">.</span><span class="na">codahale</span><span class="o">.</span><span class="na">metrics</span><span class="o">.</span><span class="na">MetricRegistry</span> <span class="n">titanRegistry</span> <span class="o">=</span>
+    <span class="n">com</span><span class="o">.</span><span class="na">thinkaurelius</span><span class="o">.</span><span class="na">titan</span><span class="o">.</span><span class="na">util</span><span class="o">.</span><span class="na">stats</span><span class="o">.</span><span class="na">MetricManager</span><span class="o">.</span><span class="na">INSTANCE</span><span class="o">.</span><span class="na">getRegistry</span><span class="o">();</span>
+</pre>
+</div>
+
+
+<p>Code that accesses <code>titanRegistry</code> this way can then attach non-standard reporter types or standard reporter types with exotic configurations to <code>titanRegistry</code>.  This approach is also useful if the surrounding application already has a framework for Metrics reporter configuration, or if the application needs multiple differently-configured instances of one of Titan's supported reporter types.  For instance, one could use this approach to setup multiple unicast Graphite reporters whereas Titan's properties configuration is limited to just one Graphite reporter.</p>
+
+<h1>JUnitBenchmarks in Titan</h1>
+
+<p>Starting in version 0.4.0, several of Titan's JUnit tests have been converted to <a href="http://labs.carrotsearch.com/junit-benchmarks.html">JUnitBenchmarks</a>.  To execute these tests in a clone of the Titan repository, invoke the following command:</p>
+
+<div class="highlight">
+<pre><span class="n">mvn</span> <span class="o">-</span><span class="n">Pperformance</span><span class="o">-</span><span class="n">test</span><span class="p">,</span><span class="n">memory</span><span class="o">-</span><span class="n">test</span> <span class="n">clean</span> <span class="n">install</span>
+</pre>
+</div>
+
+
+<p>This can be issued in the repository root to test all storage backends, or in a particular storage backend module, such as <code>titan-cassandra</code> or <code>titan-berkeleyje</code>, to test only that backend.  The results are written to console and to a series of files named <code>jub.&lt;nanotime&gt;.xml</code>, one file per test.</p>
+
+<p>These tests are executed weekly on an AWS EC2 m1.medium instance and pushed to <a href="https://public.ducksboard.com/xWvWuJp2J0uMHm7TC_BM/">Ducksboard</a>.</p>
+              </div>
+            </div>
+          </div>
+          <div class="admin">
+            <div style="float: left;">
+              <small>Last edited by <b>Dan LaRocque</b>, 2013-12-25 12:42:26</small>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

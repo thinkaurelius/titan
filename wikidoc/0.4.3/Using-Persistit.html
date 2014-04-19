@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+    <title>Using Persistit</title>
+    <link rel="stylesheet" href="./css/screen.css" type="text/css" charset="utf-8" />
+    <link rel="stylesheet" href="./css/gollum.css" type="text/css" charset="utf-8" />
+    <link rel="stylesheet" href="./css/syntax.css" type="text/css" charset="utf-8" />
+    <script src="./javascript/jquery-1.4.2.min.js" type="text/javascript"></script>
+    <script src="./javascript/jquery.text_selection-1.0.0.min.js" type="text/javascript"></script>
+    <script src="./javascript/jquery.previewable_comment_form.js" type="text/javascript"></script>
+    <script src="./javascript/jquery.tabs.js" type="text/javascript"></script>
+    <script src="./javascript/gollum.js" type="text/javascript"></script>
+  </head>
+
+  <body>
+    <div id="main">
+      <div class="site">
+        <div id="guides">
+          <div class="guide">
+            <div class="main">
+              <div class="actions">
+                <div>
+                  <a href="./Home.html">Aurelius Titan</a>
+                </div>
+              </div>
+              <h1>Using Persistit</h1>
+              <div class="content wikistyle gollum textile">
+                <p><a href="https://github.com/pdbeaman/persistit"><span class="float-left"><span><img src="http://akibanblog.s3.amazonaws.com/2012/07/persistit_logo.png" width="150px"></span></span></a></p>
+<p>The <a href="https://github.com/pdbeaman/persistit">Persistit</a> storage backend runs in the same <span class="caps">JVM</span> as Titan and provides local persistence on a single machine. Hence, the Persistit storage backend requires that all of the graph data fits on the local disk and all of the frequently accessed graph elements fit into main memory. This imposes a practical limitation of graphs with 10-100s million vertices on commodity hardware. However, for graphs of that size the Persistit storage backend exhibits high performance because all data can be accessed locally within the same <span class="caps">JVM</span>.</p>
+<p>Note, that the Persistit storage backend was first included in Titan 0.4.0 and is considered experimental for now.</p>
+<p><br></p>
+<blockquote>
+<p>Akiban Persistit is a fast, transactional, Java B+Tree library available as open source or under a free use license. <br>
+We have worked hard to make Akiban Persistit™ exceptionally fast, reliable, simple and lightweight. We hope you will enjoy learning more about it and using it.  — <a href="https://github.com/pdbeaman/persistit">Persistit Github page</a></p>
+</blockquote>
+<h2>Persistit Setup</h2>
+<p>Since Persistit runs in the same <span class="caps">JVM</span> as Titan, connecting the two only requires a simple configuration and no additional setup:</p>
+<div class="highlight">
+<pre><span class="n">Configuration</span> <span class="n">conf</span> <span class="o">=</span> <span class="k">new</span> <span class="n">BaseConfiguration</span><span class="o">();</span>
+<span class="n">conf</span><span class="o">.</span><span class="na">setProperty</span><span class="o">(</span><span class="s">"storage.directory"</span><span class="o">,</span> <span class="s">"/tmp/graph"</span><span class="o">);</span>
+<span class="n">conf</span><span class="o">.</span><span class="na">setProperty</span><span class="o">(</span><span class="s">"storage.backend"</span><span class="o">,</span> <span class="s">"persistit"</span><span class="o">);</span>
+<span class="n">TitanGraph</span> <span class="n">graph</span> <span class="o">=</span> <span class="n">TitanFactory</span><span class="o">.</span><span class="na">open</span><span class="o">(</span><span class="n">conf</span><span class="o">);</span>
+</pre>
+</div>
+
+<h2>Persistit Specific Configuration</h2>
+<p>In addition to the general <a href="Graph-Configuration">Titan Graph Configuration</a>, there are the following Persistit specific Titan configuration options:</p>
+<table>
+<tr>
+<th>Option </th>
+		<th>Description </th>
+		<th>Value </th>
+		<th>Default </th>
+		<th>Modifiable </th>
+	</tr>
+<tr>
+<td> storage.buffercount </td>
+		<td> The size of the Persistit internal buffer </td>
+		<td> &gt;=0 </td>
+		<td> 5000 </td>
+		<td> Yes </td>
+	</tr>
+</table><h2>Ideal Use Case</h2>
+<p>The Persistit storage backend is best suited for small to medium size graphs with up to 100 million vertices on commodity hardware. For graphs of that size, it will likely deliver higher performance than the distributed storage backends. Note, that Persitit is also limited in the number of concurrent requests it can handle efficiently because it runs on a single machine. Hence, it is not well suited for applications with many concurrent users mutating the graph, even if that graph is small to medium size.</p>
+<p>Since Persitit runs in the same <span class="caps">JVM</span> as Titan, this storage backend is ideally suited for unit testing of application code using Titan.</p>
+<h2>Global Graph Operations</h2>
+<p>Titan backed by Persitit supports global graph operations such as iterating over all vertices or edges. However, note that such operations need to scan the entire database which can require a significant amount of time for larger graphs.</p>
+<p>In order to not run out of memory, it is advised to disable transactions (<code>storage.transactions=false</code>) when iterating over large graphs. Having transactions enabled requires Persitit to acquire read locks on the data it is reading. When iterating over the entire graph, these read locks can easily require more memory than is available.</p>
+              </div>
+            </div>
+          </div>
+          <div class="admin">
+            <div style="float: left;">
+              <small>Last edited by <b>Dan LaRocque</b>, 2013-12-25 12:42:26</small>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
