@@ -37,18 +37,17 @@ import com.thinkaurelius.titan.diskstorage.keycolumnvalue.*;
  * @author gciuloaica
  * 
  */
-public class CqlStoreManager extends AbstractCassandraStoreManager {
-	private static final Logger logger = LoggerFactory.getLogger(CqlStoreManager.class);
+public class CQLStoreManager extends AbstractCassandraStoreManager {
+	private static final Logger logger = LoggerFactory.getLogger(CQLStoreManager.class);
 
 	private final int maxConnectionsPerHost;
 
 	private final Cluster cluster;
     private final IPartitioner partitioner;
 
-	private final Map<String, CqlKeyColumnValueStore> openStores = new ConcurrentHashMap<String, CqlKeyColumnValueStore>(
-			8);
+	private final Map<String, CQLKeyColumnValueStore> openStores = new ConcurrentHashMap<String, CQLKeyColumnValueStore>(8);
 
-	public CqlStoreManager(Configuration storageConfig) {
+	public CQLStoreManager(Configuration storageConfig) {
 		super(storageConfig);
 
 		maxConnectionsPerHost = storageConfig.get(GraphDatabaseConfiguration.CONNECTION_POOL_SIZE) / hostnames.length;
@@ -115,13 +114,13 @@ public class CqlStoreManager extends AbstractCassandraStoreManager {
     }
 
     @Override
-	public CqlKeyColumnValueStore openDatabase(String name) throws StorageException {
+	public CQLKeyColumnValueStore openDatabase(String name) throws StorageException {
 		if (openStores.containsKey(name))
 			return openStores.get(name);
 
         ensureColumnFamilyExists(name);
         Session session = cluster.connect(keySpaceName);
-        CqlKeyColumnValueStore store = new CqlKeyColumnValueStore(name, session);
+        CQLKeyColumnValueStore store = new CQLKeyColumnValueStore(name, session);
         openStores.put(name, store);
         return store;
 	}
@@ -132,7 +131,7 @@ public class CqlStoreManager extends AbstractCassandraStoreManager {
 
         // TODO: we should use BatchStatement once we switch to 2.0.x
         for (Map.Entry<String, Map<StaticBuffer, KCVMutation>> keyMutation : mutations.entrySet()) {
-            CqlKeyColumnValueStore store = openDatabase(keyMutation.getKey());
+            CQLKeyColumnValueStore store = openDatabase(keyMutation.getKey());
 
             for (Map.Entry<StaticBuffer, KCVMutation> mutEntry : keyMutation.getValue().entrySet()) {
                 StaticBuffer key = mutEntry.getKey();

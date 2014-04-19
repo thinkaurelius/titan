@@ -1,5 +1,6 @@
 package com.thinkaurelius.titan.diskstorage.cassandra;
 
+import com.datastax.driver.core.ConsistencyLevel;
 import com.google.common.base.Preconditions;
 
 /**
@@ -20,11 +21,13 @@ public enum CLevel implements CLevelInterface { // One ring to rule them all
     private final org.apache.cassandra.db.ConsistencyLevel db;
     private final org.apache.cassandra.thrift.ConsistencyLevel thrift;
     private final com.netflix.astyanax.model.ConsistencyLevel astyanax;
+    private final com.datastax.driver.core.ConsistencyLevel cql;
 
     private CLevel() {
         db = org.apache.cassandra.db.ConsistencyLevel.valueOf(toString());
         thrift = org.apache.cassandra.thrift.ConsistencyLevel.valueOf(toString());
         astyanax = com.netflix.astyanax.model.ConsistencyLevel.valueOf("CL_" + toString());
+        cql = toCQL(db);
     }
 
     @Override
@@ -42,6 +45,11 @@ public enum CLevel implements CLevelInterface { // One ring to rule them all
         return astyanax;
     }
 
+    @Override
+    public com.datastax.driver.core.ConsistencyLevel getCQL() {
+        return cql;
+    }
+
     public static CLevel parse(String value) {
         Preconditions.checkArgument(value != null && !value.isEmpty());
         value = value.trim();
@@ -55,5 +63,26 @@ public enum CLevel implements CLevelInterface { // One ring to rule them all
             }
         }
         throw new IllegalArgumentException("Unrecognized cassandra consistency level: " + value);
+    }
+
+    public static com.datastax.driver.core.ConsistencyLevel toCQL(org.apache.cassandra.db.ConsistencyLevel dbCL) {
+        switch (dbCL) {
+            case ONE:
+                return ConsistencyLevel.ONE;
+            case TWO:
+                return ConsistencyLevel.TWO;
+            case THREE:
+                return ConsistencyLevel.THREE;
+            case QUORUM:
+                return ConsistencyLevel.QUORUM;
+            case LOCAL_QUORUM:
+                return ConsistencyLevel.LOCAL_QUORUM;
+            case EACH_QUORUM:
+                return ConsistencyLevel.EACH_QUORUM;
+            case ALL:
+                return ConsistencyLevel.ALL;
+        }
+
+        return ConsistencyLevel.ONE;
     }
 }

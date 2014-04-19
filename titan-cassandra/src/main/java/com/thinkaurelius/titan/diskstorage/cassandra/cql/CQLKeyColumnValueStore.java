@@ -1,24 +1,23 @@
 package com.thinkaurelius.titan.diskstorage.cassandra.cql;
 
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.Iterator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import com.datastax.driver.core.*;
 import com.datastax.driver.core.ConsistencyLevel;
-import com.thinkaurelius.titan.diskstorage.Entry;
-import com.thinkaurelius.titan.diskstorage.EntryList;
+import com.thinkaurelius.titan.diskstorage.*;
+import com.thinkaurelius.titan.diskstorage.cassandra.CassandraTransaction;
+import com.thinkaurelius.titan.diskstorage.cassandra.utils.CassandraHelper;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.*;
+import com.thinkaurelius.titan.diskstorage.util.StaticArrayEntry;
+import org.apache.cassandra.utils.ByteBufferUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.thinkaurelius.titan.diskstorage.StaticBuffer;
-import com.thinkaurelius.titan.diskstorage.StorageException;
-
-public class CqlKeyColumnValueStore implements KeyColumnValueStore {
-	private static final Logger logger = LoggerFactory.getLogger(CqlKeyColumnValueStore.class);
+public class CQLKeyColumnValueStore implements KeyColumnValueStore {
+	private static final Logger logger = LoggerFactory.getLogger(CQLKeyColumnValueStore.class);
 
 	private final Session session;
 	private final String name;
@@ -28,7 +27,7 @@ public class CqlKeyColumnValueStore implements KeyColumnValueStore {
 	private final PreparedStatement writeKeyValueStatement;
 	private final PreparedStatement removeKeyValueStatement;
 
-	CqlKeyColumnValueStore(String name, final Session session) {
+	CQLKeyColumnValueStore(String name, final Session session) {
 		this.session = session;
 		this.name = name;
 		this.readKeyStatement = buildReadKeyStatement(name);
@@ -59,40 +58,39 @@ public class CqlKeyColumnValueStore implements KeyColumnValueStore {
 
 	@Override
 	public EntryList getSlice(KeySliceQuery query, StoreTransaction txh) throws StorageException {
-		int limit = Integer.MAX_VALUE - 1;
-		if (query.hasLimit())
-			limit = query.getLimit();
-
-        if (logger.isDebugEnabled())
+		if (logger.isDebugEnabled())
 		    logger.debug("Table: {}  Key: {}", getName(), query.getKey());
 
-		BoundStatement boundStmt = new BoundStatement(readKeyValueStatement);
-		boundStmt.setConsistencyLevel(CqlTransaction.getTx(txh).getReadConsistency().getCqlConsistency());
-		boundStmt.setBytes("key", query.getKey().asByteBuffer());
-		boundStmt.setBytes(1, query.getSliceStart().asByteBuffer());
-		boundStmt.setBytes(2, query.getSliceEnd().asByteBuffer());
+        BoundStatement boundStmt = new BoundStatement(readKeyValueStatement);
+        boundStmt.setConsistencyLevel(CassandraTransaction.getTx(txh).getReadConsistencyLevel().getCQL());
+        boundStmt.setBytes("key", query.getKey().asByteBuffer());
+        boundStmt.setBytes(1, query.getSliceStart().asByteBuffer());
+        boundStmt.setBytes(2, query.getSliceEnd().asByteBuffer());
+        //boundStmt.setInt("limit", limit); TODO: add limit
 
-		EntryList entries = new StaticArrayEntryList();
+        List<Row> rows = session.execute(boundStmt).all();
 
-		// order of the slices matter.
-		if (query.getSliceStart().compareTo(query.getSliceEnd()) == -1) {
-			int counter = 0;
+        if (rows == null || rows.size() == 0)
+            return EntryList.EMPTY_LIST;
 
-            for (Row row : session.execute(boundStmt)) {
-                ByteBuffer column = row.getBytes(0);
-                ByteBuffer value = row.getBytes(1);
-                ByteBufferEntry entry = new ByteBufferEntry(column, value);
-                entries.add(entry);
+        if (rows.size() > 1)
+            throw new PermanentStorageException("Received " + rows.size() + " rows for single key");
 
-                if (++counter > (limit - 1))
-                    break;
-            }
-		}
-
-		return entries;
+        return CassandraHelper.makeEntryList(rows, CassandraCQLGetter.INSTANCE, query.getSliceEnd(), query.getLimit());
 	}
 
-	@Override
+    @Override
+    public Map<StaticBuffer, EntryList> getSlice(List<StaticBuffer> keys, SliceQuery query, StoreTransaction txh) throws StorageException {
+        Map<StaticBuffer, EntryList> result = new HashMap<StaticBuffer, EntryList>();
+
+        for (StaticBuffer key : keys) {
+            result.put(key, getSlice(new KeySliceQuery(key, query), txh));
+        }
+
+        return result;
+    }
+
+    @Override
 	public void acquireLock(StaticBuffer key, StaticBuffer column, StaticBuffer expectedValue, StoreTransaction txh)
 			throws StorageException {
 		throw new UnsupportedOperationException();
@@ -157,9 +155,9 @@ public class CqlKeyColumnValueStore implements KeyColumnValueStore {
 	private void addEntries(StaticBuffer key, List<Entry> additions, StoreTransaction txh) {
         // TODO: move to batch once on 2.0.x version
         //BatchStatement batch = new BatchStatement();
-        //batch.setConsistencyLevel(CqlTransaction.getTx(txh).getWriteConsistency().getCqlConsistency());
+        //batch.setConsistencyLevel(CassandraTransaction.getTx(txh).getReadConsistencyLevel().getCQL());
 
-        ConsistencyLevel cl = CqlTransaction.getTx(txh).getWriteConsistency().getCqlConsistency();
+        ConsistencyLevel cl = CassandraTransaction.getTx(txh).getReadConsistencyLevel().getCQL();
 		for (Entry entry : additions) {
             ByteBuffer col = entry.getColumn().asByteBuffer();
             ByteBuffer val = entry.getValue().asByteBuffer();
@@ -176,9 +174,9 @@ public class CqlKeyColumnValueStore implements KeyColumnValueStore {
 	private void removeEntries(StaticBuffer key, List<StaticBuffer> deletions, StoreTransaction txh) {
         // TODO: move to batch once on 2.0.x version
         //BatchStatement batch = new BatchStatement();
-        //batch.setConsistencyLevel(CqlTransaction.getTx(txh).getWriteConsistency().getCqlConsistency());
+        //batch.setConsistencyLevel(CassandraTransaction.getTx(txh).getReadConsistencyLevel().getCQL());
 
-        ConsistencyLevel cl = CqlTransaction.getTx(txh).getWriteConsistency().getCqlConsistency();
+        ConsistencyLevel cl = CassandraTransaction.getTx(txh).getReadConsistencyLevel().getCQL();
         for (StaticBuffer entry : deletions) {
             session.execute(removeKeyValueStatement.bind(key.asByteBuffer(), entry.asByteBuffer()).setConsistencyLevel(cl));
             if (logger.isDebugEnabled())
@@ -214,11 +212,6 @@ public class CqlKeyColumnValueStore implements KeyColumnValueStore {
 		return session.prepare("DELETE FROM " + name + " WHERE key = ? AND c = ?");
 	}
 
-	@Override
-	public Map<StaticBuffer, EntryList> getSlice(List<StaticBuffer> keys, SliceQuery query, StoreTransaction txh) throws StorageException {
-		throw new UnsupportedOperationException();
-	}
-
     @Override
 	public KeyIterator getKeys(KeyRangeQuery query, StoreTransaction txh) throws StorageException {
         throw new UnsupportedOperationException();
@@ -229,17 +222,17 @@ public class CqlKeyColumnValueStore implements KeyColumnValueStore {
 		throw new UnsupportedOperationException();
 	}
 
-    private static class BufferEntryList extends ArrayList<Entry> implements EntryList {
+    private static enum CassandraCQLGetter implements StaticArrayEntry.GetColVal<Row, ByteBuffer> {
+        INSTANCE;
 
         @Override
-        public Iterator<Entry> reuseIterator() {
-            return null;
+        public ByteBuffer getColumn(Row element) {
+            return ByteBufferUtil.clone(element.getBytes("c"));
         }
 
         @Override
-        public int getByteSize() {
-            return 0;
+        public ByteBuffer getValue(Row element) {
+            return ByteBufferUtil.clone(element.getBytes("v"));
         }
     }
-
 }

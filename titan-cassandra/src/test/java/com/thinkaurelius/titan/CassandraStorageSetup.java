@@ -85,8 +85,16 @@ public class CassandraStorageSetup {
         return getGenericConfiguration(ks, "cassandrathrift");
     }
 
+    public static ModifiableConfiguration getCassandraCQLConfiguration(String ks) {
+        return getGenericConfiguration(ks, "cassandracql");
+    }
+
     public static WriteConfiguration getCassandraThriftGraphConfiguration(String ks) {
         return getCassandraThriftConfiguration(ks).getConfiguration();
+    }
+
+    public static WriteConfiguration getCassandraCQLGraphConfiguration(String ks) {
+        return getCassandraCQLConfiguration(ks).getConfiguration();
     }
 
     /*
