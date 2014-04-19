@@ -59,6 +59,7 @@ declare -r HTDOC_ZIP=$MAVEN{project.build.directory}/titan-site-"$SCM_TAG"-htdoc
 # Change directory to the clone and check out gh-pages.
 cd "$CLONE_DIR"
 echo Checking out $PAGE_BRANCH
+git fetch origin refs/remotes/origin/"$PAGE_BRANCH":refs/heads/"$PAGE_BRANCH"
 git checkout "$PAGE_BRANCH"
 
 echo Unzipping wikidoc to wikidoc/$SCM_TAG
