@@ -162,7 +162,7 @@ public class CQLKeyColumnValueStore implements KeyColumnValueStore {
             ByteBuffer col = entry.getColumn().asByteBuffer();
             ByteBuffer val = entry.getValue().asByteBuffer();
 
-            session.execute(writeKeyValueStatement.bind(val, col, key.asByteBuffer()).setConsistencyLevel(cl));
+            session.execute(writeKeyValueStatement.bind(val, key.asByteBuffer(), col).setConsistencyLevel(cl));
 
             if (logger.isDebugEnabled())
 			    logger.debug("Add entry: name: {}; rowKey: {}; columnName: {}; value: {}",
@@ -180,7 +180,7 @@ public class CQLKeyColumnValueStore implements KeyColumnValueStore {
         for (StaticBuffer entry : deletions) {
             session.execute(removeKeyValueStatement.bind(key.asByteBuffer(), entry.asByteBuffer()).setConsistencyLevel(cl));
             if (logger.isDebugEnabled())
-                logger.info("Remove entry: name: {}; rowKey: {}; columnName: {};\n",
+                logger.info("Remove entry: name: {}; rowKey: {}; columnName: {}",
                             getName(), key.toString(), entry.toString());
 
 		}
@@ -205,7 +205,6 @@ public class CQLKeyColumnValueStore implements KeyColumnValueStore {
 
 	private PreparedStatement buildWriteKeyValueStatement(String name) {
 		return session.prepare("UPDATE " + name + " SET v = ? WHERE key = ? AND c = ?");
-
 	}
 
 	private PreparedStatement buildRemoveKeyValueStatement(String name) {

@@ -89,6 +89,12 @@
                 </exclusion>
             </exclusions>
             -->
+            <exclusions>
+                <exclusion>
+                    <groupId>net.jpountz.lz4</groupId>
+                    <artifactId>lz4</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <!--
         <dependency>
@@ -152,6 +158,11 @@
             <groupId>com.datastax.cassandra</groupId>
             <artifactId>cassandra-driver-core</artifactId>
             <version>2.0.1</version>
+        </dependency>
+        <dependency>
+            <groupId>net.jpountz.lz4</groupId>
+            <artifactId>lz4</artifactId>
+            <version>1.2.0</version>
         </dependency>
     </dependencies>
 
