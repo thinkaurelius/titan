@@ -3,6 +3,8 @@ package com.thinkaurelius.titan.diskstorage.cassandra.cql;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
+import com.datastax.driver.core.policies.ConstantReconnectionPolicy;
+import com.datastax.driver.core.policies.DowngradingConsistencyRetryPolicy;
 import com.google.common.base.Preconditions;
 import com.thinkaurelius.titan.diskstorage.configuration.Configuration;
 import com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfiguration;
@@ -144,7 +146,10 @@ public class CQLStoreManager extends AbstractCassandraStoreManager {
 	}
 
 	private Cluster connect() {
-		Cluster.Builder builder = Cluster.builder().addContactPoints(hostnames);
+		Cluster.Builder builder = Cluster.builder().addContactPoints(hostnames)
+                                         .withRetryPolicy(DowngradingConsistencyRetryPolicy.INSTANCE)
+                                         .withReconnectionPolicy(new ConstantReconnectionPolicy(250L));
+
 		builder.getConfiguration().getPoolingOptions().setMaxConnectionsPerHost(HostDistance.LOCAL, maxConnectionsPerHost);
 
         Cluster cluster = builder.build();
