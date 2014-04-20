@@ -57,24 +57,40 @@ public class CQLKeyColumnValueStore implements KeyColumnValueStore {
     }
 
 	@Override
-	public EntryList getSlice(KeySliceQuery query, StoreTransaction txh) throws StorageException {
+	public EntryList getSlice(final KeySliceQuery query, final StoreTransaction txh) throws StorageException {
 		if (logger.isDebugEnabled())
 		    logger.debug("Table: {}  Key: {}", getName(), query.getKey());
 
-        BoundStatement boundStmt = new BoundStatement(readKeyValueStatement);
-        boundStmt.setConsistencyLevel(CassandraTransaction.getTx(txh).getReadConsistencyLevel().getCQL());
-        boundStmt.setBytes("key", query.getKey().asByteBuffer());
-        boundStmt.setBytes(1, query.getSliceStart().asByteBuffer());
-        boundStmt.setBytes(2, query.getSliceEnd().asByteBuffer());
-        //boundStmt.setInt("limit", limit); TODO: add limit
+        /*
+         * Cassandra cannot handle columnStart = columnEnd.
+		 * Cassandra's CQL getSlice() throws InvalidQueryException if columnStart = columnEnd.
+		 */
+        if (query.getSliceStart().compareTo(query.getSliceEnd()) >= 0) {
+            // Check for invalid arguments where columnEnd < columnStart
+            if (query.getSliceEnd().compareTo(query.getSliceStart()) < 0) {
+                throw new PermanentStorageException("columnStart=" + query.getSliceStart() +
+                        " is greater than columnEnd=" + query.getSliceEnd() + ". " +
+                        "columnStart must be less than or equal to columnEnd");
+            }
+
+            if (query.getSliceStart().length() != 0 && query.getSliceEnd().length() != 0) {
+                logger.debug("Return empty list due to columnEnd==columnStart and neither empty");
+                return EntryList.EMPTY_LIST;
+            }
+        }
+
+        // TODO: add a limit to the query (not clear how to do it with BoundStatement yet
+        BoundStatement boundStmt = new BoundStatement(readKeyValueStatement) {{
+            setConsistencyLevel(CassandraTransaction.getTx(txh).getReadConsistencyLevel().getCQL());
+            setBytes("key", query.getKey().asByteBuffer());
+            setBytes(1, query.getSliceStart().asByteBuffer());
+            setBytes(2, query.getSliceEnd().asByteBuffer());
+        }};
 
         List<Row> rows = session.execute(boundStmt).all();
 
         if (rows == null || rows.size() == 0)
             return EntryList.EMPTY_LIST;
-
-        if (rows.size() > 1)
-            throw new PermanentStorageException("Received " + rows.size() + " rows for single key");
 
         return CassandraHelper.makeEntryList(rows, CassandraCQLGetter.INSTANCE, query.getSliceEnd(), query.getLimit());
 	}
@@ -95,47 +111,6 @@ public class CQLKeyColumnValueStore implements KeyColumnValueStore {
 			throws StorageException {
 		throw new UnsupportedOperationException();
 	}
-
-    /*
-	@Override
-	public KeyIterator getKeys(KeyRangeQuery keys, StoreTransaction txh) throws StorageException {
-		StringBuilder sb = new StringBuilder("SELECT key FROM ").append(name);
-		ResultSet rs = session.execute(sb.toString());
-		final Iterator<Row> it = rs.iterator();
-
-		// because of our cql model, we have to select distinct the keys...
-		final Set<StaticByteBuffer> seenKeys = new TreeSet<StaticByteBuffer>();
-		while (it.hasNext()) {
-			StaticByteBuffer key = new StaticByteBuffer(it.next().getBytes("key"));
-			seenKeys.add(key);
-		}
-
-		final Iterator<StaticByteBuffer> keyIterator = seenKeys.iterator();
-
-		return new RecordIterator<StaticBuffer>() {
-
-			@Override
-			public boolean hasNext() {
-				return keyIterator.hasNext();
-			}
-
-			@Override
-			public StaticBuffer next() {
-				return keyIterator.next();
-			}
-
-            @Override
-            public void remove() {
-                throw new UnsupportedOperationException();
-            }
-
-            @Override
-			public void close() {
-				seenKeys.clear();
-			}
-		};
-	}
-    */
 
 	@Override
 	public List<KeyRange> getLocalKeyPartition() throws StorageException {
@@ -190,14 +165,6 @@ public class CQLKeyColumnValueStore implements KeyColumnValueStore {
 		return session.prepare("SELECT key FROM " + name + " WHERE key = ?");
 	}
 
-    /*
-	private PreparedStatement buildReadKeyRangeStatement(String name) {
-		StringBuilder sb = new StringBuilder();
-		sb.append("select rowKey from ").append(name)
-				.append(" where rowKey >= ? and rowKey < ?");
-		return session.prepare(sb.toString());
-	}
-    */
 	private PreparedStatement buildReadKeyValueStatement(String name) {
 		return session.prepare("SELECT c, v FROM " + name + " WHERE key = ? AND c >= ? AND c < ?");
 
