@@ -7,6 +7,8 @@ import java.util.Map;
 
 import com.datastax.driver.core.*;
 import com.datastax.driver.core.ConsistencyLevel;
+import com.datastax.driver.core.querybuilder.QueryBuilder;
+import com.datastax.driver.core.querybuilder.Select;
 import com.thinkaurelius.titan.diskstorage.*;
 import com.thinkaurelius.titan.diskstorage.cassandra.CassandraTransaction;
 import com.thinkaurelius.titan.diskstorage.cassandra.utils.CassandraHelper;
@@ -16,29 +18,25 @@ import org.apache.cassandra.utils.ByteBufferUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import static com.datastax.driver.core.querybuilder.QueryBuilder.*;
+
 public class CQLKeyColumnValueStore implements KeyColumnValueStore {
 	private static final Logger logger = LoggerFactory.getLogger(CQLKeyColumnValueStore.class);
 
 	private final Session session;
 	private final String name;
 
-	private final PreparedStatement readKeyStatement;
-	private final PreparedStatement readKeyValueStatement;
-	private final PreparedStatement writeKeyValueStatement;
-	private final PreparedStatement removeKeyValueStatement;
+	private final PreparedStatement updateStatement;
 
 	CQLKeyColumnValueStore(String name, final Session session) {
-		this.session = session;
-		this.name = name;
-		this.readKeyStatement = buildReadKeyStatement(name);
-		this.readKeyValueStatement = buildReadKeyValueStatement(name);
-		this.writeKeyValueStatement = buildWriteKeyValueStatement(name);
-		this.removeKeyValueStatement = buildRemoveKeyValueStatement(name);
+        this.name = name;
+        this.session = session;
+        this.updateStatement = session.prepare("UPDATE " + name + " SET v = ? WHERE key = ? AND c = ?");
 	}
 
 	@Override
 	public boolean containsKey(StaticBuffer key, StoreTransaction txh) throws StorageException {
-		ResultSet rs = session.execute(readKeyStatement.bind(key.asByteBuffer()));
+		ResultSet rs = session.execute(QueryBuilder.select().column("key").from(name).where(eq("key", key.asByteBuffer())));
         return rs.iterator().hasNext();
 	}
 
@@ -78,16 +76,22 @@ public class CQLKeyColumnValueStore implements KeyColumnValueStore {
                 return EntryList.EMPTY_LIST;
             }
         }
+        ConsistencyLevel cl = CassandraTransaction.getTx(txh).getReadConsistencyLevel().getCQL();
 
-        // TODO: add a limit to the query (not clear how to do it with BoundStatement yet
-        BoundStatement boundStmt = new BoundStatement(readKeyValueStatement) {{
-            setConsistencyLevel(CassandraTransaction.getTx(txh).getReadConsistencyLevel().getCQL());
-            setBytes("key", query.getKey().asByteBuffer());
-            setBytes(1, query.getSliceStart().asByteBuffer());
-            setBytes(2, query.getSliceEnd().asByteBuffer());
-        }};
+        ByteBuffer key = query.getKey().asByteBuffer();
+        ByteBuffer start  = query.getSliceStart().asByteBuffer();
+        ByteBuffer finish = query.getSliceEnd().asByteBuffer();
 
-        List<Row> rows = session.execute(boundStmt).all();
+        Select select = QueryBuilder.select().column("c").column("v").from(name);
+        {
+            select.where(eq("key", key)).and(gte("c", start)).and(lt("c", finish));
+            select.setConsistencyLevel(cl);
+
+            if (query.hasLimit())
+                select.limit(query.getLimit());
+        }
+
+        List<Row> rows = session.execute(select).all();
 
         if (rows == null || rows.size() == 0)
             return EntryList.EMPTY_LIST;
@@ -137,7 +141,7 @@ public class CQLKeyColumnValueStore implements KeyColumnValueStore {
             ByteBuffer col = entry.getColumn().asByteBuffer();
             ByteBuffer val = entry.getValue().asByteBuffer();
 
-            session.execute(writeKeyValueStatement.bind(val, key.asByteBuffer(), col).setConsistencyLevel(cl));
+            session.execute(updateStatement.bind(val, key.asByteBuffer(), col).setConsistencyLevel(cl));
 
             if (logger.isDebugEnabled())
 			    logger.debug("Add entry: name: {}; rowKey: {}; columnName: {}; value: {}",
@@ -153,29 +157,14 @@ public class CQLKeyColumnValueStore implements KeyColumnValueStore {
 
         ConsistencyLevel cl = CassandraTransaction.getTx(txh).getReadConsistencyLevel().getCQL();
         for (StaticBuffer entry : deletions) {
-            session.execute(removeKeyValueStatement.bind(key.asByteBuffer(), entry.asByteBuffer()).setConsistencyLevel(cl));
+            session.execute(QueryBuilder.delete().all().from(name)
+                                        .where(eq("key", key.asByteBuffer())).and(eq("c", entry.asByteBuffer()))
+                                        .setConsistencyLevel(cl));
+
             if (logger.isDebugEnabled())
-                logger.info("Remove entry: name: {}; rowKey: {}; columnName: {}",
-                            getName(), key.toString(), entry.toString());
-
+                logger.debug("Remove entry: name: {}; rowKey: {}; columnName: {}",
+                        getName(), key.toString(), entry.toString());
 		}
-	}
-
-	private PreparedStatement buildReadKeyStatement(String name) {
-		return session.prepare("SELECT key FROM " + name + " WHERE key = ?");
-	}
-
-	private PreparedStatement buildReadKeyValueStatement(String name) {
-		return session.prepare("SELECT c, v FROM " + name + " WHERE key = ? AND c >= ? AND c < ?");
-
-	}
-
-	private PreparedStatement buildWriteKeyValueStatement(String name) {
-		return session.prepare("UPDATE " + name + " SET v = ? WHERE key = ? AND c = ?");
-	}
-
-	private PreparedStatement buildRemoveKeyValueStatement(String name) {
-		return session.prepare("DELETE FROM " + name + " WHERE key = ? AND c = ?");
 	}
 
     @Override
