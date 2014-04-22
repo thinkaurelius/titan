@@ -32,35 +32,42 @@ declare -r WIKI_INDEX=$MAVEN{project.build.directory}/site-resources/wikidoc-ind
 declare -r MAIN_INDEX=$MAVEN{project.build.directory}/site-resources/index.html
 declare -r CLONE_DIR=/tmp/titanpages
 
-if [ -z "${1:-}" ]; then
-    echo "Usage: $0 path/to/release.properties"
-    exit -1
+if [ -z "${SCM_URL:-}" -o -z "${SCM_TAG:-}" ]; then
+    if [ -z "${1:-}" ]; then
+        echo "Usage: $0 path/to/release.properties"
+        exit -1
+    else
+        # Change directory to the folder containing release.properties,
+        # store the full path to that directory, then clone it to $CLONE_DIR.
+        pushd "`dirname $1`" >/dev/null
+        declare -r SCM_URL="`pwd`"
+        popd >/dev/null
+        echo Read SCM_URL from $1: $SCM_URL
+
+        # Search release.properties for the current release tag.
+        declare -r SCM_TAG=`sed -rn 's|\\\\||g; s|^scm\.tag=||p' $1`
+        echo Read SCM_TAG from $1: $SCM_TAG
+    fi
+else
+    echo Read SCM_URL from environment: $SCM_URL
+    echo Read SCM_TAG from environment: $SCM_TAG
 fi
 
-# Change directory to the folder containing release.properties,
-# store the full path to that directory, then clone it to $CLONE_DIR.
-pushd "`dirname $1`" >/dev/null
-declare -r SCM_URL="`pwd`"
-popd >/dev/null
-echo Cloning $SCM_URL
-git clone "$SCM_URL" "$CLONE_DIR"
+declare -r HTDOC_ZIP=$MAVEN{project.build.directory}/titan-site-"$SCM_TAG"-htdocs.zip
 
-# If the gh-pages branch doesn't already exist, then create it.
-# The branch must exist for the sake of the clone we're about to make.
+# Create gh-pages branch in the source repo if it doesn't exist.
 if [ ! -e .git/refs/heads/"$PAGE_BRANCH" ]; then
     git branch "$PAGE_BRANCH" origin/"$PAGE_BRANCH"
 fi
 
-# Search release.properties for the current release tag.
-declare -r SCM_TAG=`sed -rn 's|\\\\||g; s|^scm\.tag=||p' $1`
-echo Set SCM_TAG from $1: $SCM_TAG
-declare -r HTDOC_ZIP=$MAVEN{project.build.directory}/titan-site-"$SCM_TAG"-htdocs.zip
-
-# Change directory to the clone and check out gh-pages.
+# Clone repo, change into its directory, checkout gh-pages branch
+echo Cloning $SCM_URL
+git clone "$SCM_URL" "$CLONE_DIR"
 cd "$CLONE_DIR"
 echo Checking out $PAGE_BRANCH
 git fetch origin refs/remotes/origin/"$PAGE_BRANCH":refs/heads/"$PAGE_BRANCH"
 git checkout "$PAGE_BRANCH"
+git pull origin "$PAGE_BRANCH"
 
 echo Unzipping wikidoc to wikidoc/$SCM_TAG
 cd "$CLONE_DIR/wikidoc"
