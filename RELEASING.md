@@ -71,7 +71,24 @@ Wiki pages:
 * Acknowledgements
 * Downloads
 
-Files in the main repo:
+Ideally, you should modify the wiki page markup locally, preview it
+with gollum, and then commit it locally to the `doc` submodule of
+Titan's repository.  Then update submodule's commit pointer by
+changing directory to the root of Titan's repository and running:
+
+```bash
+# cd to doc/, edit markup, run git add, run git commit
+cd .. # Now we're in the root of the Titan repository
+git add doc
+git commit -m 'Update doc submodule commit pointer'
+```
+
+The commit pointer in the doc submodule is the version of the wiki
+used to generate static html for gh-pages and the doc folder of the
+zipfiles.  Updating it beforehand ensures that the latest docs go
+into both of those resources.
+
+Also update files in the main repo:
 
 * CHANGELOG.textile
 * NOTICE.txt
@@ -236,6 +253,8 @@ Finally, push your local changes to Github:
 git push origin master
 git push origin refs/tags/$RELEASE_VERSION
 git push origin gh-pages
+# Do you have local changes to the doc submodule?  If so...
+cd doc && git push origin master
 ```
 
 ### Deploy a New Snapshot
