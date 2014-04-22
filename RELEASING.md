@@ -38,6 +38,26 @@ tools must be installed.
 Release Steps
 -------------
 
+
+### Updating Titan's titan.compatible.versions pom.xml property
+
+The property titan.compatible.versions is a comma-separated string 
+listing the Titan versions which create databases in a storage format
+compatible with the current runtime version.
+Titan will only open databases whose version string is either the
+the live Titan runtime version or one of the elements in this list.
+
+For releases that break storage format compatibility, this property
+should be emptied.  For releases  that maintain backwards compatibility,
+this list should be updated to include the most recent compatible
+version(s).
+
+The property should look something like this near the top of pom.xml:
+
+```bash
+    <titan.compatible.versions>0.4.0,0.4.1,0.4.2</titan.compatible.versions>
+```
+
 ### Preparing Documentation
 
 Update version-sensitive wiki pages and doc/HTML files in the repo.
@@ -101,10 +121,47 @@ echo RELEASE_VERSION: $RELEASE_VERSION
 # technically world-visible.  In contrast, commands above this comment
 # were limited to local effects invisible to the wider Internet.
 git checkout refs/tags/$RELEASE_VERSION
-mvn clean javadoc:jar verify deploy -Paurelius-release
+mvn clean javadoc:jar deploy -Paurelius-release
 # You can append -DskipTests=true above if you've already run the tests
 #
 # Delete titan-dist folder from Sonatype OSS if it exists
+```
+
+### Deploying Artifacts & Archives for JRE6
+
+Titan can't be compiled on Oracle JDK6 due to a limitation/bug in the
+Java 6 compiler.  However, Titan maintains source-level compatibility
+with Java 6.  JDK7 can cross-compile Titan to the JRE6 runtime target.
+To do this, the JDK7 compiler needs a copy of rt.jar from Java 6
+configured in the so-called boot classpath.
+
+To build artifacts for JRE6 and deploy them to S3 and Sonatype OSS
+staging:
+
+* Install Oracle JRE6 or JDK6 if you don't already have it installed
+
+* Find the path to the file named rt.jar inside your JRE6/JDK6 install
+  and note it for future use (e.g. `/opt/jdk1.6.0_45/jre/lib/rt.jar`)
+
+```bash
+# Checkout the release tag if not already checked out.
+# $RELEASE_VERSION should be set as described in the previous section.
+git checkout refs/tags/$RELEASE_VERSION
+
+# Rewrite every pom.xml file in the project using jre6.xslt.  This
+# changes the maven-compiler-plugin configuration to target Java 6.
+# More importantly, it also suffixes the artifactIds of all titan
+# artifacts with "-jre6".  This name mangling ensures that the JRE6
+# artifacts occupy a dependency tree separate from the JRE7 artifacts,
+# so that the artifacts can be safely pushed to central without
+# risking mixed-runtime dependency trees.  It also detaches the
+# Persistit module from the build cycle.
+mvn clean xml:transform resources:copy-resources -Ptarget-jre6,release-plugin-hack
+
+# Compile, package, and deploy artifacts for JRE6.  Do not use JDK6
+# javac here.  Use JDK7 javac but include the Xbootclasspath argument
+# pointing to rt.jar from JDK6/JRE6.
+mvn clean javadoc:jar deploy -Paurelius-release -Dcompiler.args=-Xbootclasspath:/path/to/java6/lib/rt.jar
 ```
 
 ### Checking Artifacts & Archives
@@ -191,3 +248,4 @@ SNAPSHOT version's artifacts to the Sonatype OSS snapshots repository.
 git checkout master
 mvn clean deploy
 ```
+
