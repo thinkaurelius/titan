@@ -234,11 +234,6 @@ to updating gh-pages locally.
 # clean working copy and thereby precludes conflicts on doc (or anything
 # else that might become conflict-prone in the future).
 titan-site/target/site-scripts/gh-pages-update.sh release.properties
-
-# If you want to check this script's work, then consider running
-# the following:
-git diff --name-status origin/gh-pages..gh-pages
-git diff origin/gh-pages..gh-pages | less # lots of text
 ```
 
 ### Release to Maven Central and Push to Github
