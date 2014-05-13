@@ -1,6 +1,8 @@
 package com.thinkaurelius.titan.graphdb;
 
 
+import com.google.common.base.Objects;
+import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
@@ -10,9 +12,10 @@ import com.thinkaurelius.titan.core.*;
 import com.thinkaurelius.titan.core.attribute.Decimal;
 import com.thinkaurelius.titan.core.attribute.Precision;
 import com.thinkaurelius.titan.core.attribute.Cmp;
-import com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfiguration;
+import com.thinkaurelius.titan.graphdb.internal.InternalRelation;
+import com.thinkaurelius.titan.graphdb.internal.InternalVertex;
+import com.thinkaurelius.titan.graphdb.transaction.RelationConstructor;
 import com.thinkaurelius.titan.util.time.TimestampProvider;
-import com.thinkaurelius.titan.util.time.Timestamps;
 import com.thinkaurelius.titan.diskstorage.Entry;
 import com.thinkaurelius.titan.diskstorage.ReadBuffer;
 import com.thinkaurelius.titan.diskstorage.StaticBuffer;
@@ -32,12 +35,15 @@ import com.thinkaurelius.titan.graphdb.database.serialize.Serializer;
 import com.thinkaurelius.titan.graphdb.internal.InternalType;
 import com.thinkaurelius.titan.graphdb.serializer.SpecialInt;
 import com.thinkaurelius.titan.graphdb.serializer.SpecialIntSerializer;
+import com.thinkaurelius.titan.graphdb.transaction.StandardTitanTx;
 import com.thinkaurelius.titan.testutil.TestUtil;
 import com.tinkerpop.blueprints.Direction;
 import com.tinkerpop.blueprints.Edge;
 import com.tinkerpop.blueprints.Compare;
 import com.tinkerpop.blueprints.Vertex;
 
+import org.hamcrest.BaseMatcher;
+import org.hamcrest.Description;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,6 +55,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.tinkerpop.blueprints.Direction.*;
+import static org.hamcrest.Matchers.*;
 import static org.junit.Assert.*;
 
 public abstract class TitanGraphTest extends TitanGraphBaseTest {
@@ -63,6 +70,7 @@ public abstract class TitanGraphTest extends TitanGraphBaseTest {
     public void testBasic() {
         TitanKey weight = tx.makeKey("weight").dataType(Decimal.class).cardinality(Cardinality.SINGLE).make();
         TitanVertex n1 = tx.addVertex();
+        TitanEdge e1 = tx.addEdge(n1, n1, "friend");
         n1.addProperty(weight, 10.5);
         assertTrue(tx.containsType("weight"));
         clopen();
@@ -104,13 +112,22 @@ public abstract class TitanGraphTest extends TitanGraphBaseTest {
         TitanVertex v2 = tx2.addVertex();
         v2.setProperty("weight",222.2);
         tx2.commit();
+        tx2 = graph.buildTransaction().setLogIdentifier(triggerName).start();
+        v1 = tx2.getVertex(v1.getID());
+        v2 = tx2.getVertex(v2.getID());
+        TitanEdge e1 = tx2.addEdge(v1,v2,"friend");
+        tx2.commit();
+        tx2 = graph.buildTransaction().setLogIdentifier(triggerName).start();
+        v1 = tx2.getVertex(v1.getID());
+        v1.removeProperty("weight");
+        tx2.commit();
         //Only read tx
         tx2 = graph.buildTransaction().setLogIdentifier(triggerName).start();
         v1 = tx2.getVertex(v1.getID());
-        assertEquals(111.1,v1.<Decimal>getProperty("weight").doubleValue(),0.0);
+        assertNull(v1.<Decimal>getProperty("weight"));
         assertEquals(222.2,tx2.getVertex(v2).<Decimal>getProperty("weight").doubleValue(),0.0);
+        assertEquals("friend",tx2.getEdge(e1).getLabel());
         tx2.commit();
-        close();
 
         Log txlog = openTxLog(ReadMarker.fromTime(startTime, TimeUnit.MILLISECONDS));
         Log triggerLog = openTriggerLog(triggerName, ReadMarker.fromTime(startTime, TimeUnit.MILLISECONDS));
@@ -144,7 +161,15 @@ public abstract class TitanGraphTest extends TitanGraphBaseTest {
                 txMsgCounter.incrementAndGet();
             }
         });
-        final AtomicInteger triggerMsgCounter = new AtomicInteger(0);
+        final List<DeserializedMessage> triggerMessages =
+            Collections.synchronizedList(new ArrayList<DeserializedMessage>());
+
+        // A StandardTitanTx is needed for log message deserialization
+        StandardTitanTx standardTitanTx =
+            (StandardTitanTx) graph.buildTransaction().threadBound().start();
+        final MessageDeserializer messageDeserializer =
+            new MessageDeserializer(serializer, standardTitanTx, unit);
+
         triggerLog.registerReader(new MessageReader() {
             @Override
             public void read(Message message) {
@@ -153,37 +178,354 @@ public abstract class TitanGraphTest extends TitanGraphBaseTest {
                 assertNotNull(message.getSenderId());
                 StaticBuffer content = message.getContent();
                 assertTrue(content!=null && content.length()>0);
-                ReadBuffer read = content.asReadBuffer();
-                long txTime = TimeUnit.MILLISECONDS.convert(read.getLong(),unit);
+                DeserializedMessage deserializedMessage =
+                    messageDeserializer.deserializeMessage(message);
+                long txTime = deserializedMessage.getTxTime();
                 assertTrue(txTime<=msgTime);
                 assertTrue(txTime>=startTime);
-                long txid = read.getLong();
+                long txid = deserializedMessage.getTxId();
                 assertTrue(txid>0);
-                for (String type : new String[]{"add","del"}) {
-                    long num = VariableLong.readPositive(read);
-                    assertTrue(num>=0 && num<Integer.MAX_VALUE);
-                    if (type.equals("add")) {
-                        assertEquals(2,num);
-                    } else {
-                        assertEquals(0,num);
-                    }
-                    for (int i=0; i<num;i++) {
-                        Long vertexid = VariableLong.readPositive(read);
-                        assertTrue(vertexid>0);
-                        Entry entry = BufferUtil.readEntry(read,serializer);
-                        assertNotNull(entry);
-                        assertEquals(Direction.OUT,edgeSerializer.parseDirection(entry));
-                    }
-                }
-                triggerMsgCounter.incrementAndGet();
+                triggerMessages.add(deserializedMessage);
             }
         });
+
         Thread.sleep(20000);
-        assertEquals(8, txMsgCounter.get());
-        assertEquals(2,triggerMsgCounter.get());
-        assertEquals(2,triggerMeta.get());
+
+        assertEquals(12, txMsgCounter.get());
+        assertEquals(4, triggerMessages.size());
+        assertEquals(4, triggerMeta.get());
+
+        // Verify 2 relations, create vertex, and setting property
+        DeserializedMessageMatcher createVertexMessageMatcher1 = new DeserializedMessageMatcher(
+            ImmutableList.of(InternalRelationMatcher.EMPTY.withVertexId1(v1.getID())
+                                                          .withTypeName("system%&%VertexExists")
+                                                          .withIsProperty(true)
+                                                          .withDirectionVertex1(OUT),
+                             InternalRelationMatcher.EMPTY.withVertexId1(v1.getID())
+                                                          .withTypeName("weight")
+                                                          .withIsProperty(true)
+                                                          .withDirectionVertex1(OUT)),
+            ImmutableList.<InternalRelationMatcher>of());
+
+        // Verify 2 relations, create vertex, and setting property
+        DeserializedMessageMatcher createVertexMessageMatcher2 = new DeserializedMessageMatcher(
+            ImmutableList.of(InternalRelationMatcher.EMPTY.withVertexId1(v2.getID())
+                                                          .withTypeName("system%&%VertexExists")
+                                                          .withIsProperty(true)
+                                                          .withDirectionVertex1(OUT),
+                             InternalRelationMatcher.EMPTY.withVertexId1(v2.getID())
+                                                          .withTypeName("weight")
+                                                          .withIsProperty(true)
+                                                          .withDirectionVertex1(OUT)),
+            ImmutableList.<InternalRelationMatcher>of());
+
+        // Verify 1 relation, create edge
+        DeserializedMessageMatcher createEdgeMessageMatcher = new DeserializedMessageMatcher(
+            ImmutableList.of(InternalRelationMatcher.EMPTY.withVertexId1(v1.getID())
+                                                          .withVertexId2(v2.getID())
+                                                          .withTypeName("friend")
+                                                          .withIsEdge(true)
+                                                          .withDirectionVertex1(OUT)),
+            ImmutableList.<InternalRelationMatcher>of());
+
+        // Verify 1 relation, remove property
+        DeserializedMessageMatcher deletePropertyMessageMatcher = new DeserializedMessageMatcher(
+            ImmutableList.<InternalRelationMatcher>of(),
+            ImmutableList.of(InternalRelationMatcher.EMPTY.withVertexId1(v1.getID())
+                                                          .withTypeName("weight")
+                                                          .withIsProperty(true)
+                                                          .withDirectionVertex1(OUT)));
+
+        assertThat(triggerMessages, containsInAnyOrder(createVertexMessageMatcher1,
+                                                       createVertexMessageMatcher2,
+                                                       createEdgeMessageMatcher,
+                                                       deletePropertyMessageMatcher));
+
+        standardTitanTx.commit();
+        close();
     }
 
+    /**
+     * Deserializes trigger log Messages into a container of InternalRelation
+     *
+     * A StandardTitanTx is needed to expand the compact trigger log messages.
+     *
+     * TODO(christofer@knewton.com) Class should probably live somewhere else
+     */
+    private static class MessageDeserializer {
+        private final Serializer serializer;
+        private final StandardTitanTx standardTitanTx;
+        private final TimeUnit timeUnit;
+
+        public MessageDeserializer(Serializer serializer,
+                                   StandardTitanTx standardTitanTx,
+                                   TimeUnit timeUnit) {
+            this.serializer = serializer;
+            this.standardTitanTx = standardTitanTx;
+            this.timeUnit = timeUnit;
+        }
+
+        public DeserializedMessage deserializeMessage(Message message) {
+            DeserializedMessage.Builder builder = DeserializedMessage.builder();
+            StaticBuffer content = message.getContent();
+            ReadBuffer read = content.asReadBuffer();
+            builder.setTxTime(TimeUnit.MILLISECONDS.convert(read.getLong(), timeUnit));
+            builder.setTxId(read.getLong());
+
+            readInternalRelations(
+                read, serializer, standardTitanTx, builder.getAddedRelationsBuilder());
+            readInternalRelations(
+                read, serializer, standardTitanTx, builder.getDeletedRelationsBuilder());
+            return builder.build();
+        }
+
+        private void readInternalRelations(ReadBuffer readBuffer,
+                                           Serializer serializer,
+                                           StandardTitanTx standardTitanTx,
+                                           ImmutableList.Builder<InternalRelation> builder) {
+            long num = VariableLong.readPositive(readBuffer);
+            for (int i = 0; i < num; i++) {
+                Long vertexid = VariableLong.readPositive(readBuffer);
+                Entry entry = BufferUtil.readEntry(readBuffer, serializer);
+                InternalVertex internalVertex =
+                    (InternalVertex) standardTitanTx.getVertex(vertexid);
+                builder.add(RelationConstructor.readRelation(
+                    internalVertex, entry, standardTitanTx));
+            }
+        }
+    }
+
+    /**
+     * Deserialized trigger log message. Contains added and deleted relations.
+     *
+     * TODO(christofer@knewton.com) Class should probably live somewhere else
+     */
+    private static class DeserializedMessage {
+
+        private final long txTime;
+        private final long txId;
+        private final ImmutableList<InternalRelation> addedRelations;
+        private final ImmutableList<InternalRelation> deletedRelations;
+
+        private DeserializedMessage(long txTime,
+                                    long txId,
+                                    ImmutableList<InternalRelation> addedRelations,
+                                    ImmutableList<InternalRelation> deletedRelations) {
+            this.txTime = txTime;
+            this.txId = txId;
+            this.addedRelations = addedRelations;
+            this.deletedRelations = deletedRelations;
+        }
+
+        public long getTxTime() {
+            return txTime;
+        }
+
+        public long getTxId() {
+            return txId;
+        }
+
+        public ImmutableList<InternalRelation> getAddedRelations() {
+            return addedRelations;
+        }
+
+        public ImmutableList<InternalRelation> getDeletedRelations() {
+            return deletedRelations;
+        }
+
+        public static Builder builder() {
+            return new Builder();
+        }
+
+        public static class Builder {
+
+            private long txTime;
+            private long txId;
+
+            private final ImmutableList.Builder<InternalRelation> addedRelations =
+                ImmutableList.builder();
+            private final ImmutableList.Builder<InternalRelation> deletedRelations =
+                ImmutableList.builder();
+
+            public DeserializedMessage build() {
+                return new DeserializedMessage(
+                    txTime, txId, addedRelations.build(), deletedRelations.build());
+            }
+
+            public void setTxTime(long txTime) {
+                this.txTime = txTime;
+            }
+
+            public void setTxId(long txId) {
+                this.txId = txId;
+            }
+
+            public ImmutableList.Builder<InternalRelation> getAddedRelationsBuilder() {
+                return addedRelations;
+            }
+
+            public ImmutableList.Builder<InternalRelation> getDeletedRelationsBuilder() {
+                return deletedRelations;
+            }
+        }
+    }
+
+    /**
+     * Matcher for DeserializedMessage added and deleted relations.
+     *
+     * One InternalRelationMatcher must be provided for each expected relation.
+     *
+     * TODO(christofer@knewton.com) Class should probably live somewhere else
+     */
+    private static class DeserializedMessageMatcher extends BaseMatcher<DeserializedMessage> {
+
+        private final ImmutableList<InternalRelationMatcher> addedRelations;
+        private final ImmutableList<InternalRelationMatcher> deletedRelations;
+
+        public DeserializedMessageMatcher(ImmutableList<InternalRelationMatcher> addedRelations,
+                                          ImmutableList<InternalRelationMatcher> deletedRelations) {
+            this.addedRelations = addedRelations;
+            this.deletedRelations = deletedRelations;
+        }
+
+        @Override
+        public boolean matches(Object item) {
+            if (!(item instanceof DeserializedMessage)) {
+                return false;
+            }
+            DeserializedMessage actual = (DeserializedMessage) item;
+
+            // containsInAnyOrder wants a Collection<Matcher<? super InternalRelationMatcher>>
+            // addedRelations and deletedRelations can not be cast to this
+            @SuppressWarnings("unchecked") boolean matchesAdded =
+                containsInAnyOrder((Collection)addedRelations).matches(actual.getAddedRelations());
+            @SuppressWarnings("unchecked") boolean matchesDeleted =
+                containsInAnyOrder((Collection)deletedRelations).matches(actual.getDeletedRelations());
+
+            return matchesAdded && matchesDeleted;
+        }
+
+        @Override
+        public void describeTo(Description description) {
+            description.<Object>appendValueList("[", " ,", "]", addedRelations, deletedRelations);
+        }
+    }
+
+
+    /**
+     * Matcher for some InternalRelation data. Matcher can easily be expanded as needed.
+     *
+     * TODO(christofer@knewton.com) Class should probably live somewhere else
+     */
+    private static class InternalRelationMatcher<T extends InternalRelation> extends BaseMatcher<T> {
+
+        public static final InternalRelationMatcher EMPTY =
+            new InternalRelationMatcher(Optional.<Long>absent(),
+                                        Optional.<Long>absent(),
+                                        Optional.<String>absent(),
+                                        Optional.<Boolean>absent(),
+                                        Optional.<Boolean>absent(),
+                                        Optional.<Direction>absent());
+
+        private final Optional<Long> vertexId1;
+        private final Optional<Long> vertexId2;
+        private final Optional<String> typeName;
+        private final Optional<Boolean> isEdge;
+        private final Optional<Boolean> isProperty;
+        private final Optional<Direction> directionVertex1;
+
+        private InternalRelationMatcher(Optional<Long> vertexId1,
+                                        Optional<Long> vertexId2,
+                                        Optional<String> typeName,
+                                        Optional<Boolean> isEdge,
+                                        Optional<Boolean> isProperty,
+                                        Optional<Direction> directionVertex1) {
+            this.vertexId1 = vertexId1;
+            this.vertexId2 = vertexId2;
+            this.typeName = typeName;
+            this.isEdge = isEdge;
+            this.isProperty = isProperty;
+            this.directionVertex1 = directionVertex1;
+        }
+
+        public InternalRelationMatcher withVertexId1(long vertexId) {
+            return new InternalRelationMatcher(
+                Optional.of(vertexId), vertexId2, typeName, isEdge, isProperty, directionVertex1);
+        }
+
+        public InternalRelationMatcher withVertexId2(long vertexId) {
+            return new InternalRelationMatcher(
+                vertexId1, Optional.of(vertexId), typeName, isEdge, isProperty, directionVertex1);
+        }
+
+        public InternalRelationMatcher withTypeName(String typeName) {
+            return new InternalRelationMatcher(
+                vertexId1, vertexId2, Optional.of(typeName), isEdge, isProperty, directionVertex1);
+        }
+
+        public InternalRelationMatcher withIsEdge(boolean isEdge) {
+            return new InternalRelationMatcher(
+                vertexId1, vertexId2, typeName, Optional.of(isEdge), isProperty, directionVertex1);
+        }
+
+        public InternalRelationMatcher withIsProperty(boolean isProperty) {
+            return new InternalRelationMatcher(
+                vertexId1, vertexId2, typeName, isEdge, Optional.of(isProperty), directionVertex1);
+        }
+
+        public InternalRelationMatcher withDirectionVertex1(Direction directionVertex1) {
+            return new InternalRelationMatcher(
+                vertexId1, vertexId2, typeName, isEdge, isProperty, Optional.of(directionVertex1));
+        }
+
+        @Override
+        public boolean matches(Object item) {
+            if (!(item instanceof InternalRelation)) {
+                return false;
+            }
+            InternalRelation actual = (InternalRelation) item;
+
+            if (vertexId1.isPresent() && vertexId1.get() != actual.getVertex(0).getID()) {
+                return false;
+            }
+            if (vertexId2.isPresent() && vertexId2.get() != actual.getVertex(1).getID()) {
+                return false;
+            }
+            if (typeName.isPresent() && !(typeName.get().equals(actual.getType().getName()))) {
+                return false;
+            }
+            if (isEdge.isPresent() && !(isEdge.get().equals(actual.isEdge()))) {
+                return false;
+            }
+            if (isProperty.isPresent() && !(isProperty.get().equals(actual.isProperty()))) {
+                return false;
+            }
+            if (directionVertex1.isPresent() &&
+                !(directionVertex1.get().equals(actual.getDirection(actual.getVertex(0))))) {
+                return false;
+            }
+            return true;
+        }
+
+        @Override
+        public void describeTo(Description description) {
+            description.<Object>appendValueList(
+                "[", " ,", "]",
+                vertexId1, vertexId2, typeName, isEdge, isProperty, directionVertex1);
+        }
+
+        @Override
+        public String toString() {
+            return Objects.toStringHelper(this)
+                          .add("vertexId1", vertexId1)
+                          .add("vertexId2", vertexId2)
+                          .add("typeName", typeName)
+                          .add("isEdge", isEdge)
+                          .add("isProperty", isProperty)
+                          .add("directionVertex1", directionVertex1)
+                          .toString();
+        }
+    }
 
     @Test
     public void testTypes() {
