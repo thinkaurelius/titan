@@ -1,10 +1,10 @@
 package com.thinkaurelius.titan.diskstorage.common;
 
 import com.google.common.base.Preconditions;
-import com.thinkaurelius.titan.util.time.Duration;
-import com.thinkaurelius.titan.util.time.StandardTimepoint;
-import com.thinkaurelius.titan.util.time.Timepoint;
-import com.thinkaurelius.titan.util.time.TimestampProvider;
+import com.thinkaurelius.titan.core.attribute.Duration;
+import com.thinkaurelius.titan.diskstorage.util.time.StandardTimepoint;
+import com.thinkaurelius.titan.diskstorage.util.time.Timepoint;
+import com.thinkaurelius.titan.diskstorage.util.time.TimestampProvider;
 import com.thinkaurelius.titan.diskstorage.PermanentStorageException;
 import com.thinkaurelius.titan.diskstorage.StorageException;
 import com.thinkaurelius.titan.diskstorage.configuration.Configuration;
@@ -231,8 +231,13 @@ public abstract class DistributedStoreManager extends AbstractStoreManager {
 
         private final Timepoint t;
 
+        public MaskedTimestamp(Timepoint commitTime) {
+            Preconditions.checkNotNull(commitTime);
+            this.t=commitTime;
+        }
+
         public MaskedTimestamp(StoreTransaction txh) {
-            this.t = txh.getConfiguration().getCommitTime();
+            this(txh.getConfiguration().getCommitTime());
         }
 
         public long getDeletionTime(TimeUnit unit) {
