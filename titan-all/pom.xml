@@ -60,6 +60,11 @@
         </dependency>
         <dependency>
             <groupId>com.thinkaurelius.titan</groupId>
+            <artifactId>titan-foundationdb</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.thinkaurelius.titan</groupId>
             <artifactId>titan-es</artifactId>
             <version>${project.version}</version>
         </dependency>
@@ -73,7 +78,6 @@
             <artifactId>titan-rexster</artifactId>
             <version>${project.version}</version>
         </dependency>
-
         <!-- Override Jackson versions in our transitive dependencies.
              Without these deps, titan-all users can end up with
              1.9 + 1.8 jars together, and this leads to linkage errors.

@@ -545,6 +545,7 @@ public class Backend implements LockerProvider {
         put("hbase", "com.thinkaurelius.titan.diskstorage.hbase.HBaseStoreManager");
         put("embeddedcassandra", "com.thinkaurelius.titan.diskstorage.cassandra.embedded.CassandraEmbeddedStoreManager");
         put("inmemory", "com.thinkaurelius.titan.diskstorage.keycolumnvalue.inmemory.InMemoryStoreManager");
+        put("foundationdb","com.thinkaurelius.titan.diskstorage.foundationdb.FoundationDBStoreManager");
     }};
 
     public static final Map<String, ConfigOption> REGISTERED_STORAGE_MANAGERS_SHORTHAND = new HashMap<String, ConfigOption>() {{
