@@ -10,12 +10,12 @@ import com.tinkerpop.blueprints.Graph;
 public class FoundationDBBlueprintsTest extends TitanBlueprintsTest {
 
     @Override
-    public void startUp() {
+    public void beforeSuite() {
 
     }
 
     @Override
-    public void shutDown() {
+    public void afterSuite() {
         // we don't need to restart on each test because cleanup is in please
     }
 
@@ -27,8 +27,7 @@ public class FoundationDBBlueprintsTest extends TitanBlueprintsTest {
     @Override
     public void cleanUp() throws StorageException {
         FoundationDBStoreManager s = new FoundationDBStoreManager(FoundationDBTestSetup
-                .getFoundationDBGraphConfig()
-                .subset(GraphDatabaseConfiguration.STORAGE_NAMESPACE));
+                .getFoundationDBConfig());
         s.clearStorage();
     }
 

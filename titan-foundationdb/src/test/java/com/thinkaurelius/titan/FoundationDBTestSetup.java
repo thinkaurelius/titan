@@ -1,19 +1,18 @@
 package com.thinkaurelius.titan;
 
-import com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfiguration;
-import org.apache.commons.configuration.BaseConfiguration;
-import org.apache.commons.configuration.Configuration;
+import com.thinkaurelius.titan.diskstorage.configuration.ModifiableConfiguration;
+import com.thinkaurelius.titan.diskstorage.configuration.WriteConfiguration;
+import static com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfiguration.*;
 
-public class FoundationDBTestSetup {
-    public static Configuration getFoundationDBConfig() {
-        BaseConfiguration config = new BaseConfiguration();
-        config.addProperty(GraphDatabaseConfiguration.STORAGE_BACKEND_KEY, "foundationdb");
-        return config;
+public class FoundationDBTestSetup extends StorageSetup {
+
+    public static ModifiableConfiguration getFoundationDBConfig() {
+        return buildConfiguration()
+            .set(STORAGE_BACKEND, "foundationdb");
     }
 
-    public static Configuration getFoundationDBGraphConfig() {
-        BaseConfiguration config = new BaseConfiguration();
-        config.subset(GraphDatabaseConfiguration.STORAGE_NAMESPACE).addProperty(GraphDatabaseConfiguration.STORAGE_BACKEND_KEY, "foundationdb");
-        return config;
+    public static WriteConfiguration getFoundationDBGraphConfig() {
+        return getFoundationDBConfig().getConfiguration();
     }
+
 }

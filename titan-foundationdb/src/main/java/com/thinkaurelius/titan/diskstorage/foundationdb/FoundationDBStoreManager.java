@@ -6,22 +6,35 @@ import com.foundationdb.FDBException;
 import com.foundationdb.Transaction;
 import com.foundationdb.directory.DirectoryLayer;
 import com.foundationdb.directory.DirectorySubspace;
+import com.thinkaurelius.titan.diskstorage.BaseTransactionConfig;
 import com.thinkaurelius.titan.diskstorage.StorageException;
 import com.thinkaurelius.titan.diskstorage.TemporaryStorageException;
 import com.thinkaurelius.titan.diskstorage.common.AbstractStoreManager;
+import com.thinkaurelius.titan.diskstorage.configuration.ConfigOption;
+import com.thinkaurelius.titan.diskstorage.configuration.Configuration;
+import com.thinkaurelius.titan.diskstorage.keycolumnvalue.KeyRange;
+import com.thinkaurelius.titan.diskstorage.keycolumnvalue.StandardStoreFeatures;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.StoreFeatures;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.StoreTransaction;
-import com.thinkaurelius.titan.diskstorage.keycolumnvalue.StoreTxConfig;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.keyvalue.KVMutation;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.keyvalue.OrderedKeyValueStoreManager;
-import org.apache.commons.configuration.Configuration;
+import com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfiguration;
+import static com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfiguration.STORAGE_NS;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class FoundationDBStoreManager extends AbstractStoreManager implements OrderedKeyValueStoreManager {
+
+    public static final ConfigOption<String> DATABASE_NAME = new ConfigOption<String>(STORAGE_NS,"tablename",
+            "Name of database",
+            ConfigOption.Type.MASKABLE, "titan");
+    public static final ConfigOption<String> CLUSTER_FILE = new ConfigOption<String>(STORAGE_NS,"clusterfile",
+            "FDB cluster file override",
+            ConfigOption.Type.MASKABLE, "NONE");
 
     private final Database db;
     private final ConcurrentHashMap<String, FoundationDBKeyValueStore> openStores;
@@ -35,8 +48,8 @@ public class FoundationDBStoreManager extends AbstractStoreManager implements Or
     public FoundationDBStoreManager(Configuration config) {
         super(config);
 
-        dbname = config.getString("tablename", "titan");
-        clusterFile = config.getString("clusterfile", "NONE");
+        dbname = config.get(DATABASE_NAME);
+        clusterFile = config.get(CLUSTER_FILE);
 
         FDB fdb = FDB.selectAPIVersion(200);
         if(clusterFile.equals("NONE")) {
@@ -50,20 +63,17 @@ public class FoundationDBStoreManager extends AbstractStoreManager implements Or
 
         openStores = new ConcurrentHashMap<String, FoundationDBKeyValueStore>();
 
-        features = new StoreFeatures();
-
-        features.supportsUnorderedScan = true;
-        features.supportsOrderedScan = true;
-        features.supportsBatchMutation = true;
-        features.supportsMultiQuery = false; // TODO: want this!
-
-        features.supportsTransactions = true;
-        features.supportsConsistentKeyOperations = true;
-        features.supportsLocking = false;
-
-        features.isKeyOrdered = true;
-        features.isDistributed = true;
-        features.hasLocalKeyPartition = false;
+        features = new StandardStoreFeatures.Builder()
+            .unorderedScan(true)
+            .orderedScan(true)
+            .batchMutation(true)
+         /* .multiQuery(true) */
+            .transactional(true)
+            .keyConsistent(GraphDatabaseConfiguration.buildConfiguration())
+            .locking(false)
+            .keyOrdered(true)
+            .distributed(true)
+            .build();
     }
 
     @Override
@@ -90,7 +100,7 @@ public class FoundationDBStoreManager extends AbstractStoreManager implements Or
     }
 
     @Override
-    public StoreTransaction beginTransaction(StoreTxConfig config) throws StorageException {
+    public StoreTransaction beginTransaction(BaseTransactionConfig config) throws StorageException {
         Transaction tr = db.createTransaction();
         return new FoundationDBTransaction(tr, config);
     }
@@ -124,6 +134,11 @@ public class FoundationDBStoreManager extends AbstractStoreManager implements Or
     @Override
     public StoreFeatures getFeatures() {
         return features;
+    }
+
+    @Override
+    public List<KeyRange> getLocalKeyPartition() throws StorageException {
+        throw new UnsupportedOperationException();
     }
 
 }

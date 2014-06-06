@@ -174,11 +174,6 @@ public class FoundationDBKeyValueStore implements OrderedKeyValueStore {
     }
 
     @Override
-    public StaticBuffer[] getLocalKeyPartition() throws StorageException {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
     public String getName() {
         return storeName;
     }
