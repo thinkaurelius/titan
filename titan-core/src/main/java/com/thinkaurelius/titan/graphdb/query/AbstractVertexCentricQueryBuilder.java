@@ -339,10 +339,13 @@ abstract class AbstractVertexCentricQueryBuilder implements BaseVertexQuery {
             Interval interval = null;
             //First check for equality constraints, since those are the most constraining
             for (Iterator<Condition<TitanRelation>> iter = conditions.iterator(); iter.hasNext(); ) {
-                PredicateCondition<TitanType, TitanRelation> atom = (PredicateCondition) iter.next();
-                if (atom.getKey().equals(pktype) && atom.getPredicate() == Cmp.EQUAL && interval == null) {
-                    interval = new PointInterval(atom.getValue());
-                    iter.remove();
+                Condition<TitanRelation> cond = iter.next();
+                if (cond instanceof PredicateCondition) {
+                    PredicateCondition<TitanType, TitanRelation> atom = (PredicateCondition) cond;
+                    if (atom.getKey().equals(pktype) && atom.getPredicate() == Cmp.EQUAL && interval == null) {
+                        interval = new PointInterval(atom.getValue());
+                        iter.remove();
+                    }
                 }
             }
 
