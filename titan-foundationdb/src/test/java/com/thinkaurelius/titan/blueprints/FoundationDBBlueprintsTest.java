@@ -2,10 +2,10 @@ package com.thinkaurelius.titan.blueprints;
 
 import com.thinkaurelius.titan.FoundationDBTestSetup;
 import com.thinkaurelius.titan.core.TitanFactory;
-import com.thinkaurelius.titan.diskstorage.StorageException;
+import com.thinkaurelius.titan.core.TitanGraph;
+import com.thinkaurelius.titan.diskstorage.BackendException;
 import com.thinkaurelius.titan.diskstorage.foundationdb.FoundationDBStoreManager;
 import com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfiguration;
-import com.tinkerpop.blueprints.Graph;
 
 public class FoundationDBBlueprintsTest extends TitanBlueprintsTest {
 
@@ -20,12 +20,12 @@ public class FoundationDBBlueprintsTest extends TitanBlueprintsTest {
     }
 
     @Override
-    public Graph generateGraph() {
+    public TitanGraph openGraph(String uid) {
         return TitanFactory.open(FoundationDBTestSetup.getFoundationDBGraphConfig());
     }
 
     @Override
-    public void cleanUp() throws StorageException {
+    public void cleanUp() throws BackendException {
         FoundationDBStoreManager s = new FoundationDBStoreManager(FoundationDBTestSetup
                 .getFoundationDBConfig());
         s.clearStorage();
@@ -34,10 +34,5 @@ public class FoundationDBBlueprintsTest extends TitanBlueprintsTest {
     @Override
     public boolean supportsMultipleGraphs() {
         return false;
-    }
-
-    @Override
-    public Graph generateGraph(String s) {
-        throw new UnsupportedOperationException();
     }
 }

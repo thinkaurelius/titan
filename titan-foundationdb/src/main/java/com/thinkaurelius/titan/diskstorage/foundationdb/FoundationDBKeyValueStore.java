@@ -4,8 +4,8 @@ import com.foundationdb.KeyValue;
 import com.foundationdb.Transaction;
 import com.foundationdb.directory.DirectorySubspace;
 import com.foundationdb.tuple.ByteArrayUtil;
+import com.thinkaurelius.titan.diskstorage.BackendException;
 import com.thinkaurelius.titan.diskstorage.StaticBuffer;
-import com.thinkaurelius.titan.diskstorage.StorageException;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.StoreTransaction;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.keyvalue.KeySelector;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.keyvalue.KeyValueEntry;
@@ -14,6 +14,9 @@ import com.thinkaurelius.titan.diskstorage.keycolumnvalue.keyvalue.OrderedKeyVal
 import com.thinkaurelius.titan.diskstorage.util.RecordIterator;
 import com.thinkaurelius.titan.diskstorage.util.StaticArrayBuffer;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -21,6 +24,7 @@ import java.util.List;
 import java.util.NoSuchElementException;
 
 public class FoundationDBKeyValueStore implements OrderedKeyValueStore {
+    private static final Logger logger = LoggerFactory.getLogger(FoundationDBKeyValueStore.class);
 
     private final String storeName;
     private final byte[] prefix;
@@ -59,12 +63,14 @@ public class FoundationDBKeyValueStore implements OrderedKeyValueStore {
     }
 
     @Override
-    public boolean containsKey(StaticBuffer key, StoreTransaction txh) throws StorageException {
+    public boolean containsKey(StaticBuffer key, StoreTransaction txh) throws BackendException {
         return getTransaction(txh).get(getKeyBytes(key)).get() != null;
     }
 
     @Override
-    public RecordIterator<KeyValueEntry> getSlice(StaticBuffer keyStart, StaticBuffer keyEnd, final KeySelector selector, StoreTransaction txh) throws StorageException {
+    public RecordIterator<KeyValueEntry> getSlice(StaticBuffer keyStart, StaticBuffer keyEnd, final KeySelector selector, StoreTransaction txh) throws BackendException {
+        logger.trace("Slice {} {}: {} to {}", txh, storeName, keyStart, keyEnd);
+
         // TODO: I don't think it's possible to apply a numeric limit from the
         // selector to the range, since it after any filtering.
 
@@ -143,23 +149,36 @@ public class FoundationDBKeyValueStore implements OrderedKeyValueStore {
     }
 
     @Override
-    public StaticBuffer get(StaticBuffer key, StoreTransaction txh) throws StorageException {
+    public StaticBuffer get(StaticBuffer key, StoreTransaction txh) throws BackendException {
+        logger.trace("Get {} {}: {}", txh, storeName, key);
         byte[] result = getTransaction(txh).get(getKeyBytes(key)).get();
         if (result == null) return null;
         else return getBuffer(result);
     }
 
     @Override
-    public void insert(StaticBuffer key, StaticBuffer value, StoreTransaction txh) throws StorageException {
+    public void insert(StaticBuffer key, StaticBuffer value, StoreTransaction txh) throws BackendException {
+        logger.trace("Insert {} {}: {} = {}", txh, storeName, key, value);
         getTransaction(txh).set(getKeyBytes(key), getBytes(value));
     }
 
     @Override
-    public void delete(StaticBuffer key, StoreTransaction txh) throws StorageException {
+    public void delete(StaticBuffer key, StoreTransaction txh) throws BackendException {
+        logger.trace("Delete {} {}: {}", txh, storeName, key);
         getTransaction(txh).clear(getKeyBytes(key));
     }
 
-    public void mutate(KVMutation mutation, StoreTransaction txh) throws StorageException {
+    public void mutate(KVMutation mutation, StoreTransaction txh) throws BackendException {
+        if (logger.isTraceEnabled()) {
+            StringBuilder str = new StringBuilder();
+            for (StaticBuffer key : mutation.getDeletions()) {
+                str.append("\n Clear ").append(key);
+            }
+            for (KeyValueEntry kv : mutation.getAdditions()) {
+                str.append("\n Set ").append(kv.getKey()).append(" = ").append(kv.getValue());
+            }
+            logger.trace("Mutate {} {}: {}", txh, storeName, str);
+        }
         for (StaticBuffer key : mutation.getDeletions()) {
             getTransaction(txh).clear(getKeyBytes(key));
         }
@@ -169,8 +188,8 @@ public class FoundationDBKeyValueStore implements OrderedKeyValueStore {
     }
 
     @Override
-    public void acquireLock(StaticBuffer key, StaticBuffer expectedValue, StoreTransaction txh) throws StorageException {
-        throw new UnsupportedOperationException();
+    public void acquireLock(StaticBuffer key, StaticBuffer expectedValue, StoreTransaction txh) throws BackendException {
+        // Not needed.
     }
 
     @Override
@@ -179,7 +198,7 @@ public class FoundationDBKeyValueStore implements OrderedKeyValueStore {
     }
 
     @Override
-    public void close() throws StorageException {
+    public void close() throws BackendException {
         manager.removeStore(this);
     }
 
