@@ -10,6 +10,7 @@ import com.thinkaurelius.titan.diskstorage.keycolumnvalue.StoreTransaction;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.keyvalue.KeySelector;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.keyvalue.KeyValueEntry;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.keyvalue.KVMutation;
+import com.thinkaurelius.titan.diskstorage.keycolumnvalue.keyvalue.KVQuery;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.keyvalue.OrderedKeyValueStore;
 import com.thinkaurelius.titan.diskstorage.util.RecordIterator;
 import com.thinkaurelius.titan.diskstorage.util.StaticArrayBuffer;
@@ -18,9 +19,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
 
 public class FoundationDBKeyValueStore implements OrderedKeyValueStore {
@@ -67,85 +69,105 @@ public class FoundationDBKeyValueStore implements OrderedKeyValueStore {
         return getTransaction(txh).get(getKeyBytes(key)).get() != null;
     }
 
-    @Override
-    public RecordIterator<KeyValueEntry> getSlice(StaticBuffer keyStart, StaticBuffer keyEnd, final KeySelector selector, StoreTransaction txh) throws BackendException {
-        logger.trace("Slice {} {}: {} to {}", txh, storeName, keyStart, keyEnd);
+    class RangeRecordIterator implements RecordIterator<KeyValueEntry> {
+        private final Transaction transaction;
+        private final byte[] endKey;
+        private final KeySelector selector;
+        private Iterator<KeyValue> range;
+        private int count, limit;
+        private byte[] lastKey;
+        private KeyValueEntry next = null;
 
-        // TODO: I don't think it's possible to apply a numeric limit from the
-        // selector to the range, since it after any filtering.
-
-        final Iterator<KeyValue> range = getTransaction(txh)
-            .getRange(getKeyBytes(keyStart), getKeyBytes(keyEnd))
-            .iterator();
-
-        if (selector == null) {
-            return new RecordIterator<KeyValueEntry>() {
-                @Override
-                public boolean hasNext() {
-                    return range.hasNext();
-                }
-
-                @Override
-                public KeyValueEntry next() {
-                    KeyValue kv = range.next();
-                    return new KeyValueEntry(getKeyBuffer(kv), getValueBuffer(kv));
-                }
-
-                @Override
-                public void close() {
-                }
-
-                @Override
-                public void remove() {
-                    throw new UnsupportedOperationException();
-                }
-            };
+        public RangeRecordIterator(Transaction transaction,
+                                   byte[] startKey, byte[] endKey,
+                                   int limit, KeySelector selector) {
+            this.transaction = transaction;
+            this.endKey = endKey;
+            this.limit = limit;
+            this.selector = selector;
+            this.range = transaction.getRange(startKey, endKey, limit).iterator();
         }
-        else {
-            return new RecordIterator<KeyValueEntry>() {
-                private KeyValueEntry next = null;
-                private boolean reachedLimit = false;
 
-                private boolean fillNext() {
-                    if (next != null) return true;
-                    if (reachedLimit) return false;
-                    while (range.hasNext()) {
-                        KeyValue kv = range.next();
-                        StaticBuffer k = getKeyBuffer(kv);
-                        if (selector.include(k)) {
-                            next = new KeyValueEntry(k, getValueBuffer(kv));
-                            return true;
-                        }
+        private boolean fillNext() {
+            if (next != null) return true;
+            if (selector.reachedLimit()) return false;
+            while (true) {
+                if (range.hasNext()) {
+                    KeyValue kv = range.next();
+                    count++;
+                    lastKey = kv.getKey();
+                    StaticBuffer k = getKeyBuffer(kv);
+                    if (selector.include(k)) {
+                        next = new KeyValueEntry(k, getValueBuffer(kv));
+                        return true;
                     }
+                }
+                else if ((limit == Transaction.ROW_LIMIT_UNLIMITED) ||
+                         (count < limit)) {
+                    // Exhausted with this limit; would exhaust with a greater one, too.
                     return false;
                 }
-
-                @Override
-                public boolean hasNext() {
-                    return fillNext();
+                else {
+                    // Range has exhausted due to requested limit, but selector
+                    // hasn't reached that limit. It must be filtering, so need to
+                    // get some more, continuing from the last one found.
+                    count = 0;
+                    limit = Transaction.ROW_LIMIT_UNLIMITED;
+                    range = transaction.getRange(com.foundationdb.KeySelector.firstGreaterThan(lastKey),
+                                                 com.foundationdb.KeySelector.firstGreaterOrEqual(endKey),
+                                                 limit).iterator();
                 }
-
-                @Override
-                public KeyValueEntry next() {
-                    if (fillNext()) {
-                        KeyValueEntry result = next;
-                        next = null;
-                        reachedLimit = selector.reachedLimit();
-                        return result;
-                    }
-                    throw new NoSuchElementException();
-                }
-
-                @Override
-                public void close() {
-                }
-
-                @Override
-                public void remove() {
-                    throw new UnsupportedOperationException();
-                }
-            };
+            }
         }
+
+        @Override
+        public boolean hasNext() {
+            return fillNext();
+        }
+
+        @Override
+        public KeyValueEntry next() {
+            if (fillNext()) {
+                KeyValueEntry result = next;
+                next = null;
+                return result;
+            }
+            throw new NoSuchElementException();
+        }
+
+        @Override
+        public void close() {
+        }
+
+        @Override
+        public void remove() {
+            throw new UnsupportedOperationException();
+        }
+    }
+
+    @Override
+    public RecordIterator<KeyValueEntry> getSlice(KVQuery query, StoreTransaction txh) throws BackendException {
+        logger.trace("Slice {} {}: {}", txh, storeName, query);
+
+        return new RangeRecordIterator(getTransaction(txh),
+                                       getKeyBytes(query.getStart()),
+                                       getKeyBytes(query.getEnd()),
+                                       query.hasLimit() ? query.getLimit() : Transaction.ROW_LIMIT_UNLIMITED,
+                                       query.getKeySelector());
+    }
+
+    @Override
+    public Map<KVQuery,RecordIterator<KeyValueEntry>> getSlices(List<KVQuery> queries, StoreTransaction txh) throws BackendException {
+        logger.trace("Slices {} {}: {}", txh, storeName, queries);
+
+        Map<KVQuery,RecordIterator<KeyValueEntry>> result = new HashMap<KVQuery,RecordIterator<KeyValueEntry>>(queries.size());
+        for (KVQuery query : queries) {
+            // NOTE: This succeeds in initiating the queries in parallel because a
+            // request is sent right away from getRange() but nothing blocks until
+            // hasNext() on an Iterator.
+            result.put(query, getSlice(query, txh));
+        }
+        return result;
     }
 
     @Override

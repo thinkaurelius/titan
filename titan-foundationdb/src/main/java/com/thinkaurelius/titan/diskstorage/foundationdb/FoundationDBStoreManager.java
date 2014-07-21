@@ -76,7 +76,7 @@ public class FoundationDBStoreManager extends AbstractStoreManager implements Or
             .unorderedScan(true)
             .orderedScan(true)
             .batchMutation(true)
-         /* .multiQuery(true) */
+            .multiQuery(true)
             .transactional(true)
             .keyConsistent(GraphDatabaseConfiguration.buildConfiguration())
             .locking(true)
