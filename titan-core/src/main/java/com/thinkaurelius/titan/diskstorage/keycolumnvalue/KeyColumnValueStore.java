@@ -50,7 +50,7 @@ public interface KeyColumnValueStore {
      * of the given keys together.
      *
      * @param keys  List of keys
-     * @param query Slicequery specifying matching entries
+     * @param query Slice query specifying matching entries
      * @param txh   Transaction
      * @return The result of the query for each of the given keys in the order of the keys. That means, nth entry in the returned list
      *         is a list that contains the entries that match the given query for the nth key (which may be empty).

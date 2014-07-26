@@ -92,7 +92,7 @@ public class PersistitStoreManager extends LocalStoreManager implements OrderedK
 
     public void removeDatabase(PersistitKeyValueStore db) {
         if (!stores.containsKey(db.getName())) {
-            throw new IllegalArgumentException("Tried to remove an unkown database from the storage manager");
+            throw new IllegalArgumentException("Tried to remove an unknown database from the storage manager");
         }
         stores.remove(db.getName());
     }

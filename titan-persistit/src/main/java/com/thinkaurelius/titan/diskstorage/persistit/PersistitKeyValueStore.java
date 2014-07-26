@@ -288,7 +288,7 @@ public class PersistitKeyValueStore implements OrderedKeyValueStore {
 
     @Override
     public void acquireLock(StaticBuffer key, StaticBuffer expectedValue, StoreTransaction txh) throws StorageException {
-        //@todo: what is this supposed to do? BerkelyDB doesn't really implement this
+        //@todo: what is this supposed to do? Akiban Persistit doesn't really implement this
     }
 
     @Override
