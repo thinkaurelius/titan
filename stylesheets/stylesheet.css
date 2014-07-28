@@ -266,11 +266,10 @@ Full-Width Styles
   margin: 0 auto;
 }
 
-#forkme_banner {
+.top_banner {
   display: block;
   position: absolute;
   top:0;
-  right: 10px;
   z-index: 10;
   padding: 10px 50px 10px 10px;
   color: #fff;
@@ -281,10 +280,19 @@ Full-Width Styles
   border-bottom-right-radius: 3px;
 }
 
-#forkme_banner:hover {
+.top_banner:hover {
   background: url('../images/aurelius-icon.png') rgb(242,242,242) /*#0090ff*/ no-repeat 95% 50%;
   color: #2D2D2D;
 }
+
+#left_banner {
+  right: 150px;
+}
+
+#right_banner {
+  right: 10px;
+}
+
 
 #header_wrap {
   background: #212121;
