@@ -93,7 +93,7 @@ Read the <a href="https://github.com/thinkaurelius/titan/wiki">Titan documentati
 
 <br>
 <div class="highlight"><pre><span class="c1">// who is hercules' grandfather?</span>
-<span class="n">g</span><span class="o">.</span><span class="na">V</span><span class="o">(</span><span class="s1">'name'</span><span class="o">,</span><span class="s1">'hercules'</span><span class="o">).</span><span class="na">out</span><span class="o">(</span><span class="s1">'father'</span><span class="o">).</span><span class="na">out</span><span class="o">(</span><span class="s1">'father'</span><span class="o">).</span><span class="na">name</span>
+<span class="n">g</span><span class="o">.</span><span class="na">V</span><span class="o">.</span><span class="na">has</span><span class="o">(</span><span class="s1">'name'</span><span class="o">,</span><span class="s1">'hercules'</span><span class="o">).</span><span class="na">out</span><span class="o">(</span><span class="s1">'father'</span><span class="o">).</span><span class="na">out</span><span class="o">(</span><span class="s1">'father'</span><span class="o">).</span><span class="na">name</span>
 </pre></div>
 
 <p>Continue with the <a href="https://github.com/thinkaurelius/titan/wiki/Getting-Started">Getting Started with Titan</a> guide for a step-by-step introduction.</p>
