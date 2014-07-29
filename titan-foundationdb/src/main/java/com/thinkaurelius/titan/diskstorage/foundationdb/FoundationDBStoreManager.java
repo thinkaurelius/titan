@@ -19,6 +19,7 @@ import com.thinkaurelius.titan.diskstorage.keycolumnvalue.keyvalue.KVMutation;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.keyvalue.OrderedKeyValueStoreManager;
 import com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfiguration;
 import static com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfiguration.STORAGE_NS;
+import static com.thinkaurelius.titan.diskstorage.foundationdb.FoundationDBTransaction.wrapException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -137,7 +138,7 @@ public class FoundationDBStoreManager extends AbstractStoreManager implements Or
             close();
         }
         catch (FDBException e) {
-            throw FoundationDBTransaction.wrapException(e);
+            throw wrapException(e);
         }
     }
 

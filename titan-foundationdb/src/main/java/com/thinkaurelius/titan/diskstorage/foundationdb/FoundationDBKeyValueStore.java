@@ -1,5 +1,6 @@
 package com.thinkaurelius.titan.diskstorage.foundationdb;
 
+import com.foundationdb.FDBException;
 import com.foundationdb.KeyValue;
 import com.foundationdb.Transaction;
 import com.foundationdb.directory.DirectorySubspace;
@@ -14,6 +15,7 @@ import com.thinkaurelius.titan.diskstorage.keycolumnvalue.keyvalue.KVQuery;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.keyvalue.OrderedKeyValueStore;
 import com.thinkaurelius.titan.diskstorage.util.RecordIterator;
 import com.thinkaurelius.titan.diskstorage.util.StaticArrayBuffer;
+import static com.thinkaurelius.titan.diskstorage.foundationdb.FoundationDBTransaction.wrapException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -66,7 +68,12 @@ public class FoundationDBKeyValueStore implements OrderedKeyValueStore {
 
     @Override
     public boolean containsKey(StaticBuffer key, StoreTransaction txh) throws BackendException {
-        return getTransaction(txh).get(getKeyBytes(key)).get() != null;
+        try {
+            return getTransaction(txh).get(getKeyBytes(key)).get() != null;
+        }
+        catch (FDBException e) {
+            throw wrapException(e);
+        }
     }
 
     class RangeRecordIterator implements RecordIterator<KeyValueEntry> {
@@ -173,21 +180,36 @@ public class FoundationDBKeyValueStore implements OrderedKeyValueStore {
     @Override
     public StaticBuffer get(StaticBuffer key, StoreTransaction txh) throws BackendException {
         logger.trace("Get {} {}: {}", txh, storeName, key);
-        byte[] result = getTransaction(txh).get(getKeyBytes(key)).get();
-        if (result == null) return null;
-        else return getBuffer(result);
+        try {
+            byte[] result = getTransaction(txh).get(getKeyBytes(key)).get();
+            if (result == null) return null;
+            else return getBuffer(result);
+        }
+        catch (FDBException e) {
+            throw wrapException(e);
+        }
     }
 
     @Override
     public void insert(StaticBuffer key, StaticBuffer value, StoreTransaction txh) throws BackendException {
         logger.trace("Insert {} {}: {} = {}", txh, storeName, key, value);
-        getTransaction(txh).set(getKeyBytes(key), getBytes(value));
+        try {
+            getTransaction(txh).set(getKeyBytes(key), getBytes(value));
+        }
+        catch (FDBException e) {
+            throw wrapException(e);
+        }
     }
 
     @Override
     public void delete(StaticBuffer key, StoreTransaction txh) throws BackendException {
         logger.trace("Delete {} {}: {}", txh, storeName, key);
-        getTransaction(txh).clear(getKeyBytes(key));
+        try {
+            getTransaction(txh).clear(getKeyBytes(key));
+        }
+        catch (FDBException e) {
+            throw wrapException(e);
+        }
     }
 
     public void mutate(KVMutation mutation, StoreTransaction txh) throws BackendException {
@@ -201,11 +223,16 @@ public class FoundationDBKeyValueStore implements OrderedKeyValueStore {
             }
             logger.trace("Mutate {} {}: {}", txh, storeName, str);
         }
-        for (StaticBuffer key : mutation.getDeletions()) {
-            getTransaction(txh).clear(getKeyBytes(key));
+        try {
+            for (StaticBuffer key : mutation.getDeletions()) {
+                getTransaction(txh).clear(getKeyBytes(key));
+            }
+            for (KeyValueEntry kv : mutation.getAdditions()) {
+                getTransaction(txh).set(getKeyBytes(kv.getKey()), getBytes(kv.getValue()));
+            }
         }
-        for (KeyValueEntry kv : mutation.getAdditions()) {
-            getTransaction(txh).set(getKeyBytes(kv.getKey()), getBytes(kv.getValue()));
+        catch (FDBException e) {
+            throw wrapException(e);
         }
     }
 
