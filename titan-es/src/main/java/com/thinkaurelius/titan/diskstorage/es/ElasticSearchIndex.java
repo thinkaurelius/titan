@@ -78,15 +78,15 @@ public class ElasticSearchIndex implements IndexProvider {
 
     public static final ConfigOption<Boolean> CLIENT_ONLY =
             new ConfigOption<Boolean>(ELASTICSEARCH_NS, "client-only",
-            "Whether Titan connects to the indexing backend as a client", ConfigOption.Type.GLOBAL_OFFLINE, true);
+            "Whether Titan connects to the indexing backend as a client", ConfigOption.Type.MASKABLE, true);
 
     public static final ConfigOption<String> CLUSTER_NAME =
             new ConfigOption<String>(ELASTICSEARCH_NS, "cluster-name",
-            "The name of the indexing backend cluster", ConfigOption.Type.GLOBAL_OFFLINE, "elasticsearch");
+            "The name of the indexing backend cluster", ConfigOption.Type.MASKABLE, "elasticsearch");
 
     public static final ConfigOption<Boolean> LOCAL_MODE =
             new ConfigOption<Boolean>(ELASTICSEARCH_NS, "local-mode",
-            "Whether a full indexing instances is started embedded",  ConfigOption.Type.GLOBAL_OFFLINE, false);
+            "Whether a full indexing instances is started embedded",  ConfigOption.Type.MASKABLE, false);
 
     public static final ConfigOption<Boolean> CLIENT_SNIFF =
             new ConfigOption<Boolean>(ELASTICSEARCH_NS, "sniff",
