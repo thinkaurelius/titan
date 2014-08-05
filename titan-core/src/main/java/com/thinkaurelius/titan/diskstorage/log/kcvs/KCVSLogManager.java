@@ -2,19 +2,21 @@ package com.thinkaurelius.titan.diskstorage.log.kcvs;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.thinkaurelius.titan.diskstorage.StorageException;
+import com.thinkaurelius.titan.diskstorage.BackendException;
 import com.thinkaurelius.titan.diskstorage.configuration.ConfigOption;
 import com.thinkaurelius.titan.diskstorage.configuration.Configuration;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.*;
+import com.thinkaurelius.titan.diskstorage.keycolumnvalue.ttl.TTLKVCSManager;
 import com.thinkaurelius.titan.diskstorage.log.Log;
 import com.thinkaurelius.titan.diskstorage.log.LogManager;
 import com.thinkaurelius.titan.diskstorage.log.ReadMarker;
 import com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfiguration;
+import com.thinkaurelius.titan.graphdb.configuration.PreInitializeConfigOptions;
 import com.thinkaurelius.titan.graphdb.database.idassigner.placement.PartitionIDRange;
 import com.thinkaurelius.titan.graphdb.database.serialize.Serializer;
 import com.thinkaurelius.titan.graphdb.database.serialize.StandardSerializer;
+import com.thinkaurelius.titan.util.encoding.ConversionHelper;
 import com.thinkaurelius.titan.util.stats.NumberUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,6 +32,7 @@ import static com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfigu
  *
  * @author Matthias Broecheler (me@matthiasb.com)
  */
+@PreInitializeConfigOptions
 public class KCVSLogManager implements LogManager {
 
     private static final Logger log =
@@ -104,9 +107,17 @@ public class KCVSLogManager implements LogManager {
      * @param config
      * @param readPartitionIds
      */
-    public KCVSLogManager(final KeyColumnValueStoreManager storeManager, final Configuration config,
+    public KCVSLogManager(KeyColumnValueStoreManager storeManager, final Configuration config,
                           final int[] readPartitionIds) {
         Preconditions.checkArgument(storeManager!=null && config!=null);
+        if (config.has(LOG_STORE_TTL)) {
+            if (TTLKVCSManager.supportsStoreTTL(storeManager)) {
+                storeManager = new TTLKVCSManager(storeManager, ConversionHelper.getTTLSeconds(config.get(LOG_STORE_TTL)));
+            } else {
+                log.warn("Log is configured with TTL but underlying storage backend does not support TTL, hence this" +
+                        "configuration option is ignored and entries must be manually removed from the backend.");
+            }
+        }
         this.storeManager = storeManager;
         this.configuration = config;
         openLogs = new HashMap<String, KCVSLog>();
@@ -176,9 +187,9 @@ public class KCVSLogManager implements LogManager {
     }
 
     @Override
-    public synchronized Log openLog(final String name, ReadMarker readMarker) throws StorageException {
+    public synchronized KCVSLog openLog(final String name) throws BackendException {
         if (openLogs.containsKey(name)) return openLogs.get(name);
-        KCVSLog log = new KCVSLog(name,this,storeManager.openDatabase(name),readMarker,configuration);
+        KCVSLog log = new KCVSLog(name,this,storeManager.openDatabase(name),configuration);
         openLogs.put(name,log);
         return log;
     }
@@ -194,7 +205,7 @@ public class KCVSLogManager implements LogManager {
     }
 
     @Override
-    public synchronized void close() throws StorageException {
+    public synchronized void close() throws BackendException {
         /* Copying the map is necessary to avoid ConcurrentModificationException.
          * The path to ConcurrentModificationException in the absence of a copy is
          * log.close() -> manager.closedLog(log) -> openLogs.remove(log.getName()).

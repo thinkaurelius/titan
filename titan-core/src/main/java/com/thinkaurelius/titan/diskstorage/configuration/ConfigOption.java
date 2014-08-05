@@ -2,8 +2,10 @@ package com.thinkaurelius.titan.diskstorage.configuration;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
+import com.thinkaurelius.titan.diskstorage.util.time.Timestamps;
 
 import javax.annotation.Nullable;
+
 import java.lang.reflect.Array;
 import java.util.Collection;
 
@@ -43,6 +45,7 @@ public class ConfigOption<O> extends ConfigElement {
     private final Class<O> datatype;
     private final O defaultValue;
     private final Predicate<O> verificationFct;
+    private boolean isHidden = false;
 
     public ConfigOption(ConfigNamespace parent, String name, String description, Type type, O defaultValue) {
         this(parent,name,description,type,defaultValue, disallowEmpty((Class<O>) defaultValue.getClass()));
@@ -73,6 +76,15 @@ public class ConfigOption<O> extends ConfigElement {
         this.datatype = datatype;
         this.defaultValue = defaultValue;
         this.verificationFct = verificationFct;
+    }
+
+    public ConfigOption<O> hide() {
+        this.isHidden = true;
+        return this;
+    }
+
+    public boolean isHidden() {
+        return isHidden;
     }
 
     public Type getType() {

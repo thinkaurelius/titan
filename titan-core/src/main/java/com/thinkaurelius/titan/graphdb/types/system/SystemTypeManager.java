@@ -1,8 +1,6 @@
 package com.thinkaurelius.titan.graphdb.types.system;
 
 import com.google.common.collect.ImmutableMap;
-import com.thinkaurelius.titan.core.VertexLabel;
-import com.thinkaurelius.titan.graphdb.internal.InternalVertexLabel;
 
 import java.util.Map;
 
@@ -21,18 +19,18 @@ public abstract class SystemTypeManager {
                     BaseKey.SchemaDefinitionProperty, BaseKey.SchemaName,
                     BaseKey.VertexExists,
                     BaseLabel.VertexLabelEdge, BaseLabel.SchemaDefinitionEdge,
-                    ImplicitKey.ID, ImplicitKey.LABEL, ImplicitKey.ADJACENT_ID,
+                    ImplicitKey.ID, ImplicitKey.TITANID, ImplicitKey.LABEL, ImplicitKey.ADJACENT_ID,
                     ImplicitKey.TIMESTAMP, ImplicitKey.TTL, ImplicitKey.VISIBILITY
                 }) {
-                if (et.hasId()) idBuilder.put(et.getID(), et);
+                idBuilder.put(et.getLongId(), et);
                 nameBuilder.put(et.getName(),et);
             }
 
             SYSTEM_TYPES_BY_ID = idBuilder.build();
             SYSTEM_TYPES_BY_NAME = nameBuilder.build();
         }
-        assert SYSTEM_TYPES_BY_ID.size()==11;
-        assert SYSTEM_TYPES_BY_NAME.size()==13;
+        assert SYSTEM_TYPES_BY_ID.size()==14;
+        assert SYSTEM_TYPES_BY_NAME.size()==14;
     }
 
     public static SystemRelationType getSystemType(long id) {

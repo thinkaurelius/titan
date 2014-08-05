@@ -2,8 +2,14 @@ package com.thinkaurelius.titan.diskstorage;
 
 
 import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
+import com.google.common.collect.Iterators;
+import com.google.common.collect.Lists;
+import com.thinkaurelius.titan.diskstorage.keycolumnvalue.keyvalue.*;
+import com.thinkaurelius.titan.diskstorage.util.BufferUtil;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -11,12 +17,8 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.thinkaurelius.titan.diskstorage.keycolumnvalue.StoreManager;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.StoreTransaction;
-import com.thinkaurelius.titan.diskstorage.keycolumnvalue.keyvalue.KVUtil;
-import com.thinkaurelius.titan.diskstorage.keycolumnvalue.keyvalue.KeySelector;
-import com.thinkaurelius.titan.diskstorage.keycolumnvalue.keyvalue.KeyValueEntry;
-import com.thinkaurelius.titan.diskstorage.keycolumnvalue.keyvalue.OrderedKeyValueStore;
-import com.thinkaurelius.titan.diskstorage.keycolumnvalue.keyvalue.OrderedKeyValueStoreManager;
 import com.thinkaurelius.titan.diskstorage.util.RecordIterator;
 
 public abstract class KeyValueStoreTest extends AbstractKCVSTest {
@@ -33,30 +35,32 @@ public abstract class KeyValueStoreTest extends AbstractKCVSTest {
 
     @Before
     public void setUp() throws Exception {
-        openStorageManager().clearStorage();
+        StoreManager m = openStorageManager();
+        m.clearStorage();
+        m.close();
         open();
     }
 
-    public void open() throws StorageException {
+    public void open() throws BackendException {
         manager = openStorageManager();
         store = manager.openDatabase(storeName);
         tx = manager.beginTransaction(getTxConfig());
     }
 
-    public abstract OrderedKeyValueStoreManager openStorageManager() throws StorageException;
+    public abstract OrderedKeyValueStoreManager openStorageManager() throws BackendException;
 
     @After
     public void tearDown() throws Exception {
         close();
     }
 
-    public void close() throws StorageException {
+    public void close() throws BackendException {
         if (tx != null) tx.commit();
         store.close();
         manager.close();
     }
 
-    public void clopen() throws StorageException {
+    public void clopen() throws BackendException {
         close();
         open();
     }
@@ -71,13 +75,13 @@ public abstract class KeyValueStoreTest extends AbstractKCVSTest {
         return KeyValueStoreUtil.generateData(numKeys);
     }
 
-    public void loadValues(String[] values) throws StorageException {
+    public void loadValues(String[] values) throws BackendException {
         for (int i = 0; i < numKeys; i++) {
             store.insert(KeyValueStoreUtil.getBuffer(i), KeyValueStoreUtil.getBuffer(values[i]), tx);
         }
     }
 
-    public Set<Integer> deleteValues(int start, int every) throws StorageException {
+    public Set<Integer> deleteValues(int start, int every) throws BackendException {
         Set<Integer> removed = new HashSet<Integer>();
         for (int i = start; i < numKeys; i = i + every) {
             removed.add(i);
@@ -86,11 +90,11 @@ public abstract class KeyValueStoreTest extends AbstractKCVSTest {
         return removed;
     }
 
-    public void checkValueExistence(String[] values) throws StorageException {
+    public void checkValueExistence(String[] values) throws BackendException {
         checkValueExistence(values, new HashSet<Integer>());
     }
 
-    public void checkValueExistence(String[] values, Set<Integer> removed) throws StorageException {
+    public void checkValueExistence(String[] values, Set<Integer> removed) throws BackendException {
         for (int i = 0; i < numKeys; i++) {
             boolean result = store.containsKey(KeyValueStoreUtil.getBuffer(i), tx);
             if (removed.contains(i)) {
@@ -101,11 +105,12 @@ public abstract class KeyValueStoreTest extends AbstractKCVSTest {
         }
     }
 
-    public void checkValues(String[] values) throws StorageException {
+    public void checkValues(String[] values) throws BackendException {
         checkValues(values, new HashSet<Integer>());
     }
 
-    public void checkValues(String[] values, Set<Integer> removed) throws StorageException {
+    public void checkValues(String[] values, Set<Integer> removed) throws BackendException {
+        //1. Check one-by-one
         for (int i = 0; i < numKeys; i++) {
             StaticBuffer result = store.get(KeyValueStoreUtil.getBuffer(i), tx);
             if (removed.contains(i)) {
@@ -114,10 +119,33 @@ public abstract class KeyValueStoreTest extends AbstractKCVSTest {
                 Assert.assertEquals(values[i], KeyValueStoreUtil.getString(result));
             }
         }
+        //2. Check all at once (if supported)
+        if (manager.getFeatures().hasMultiQuery()) {
+            List<KVQuery> queries = Lists.newArrayList();
+            for (int i = 0; i < numKeys; i++) {
+                StaticBuffer key = KeyValueStoreUtil.getBuffer(i);
+                queries.add(new KVQuery(key, BufferUtil.nextBiggerBuffer(key),2));
+            }
+            Map<KVQuery,RecordIterator<KeyValueEntry>> results = store.getSlices(queries,tx);
+            for (int i = 0; i < numKeys; i++) {
+                RecordIterator<KeyValueEntry> result = results.get(queries.get(i));
+                Assert.assertNotNull(result);
+                StaticBuffer value;
+                if (result.hasNext()) {
+                    value = result.next().getValue();
+                    Assert.assertFalse(result.hasNext());
+                } else value=null;
+                if (removed.contains(i)) {
+                    Assert.assertNull(value);
+                } else {
+                    Assert.assertEquals(values[i], KeyValueStoreUtil.getString(value));
+                }
+            }
+        }
     }
 
     @Test
-    public void storeAndRetrieve() throws StorageException {
+    public void storeAndRetrieve() throws BackendException {
         String[] values = generateValues();
         log.debug("Loading values...");
         loadValues(values);
@@ -128,7 +156,7 @@ public abstract class KeyValueStoreTest extends AbstractKCVSTest {
     }
 
     @Test
-    public void storeAndRetrieveWithClosing() throws StorageException {
+    public void storeAndRetrieveWithClosing() throws BackendException {
         String[] values = generateValues();
         log.debug("Loading values...");
         loadValues(values);
@@ -139,7 +167,7 @@ public abstract class KeyValueStoreTest extends AbstractKCVSTest {
     }
 
     @Test
-    public void deletionTest1() throws StorageException {
+    public void deletionTest1() throws BackendException {
         String[] values = generateValues();
         log.debug("Loading values...");
         loadValues(values);
@@ -151,7 +179,7 @@ public abstract class KeyValueStoreTest extends AbstractKCVSTest {
     }
 
     @Test
-    public void deletionTest2() throws StorageException {
+    public void deletionTest2() throws BackendException {
         String[] values = generateValues();
         log.debug("Loading values...");
         loadValues(values);
@@ -163,7 +191,7 @@ public abstract class KeyValueStoreTest extends AbstractKCVSTest {
     }
 
     @Test
-    public void scanTest() throws StorageException {
+    public void scanTest() throws BackendException {
         if (manager.getFeatures().hasScan()) {
             String[] values = generateValues();
             loadValues(values);
@@ -183,12 +211,12 @@ public abstract class KeyValueStoreTest extends AbstractKCVSTest {
         }
     }
 
-    private RecordIterator<KeyValueEntry> getAllData(StoreTransaction tx) throws StorageException {
-        return store.getSlice(BackendTransaction.EDGESTORE_MIN_KEY, BackendTransaction.EDGESTORE_MAX_KEY, KeySelector.SelectAll, tx);
+    private RecordIterator<KeyValueEntry> getAllData(StoreTransaction tx) throws BackendException {
+        return store.getSlice(new KVQuery(BackendTransaction.EDGESTORE_MIN_KEY, BackendTransaction.EDGESTORE_MAX_KEY), tx);
     }
 
 
-    public void checkSlice(String[] values, Set<Integer> removed, int start, int end, int limit) throws StorageException {
+    public void checkSlice(String[] values, Set<Integer> removed, int start, int end, int limit) throws BackendException {
         EntryList entries;
         if (limit <= 0)
             entries = KVUtil.getSlice(store, KeyValueStoreUtil.getBuffer(start), KeyValueStoreUtil.getBuffer(end), tx);
@@ -215,7 +243,7 @@ public abstract class KeyValueStoreTest extends AbstractKCVSTest {
     }
 
     @Test
-    public void intervalTest1() throws StorageException {
+    public void intervalTest1() throws BackendException {
         String[] values = generateValues();
         log.debug("Loading values...");
         loadValues(values);

@@ -32,10 +32,14 @@ public final class RelationIdentifier {
 
     static final RelationIdentifier get(InternalRelation r) {
         if (r.hasId()) {
-            return new RelationIdentifier(r.getVertex(0).getID(),
-                    r.getType().getID(),
-                    r.getID(),(r.isEdge()?r.getVertex(1).getID():0));
+            return new RelationIdentifier(r.getVertex(0).getLongId(),
+                    r.getType().getLongId(),
+                    r.getLongId(),(r.isEdge()?r.getVertex(1).getLongId():0));
         } else return null;
+    }
+
+    public long getRelationId() {
+        return relationId;
     }
 
     public static final RelationIdentifier get(long[] ids) {
@@ -109,21 +113,23 @@ public final class RelationIdentifier {
         RelationType type = (RelationType)typeVertex;
         Iterable<? extends TitanRelation> rels;
         if (((RelationType) typeVertex).isEdgeLabel()) {
-            TitanVertex in = tx.getVertex(inVertexId);
-            if (in==null) return null;
-            if (((StandardTitanTx)tx).isPartitionedVertex(v)) { //Swap for likely better performance
-                TitanVertex tmp = in;
-                in = v;
+            Direction dir = Direction.OUT;
+            TitanVertex other = tx.getVertex(inVertexId);
+            if (other==null) return null;
+            if (((StandardTitanTx)tx).isPartitionedVertex(v) && !((StandardTitanTx)tx).isPartitionedVertex(other)) { //Swap for likely better performance
+                TitanVertex tmp = other;
+                other = v;
                 v = tmp;
+                dir = Direction.IN;
             }
-            rels = ((VertexCentricQueryBuilder)v.query()).noPartitionRestriction().types((EdgeLabel)type).direction(Direction.OUT).adjacent(in).titanEdges();
+            rels = ((VertexCentricQueryBuilder)v.query()).noPartitionRestriction().types((EdgeLabel) type).direction(dir).adjacent(other).titanEdges();
         } else {
             rels = ((VertexCentricQueryBuilder)v.query()).noPartitionRestriction().types((PropertyKey)type).properties();
         }
 
         for (TitanRelation r : rels) {
             //Find current or previous relation
-            if (r.getID() == relationId ||
+            if (r.getLongId() == relationId ||
                     ((r instanceof StandardRelation) && ((StandardRelation)r).getPreviousID()==relationId)) return r;
         }
         return null;

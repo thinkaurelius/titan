@@ -5,6 +5,9 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.*;
 import com.thinkaurelius.titan.core.*;
 import com.thinkaurelius.titan.core.Cardinality;
+import com.thinkaurelius.titan.core.schema.SchemaStatus;
+import com.thinkaurelius.titan.graphdb.idmanagement.IDManager;
+import com.thinkaurelius.titan.graphdb.query.graph.GraphCentricQueryBuilder;
 import com.thinkaurelius.titan.graphdb.types.ParameterType;
 import com.thinkaurelius.titan.diskstorage.*;
 import com.thinkaurelius.titan.diskstorage.indexing.*;
@@ -49,14 +52,14 @@ public class IndexSerializer {
     private static final byte FIRST_INDEX_COLUMN_BYTE = 0;
 
     private final Serializer serializer;
-    private final Map<String, ? extends IndexInformation> externalIndexes;
+    private final Map<String, ? extends IndexInformation> mixedIndexes;
 
     private final boolean hashKeys;
     private final HashingUtil.HashLength hashLength = HashingUtil.HashLength.SHORT;
 
     public IndexSerializer(Serializer serializer, Map<String, ? extends IndexInformation> indexes, final boolean hashKeys) {
         this.serializer = serializer;
-        this.externalIndexes = indexes;
+        this.mixedIndexes = indexes;
         this.hashKeys=hashKeys;
         if (hashKeys) log.info("Hashing index keys");
     }
@@ -67,10 +70,10 @@ public class IndexSerializer {
     ################################################### */
 
     public boolean containsIndex(final String indexName) {
-        return externalIndexes.containsKey(indexName);
+        return mixedIndexes.containsKey(indexName);
     }
 
-    public static void register(final ExternalIndexType index, final PropertyKey key, final BackendTransaction tx) throws StorageException {
+    public static void register(final MixedIndexType index, final PropertyKey key, final BackendTransaction tx) throws BackendException {
         tx.getIndexTransaction(index.getBackingIndexName()).register(index.getStoreName(), key2Field(index,key), getKeyInformation(index.getField(key)));
 
     }
@@ -81,8 +84,8 @@ public class IndexSerializer {
 //        return indexinfo.supports(new StandardKeyInformation(dataType,parameters));
 //    }
 
-    public boolean supports(final ExternalIndexType index, final ParameterIndexField field, final TitanPredicate predicate) {
-        IndexInformation indexinfo = externalIndexes.get(index.getBackingIndexName());
+    public boolean supports(final MixedIndexType index, final ParameterIndexField field, final TitanPredicate predicate) {
+        IndexInformation indexinfo = mixedIndexes.get(index.getBackingIndexName());
         Preconditions.checkArgument(indexinfo != null, "Index is unknown or not configured: %s", index.getBackingIndexName());
         return indexinfo.supports(getKeyInformation(field),predicate);
     }
@@ -119,7 +122,7 @@ public class IndexSerializer {
                 public KeyInformation.StoreRetriever get(final String store) {
                     if (indexes.get(store)==null) {
                         Preconditions.checkState(transaction!=null,"Retriever has not been initialized");
-                        final ExternalIndexType extIndex = getExternalIndex(store,transaction);
+                        final MixedIndexType extIndex = getMixedIndex(store, transaction);
                         assert extIndex.getBackingIndexName().equals(index);
                         ImmutableMap.Builder<String,KeyInformation> b = ImmutableMap.builder();
                         for (ParameterIndexField field : extIndex.getFieldKeys()) b.put(key2Field(field),getKeyInformation(field));
@@ -156,8 +159,8 @@ public class IndexSerializer {
 
         private IndexUpdate(IndexType index, Type mutationType, K key, E entry, TitanElement element) {
             assert index!=null && mutationType!=null && key!=null && entry!=null && element!=null;
-            assert !index.isInternalIndex() || (key instanceof StaticBuffer && entry instanceof Entry);
-            assert !index.isExternalIndex() || (key instanceof String && entry instanceof IndexEntry);
+            assert !index.isCompositeIndex() || (key instanceof StaticBuffer && entry instanceof Entry);
+            assert !index.isMixedIndex() || (key instanceof String && entry instanceof IndexEntry);
             this.index = index;
             this.mutationType = mutationType;
             this.key = key;
@@ -193,12 +196,17 @@ public class IndexSerializer {
             return mutationType==Type.DELETE;
         }
 
-        public boolean isInternalIndex() {
-            return index.isInternalIndex();
+        public boolean isCompositeIndex() {
+            return index.isCompositeIndex();
         }
 
-        public boolean isExternalIndex() {
-            return index.isExternalIndex();
+        public boolean isMixedIndex() {
+            return index.isMixedIndex();
+        }
+
+        public void setTTL(int ttl) {
+            Preconditions.checkArgument(ttl>0 && mutationType==Type.ADD);
+            ((MetaAnnotatable)entry).setMetaData(EntryMetaData.TTL,ttl);
         }
 
         @Override
@@ -221,8 +229,9 @@ public class IndexSerializer {
     }
 
     private static boolean indexAppliesTo(IndexType index, TitanElement element) {
-        return index.getElement().isInstance(element) && (
-                        !index.hasSchemaTypeConstraint() ||
+        return index.getElement().isInstance(element) &&
+                (!(index instanceof CompositeIndexType) || ((CompositeIndexType)index).getStatus()!=SchemaStatus.DISABLED) &&
+                (!index.hasSchemaTypeConstraint() ||
                         index.getElement().matchesConstraint(index.getSchemaTypeConstraint(),element));
     }
 
@@ -230,67 +239,142 @@ public class IndexSerializer {
         assert relation.isNew() || relation.isRemoved();
         Set<IndexUpdate> updates = Sets.newHashSet();
         IndexUpdate.Type updateType = getUpateType(relation);
+        int ttl = updateType==IndexUpdate.Type.ADD?StandardTitanGraph.getTTL(relation):0;
         for (RelationType type : relation.getPropertyKeysDirect()) {
             if (!(type instanceof PropertyKey)) continue;
             PropertyKey key = (PropertyKey)type;
             for (IndexType index : ((InternalRelationType)key).getKeyIndexes()) {
                 if (!indexAppliesTo(index,relation)) continue;
-                if (index instanceof InternalIndexType) {
-                    InternalIndexType iIndex= (InternalIndexType) index;
-                    if (iIndex.getStatus()== SchemaStatus.DISABLED) continue;
+                IndexUpdate update;
+                if (index instanceof CompositeIndexType) {
+                    CompositeIndexType iIndex= (CompositeIndexType) index;
                     RecordEntry[] record = indexMatch(relation, iIndex);
                     if (record==null) continue;
-                    updates.add(new IndexUpdate<StaticBuffer,Entry>(iIndex,updateType,getIndexKey(iIndex,record),getIndexEntry(iIndex,record,relation), relation));
+                    update = new IndexUpdate<StaticBuffer,Entry>(iIndex,updateType,getIndexKey(iIndex,record),getIndexEntry(iIndex,record,relation), relation);
                 } else {
                     assert relation.getProperty(key)!=null;
-                    if (((ExternalIndexType)index).getField(key).getStatus()== SchemaStatus.DISABLED) continue;
-                    updates.add(getExternalIndexUpdate(relation,key,relation.getProperty(key),(ExternalIndexType)index,updateType));
+                    if (((MixedIndexType)index).getField(key).getStatus()== SchemaStatus.DISABLED) continue;
+                    update = getMixedIndexUpdate(relation, key, relation.getProperty(key), (MixedIndexType) index, updateType);
                 }
+                if (ttl>0) update.setTTL(ttl);
+                updates.add(update);
             }
         }
         return updates;
     }
 
-    public Collection<IndexUpdate> getIndexUpdates(InternalVertex vertex, Collection<InternalRelation> updatedRelations) {
-        if (updatedRelations.isEmpty()) return Collections.EMPTY_LIST;
+    private static PropertyKey[] getKeysOfRecords(RecordEntry[] record) {
+        PropertyKey[] keys = new PropertyKey[record.length];
+        for (int i=0;i<record.length;i++) keys[i]=record[i].key;
+        return keys;
+    }
+
+    private static int getIndexTTL(InternalVertex vertex, PropertyKey... keys) {
+        int ttl = StandardTitanGraph.getTTL(vertex);
+        for (int i=0;i<keys.length;i++) {
+            PropertyKey key = keys[i];
+            int kttl = ((InternalRelationType)key).getTTL();
+            if (kttl>0 && (kttl<ttl || ttl<=0)) ttl=kttl;
+        }
+        return ttl;
+    }
+
+    public Collection<IndexUpdate> getIndexUpdates(InternalVertex vertex, Collection<InternalRelation> updatedProperties) {
+        if (updatedProperties.isEmpty()) return Collections.EMPTY_LIST;
         Set<IndexUpdate> updates = Sets.newHashSet();
 
-        for (InternalRelation rel : updatedRelations) {
-            if (!rel.isProperty()) continue;
+        for (InternalRelation rel : updatedProperties) {
+            assert rel.isProperty();
             TitanProperty p = (TitanProperty)rel;
             assert rel.isNew() || rel.isRemoved(); assert rel.getVertex(0).equals(vertex);
             IndexUpdate.Type updateType = getUpateType(rel);
             for (IndexType index : ((InternalRelationType)p.getPropertyKey()).getKeyIndexes()) {
                 if (!indexAppliesTo(index,vertex)) continue;
-                if (index.isInternalIndex()) { //Gather internal indexes
-                    InternalIndexType iIndex = (InternalIndexType)index;
-                    if (iIndex.getStatus()== SchemaStatus.DISABLED) continue;
-                    IndexRecords updateRecords = indexMatches(vertex,iIndex,updateType==IndexUpdate.Type.DELETE,p.getPropertyKey(),new RecordEntry(p.getID(),p.getValue()));
+                if (index.isCompositeIndex()) { //Gather composite indexes
+                    CompositeIndexType cIndex = (CompositeIndexType)index;
+                    IndexRecords updateRecords = indexMatches(vertex,cIndex,updateType==IndexUpdate.Type.DELETE,p.getPropertyKey(),new RecordEntry(p));
                     for (RecordEntry[] record : updateRecords) {
-                        updates.add(new IndexUpdate<StaticBuffer,Entry>(iIndex,updateType,getIndexKey(iIndex,record),getIndexEntry(iIndex,record,vertex), vertex));
+                        IndexUpdate update = new IndexUpdate<StaticBuffer,Entry>(cIndex,updateType,getIndexKey(cIndex,record),getIndexEntry(cIndex,record,vertex), vertex);
+                        int ttl = getIndexTTL(vertex,getKeysOfRecords(record));
+                        if (ttl>0 && updateType== IndexUpdate.Type.ADD) update.setTTL(ttl);
+                        updates.add(update);
                     }
-                } else { //Update external indexes
-                    if (((ExternalIndexType)index).getField(p.getPropertyKey()).getStatus()== SchemaStatus.DISABLED) continue;
-                    updates.add(getExternalIndexUpdate(vertex,p.getPropertyKey(),p.getValue(),(ExternalIndexType)index,updateType));
+                } else { //Update mixed indexes
+                    if (((MixedIndexType)index).getField(p.getPropertyKey()).getStatus()== SchemaStatus.DISABLED) continue;
+                    IndexUpdate update = getMixedIndexUpdate(vertex, p.getPropertyKey(), p.getValue(), (MixedIndexType) index, updateType);
+                    int ttl = getIndexTTL(vertex,p.getPropertyKey());
+                    if (ttl>0 && updateType== IndexUpdate.Type.ADD) update.setTTL(ttl);
+                    updates.add(update);
                 }
             }
         }
         return updates;
     }
 
-    private IndexUpdate<String,IndexEntry> getExternalIndexUpdate(TitanElement element, PropertyKey key, Object value,
-                                                       ExternalIndexType index, IndexUpdate.Type updateType)  {
+    private IndexUpdate<String,IndexEntry> getMixedIndexUpdate(TitanElement element, PropertyKey key, Object value,
+                                                               MixedIndexType index, IndexUpdate.Type updateType)  {
         return new IndexUpdate<String,IndexEntry>(index,updateType,element2String(element),new IndexEntry(key2Field(index.getField(key)), value), element);
     }
 
-    public static RecordEntry[] indexMatch(TitanRelation element, InternalIndexType index) {
+    public void reindexElement(TitanElement element, MixedIndexType index, Map<String,Map<String,List<IndexEntry>>> documentsPerStore) {
+        if (!indexAppliesTo(index,element)) return;
+        List<IndexEntry> entries = Lists.newArrayList();
+        for (ParameterIndexField field: index.getFieldKeys()) {
+            PropertyKey key = field.getFieldKey();
+            if (field.getStatus()==SchemaStatus.DISABLED) continue;
+            Object value = element.getProperty(key.getName());
+            if (value!=null) {
+                entries.add(new IndexEntry(key2Field(field), value));
+            }
+        }
+        Map<String,List<IndexEntry>> documents = documentsPerStore.get(index.getStoreName());
+        if (documents==null) {
+            documents = Maps.newHashMap();
+            documentsPerStore.put(index.getStoreName(),documents);
+        }
+        getDocuments(documentsPerStore,index).put(element2String(element),entries);
+    }
+
+    private Map<String,List<IndexEntry>> getDocuments(Map<String,Map<String,List<IndexEntry>>> documentsPerStore, MixedIndexType index) {
+        Map<String,List<IndexEntry>> documents = documentsPerStore.get(index.getStoreName());
+        if (documents==null) {
+            documents = Maps.newHashMap();
+            documentsPerStore.put(index.getStoreName(),documents);
+        }
+        return documents;
+    }
+
+    public void removeElement(Object elementId, MixedIndexType index, Map<String,Map<String,List<IndexEntry>>> documentsPerStore) {
+        Preconditions.checkArgument((index.getElement()==ElementCategory.VERTEX && elementId instanceof Long) ||
+                (index.getElement().isRelation() && elementId instanceof RelationIdentifier),"Invalid element id [%s] provided for index: %s",elementId,index);
+        getDocuments(documentsPerStore,index).put(element2String(elementId),Lists.<IndexEntry>newArrayList());
+    }
+
+    public Set<IndexUpdate<StaticBuffer,Entry>> reindexElement(TitanElement element, CompositeIndexType index) {
+        Set<IndexUpdate<StaticBuffer,Entry>> indexEntries = Sets.newHashSet();
+        if (!indexAppliesTo(index,element)) return indexEntries;
+        Iterable<RecordEntry[]> records;
+        if (element instanceof TitanVertex) records = indexMatches((TitanVertex)element,index);
+        else {
+            assert element instanceof TitanRelation;
+            records = Collections.EMPTY_LIST;
+            RecordEntry[] record = indexMatch((TitanRelation)element,index);
+            if (record!=null) records = ImmutableList.of(record);
+        }
+        for (RecordEntry[] record : records) {
+            indexEntries.add(new IndexUpdate<StaticBuffer,Entry>(index, IndexUpdate.Type.ADD,getIndexKey(index,record),getIndexEntry(index,record,element), element));
+        }
+        return indexEntries;
+    }
+
+    public static RecordEntry[] indexMatch(TitanRelation relation, CompositeIndexType index) {
         IndexField[] fields = index.getFieldKeys();
         RecordEntry[] match = new RecordEntry[fields.length];
         for (int i = 0; i <fields.length; i++) {
             IndexField f = fields[i];
-            Object value = element.getProperty(f.getFieldKey());
+            Object value = relation.getProperty(f.getFieldKey());
             if (value==null) return null; //No match
-            match[i] = new RecordEntry(element.getID(),value);
+            match[i] = new RecordEntry(relation.getLongId(),value,f.getFieldKey());
         }
         return match;
     }
@@ -325,23 +409,35 @@ public class IndexSerializer {
 
         final long relationId;
         final Object value;
+        final PropertyKey key;
 
-        private RecordEntry(long relationId, Object value) {
+        private RecordEntry(long relationId, Object value, PropertyKey key) {
             this.relationId = relationId;
             this.value = value;
+            this.key = key;
+        }
+
+        private RecordEntry(TitanProperty property) {
+            this(property.getLongId(),property.getValue(),property.getPropertyKey());
         }
     }
 
-    public static IndexRecords indexMatches(TitanVertex vertex, InternalIndexType index,
+    public static IndexRecords indexMatches(TitanVertex vertex, CompositeIndexType index) {
+        return indexMatches(vertex,index,null,null);
+    }
+
+    public static IndexRecords indexMatches(TitanVertex vertex, CompositeIndexType index,
                                             PropertyKey replaceKey, Object replaceValue) {
         IndexRecords matches = new IndexRecords();
         IndexField[] fields = index.getFieldKeys();
-        indexMatches(vertex,new RecordEntry[fields.length],matches,fields,0,false,
-                                            replaceKey,new RecordEntry(0,replaceValue));
+        if (indexAppliesTo(index,vertex)) {
+            indexMatches(vertex,new RecordEntry[fields.length],matches,fields,0,false,
+                                            replaceKey,new RecordEntry(0,replaceValue,replaceKey));
+        }
         return matches;
     }
 
-    private static IndexRecords indexMatches(TitanVertex vertex, InternalIndexType index,
+    private static IndexRecords indexMatches(TitanVertex vertex, CompositeIndexType index,
                                               boolean onlyLoaded, PropertyKey replaceKey, RecordEntry replaceValue) {
         IndexRecords matches = new IndexRecords();
         IndexField[] fields = index.getFieldKeys();
@@ -364,11 +460,21 @@ public class IndexSerializer {
             values = ImmutableList.of(replaceValue);
         } else {
             values = new ArrayList<RecordEntry>();
-            VertexCentricQueryBuilder qb = ((VertexCentricQueryBuilder)vertex.query()).noPartitionRestriction().type(key);
-            if (onlyLoaded) qb.queryOnlyLoaded();
-            for (TitanProperty p : qb.properties()) {
-                assert p.isNew() || p.isLoaded(); assert !onlyLoaded || p.isLoaded();
-                values.add(new RecordEntry(p.getID(),p.getValue()));
+            Iterable<TitanProperty> props;
+            if (onlyLoaded ||
+                    (!vertex.isNew() && IDManager.VertexIDType.PartitionedVertex.is(vertex.getLongId()))) {
+                //going through transaction so we can query deleted vertices
+                VertexCentricQueryBuilder qb = ((InternalVertex)vertex).tx().query(vertex);
+                qb.noPartitionRestriction().type(key);
+                if (onlyLoaded) qb.queryOnlyLoaded();
+                props = qb.properties();
+            } else {
+                props = vertex.getProperties(key);
+            }
+            for (TitanProperty p : props) {
+                assert !onlyLoaded || p.isLoaded() || p.isRemoved();
+                assert key.getDataType().equals(p.getValue().getClass()) : key + " -> " + p;
+                values.add(new RecordEntry(p));
             }
         }
         for (RecordEntry value : values) {
@@ -384,8 +490,8 @@ public class IndexSerializer {
 
     public List<Object> query(final JointIndexQuery.Subquery query, final BackendTransaction tx) {
         IndexType index = query.getIndex();
-        if (index.isInternalIndex()) {
-            KeySliceQuery sq = query.getInternalQuery();
+        if (index.isCompositeIndex()) {
+            KeySliceQuery sq = query.getCompositeQuery();
             EntryList r = tx.indexQuery(sq);
             List<Object> results = new ArrayList<Object>(r.size());
             for (java.util.Iterator<Entry> iterator = r.reuseIterator(); iterator.hasNext(); ) {
@@ -400,22 +506,22 @@ public class IndexSerializer {
                         results.add(bytebuffer2RelationId(entryValue));
                 }
             }
-            boolean hasCardinalitySize = ((InternalIndexType)index).getCardinality()!= Cardinality.SINGLE || results.size() <= 1;
-            Preconditions.checkArgument(((InternalIndexType)index).getCardinality()!=Cardinality.SINGLE || results.size() <= 1);
+            boolean hasCardinalitySize = ((CompositeIndexType)index).getCardinality()!= Cardinality.SINGLE || results.size() <= 1;
+            Preconditions.checkArgument(((CompositeIndexType)index).getCardinality()!=Cardinality.SINGLE || results.size() <= 1);
             return results;
         } else {
-            List<String> r = tx.indexQuery(((ExternalIndexType) index).getBackingIndexName(), query.getExternalQuery());
+            List<String> r = tx.indexQuery(((MixedIndexType) index).getBackingIndexName(), query.getMixedQuery());
             List<Object> result = new ArrayList<Object>(r.size());
             for (String id : r) result.add(string2ElementId(id));
             return result;
         }
     }
 
-    public KeySliceQuery getQuery(final InternalIndexType index, Object[] values) {
+    public KeySliceQuery getQuery(final CompositeIndexType index, Object[] values) {
         return new KeySliceQuery(getIndexKey(index,values), BufferUtil.zeroBuffer(1), BufferUtil.oneBuffer(1));
     }
 
-    public IndexQuery getQuery(final ExternalIndexType index, final Condition condition, final OrderList orders) {
+    public IndexQuery getQuery(final MixedIndexType index, final Condition condition, final OrderList orders) {
         Condition newCondition = ConditionUtil.literalTransformation(condition,
                 new Function<Condition<TitanElement>, Condition<TitanElement>>() {
                     @Nullable
@@ -428,7 +534,7 @@ public class IndexSerializer {
                     }
                 });
         ImmutableList<IndexQuery.OrderEntry> newOrders = IndexQuery.NO_ORDER;
-        if (!orders.isEmpty()) {
+        if (!orders.isEmpty() && GraphCentricQueryBuilder.indexCoversOrder(index,orders)) {
             ImmutableList.Builder<IndexQuery.OrderEntry> lb = ImmutableList.builder();
             for (int i = 0; i < orders.size(); i++) {
                 lb.add(new IndexQuery.OrderEntry(key2Field(index,orders.getKey(i)), orders.getOrder(i), orders.getKey(i).getDataType()));
@@ -470,7 +576,7 @@ public class IndexSerializer {
 
     public Iterable<RawQuery.Result> executeQuery(IndexQueryBuilder query, final ElementCategory resultType,
                                                   final BackendTransaction backendTx, final StandardTitanTx transaction) {
-        ExternalIndexType index = getExternalIndex(query.getIndex(),transaction);
+        MixedIndexType index = getMixedIndex(query.getIndex(), transaction);
         Preconditions.checkArgument(index.getElement()==resultType,"Index is not configured for the desired result type: %s",resultType);
 
         StringBuffer qB = new StringBuffer(query.getQuery());
@@ -519,7 +625,7 @@ public class IndexSerializer {
         }
 
         String queryStr = qB.toString();
-        Preconditions.checkArgument(replacements>0,"Could not convert given %s index query: %s",resultType, query.getQuery());
+        if (replacements<=0) log.warn("Could not convert given {} index query: [{}]",resultType, query.getQuery());
         log.info("Converted query string with {} replacements: [{}] => [{}]",replacements,query.getQuery(),queryStr);
         RawQuery rawQuery=new RawQuery(index.getStoreName(),queryStr,query.getParameters());
         if (query.hasLimit()) rawQuery.setLimit(query.getLimit());
@@ -538,19 +644,21 @@ public class IndexSerializer {
                 Utility Functions
     ################################################### */
 
-    private static final ExternalIndexType getExternalIndex(String indexName,StandardTitanTx transaction) {
+    private static final MixedIndexType getMixedIndex(String indexName, StandardTitanTx transaction) {
         IndexType index = ManagementSystem.getGraphIndexDirect(indexName, transaction);
         Preconditions.checkArgument(index!=null,"Index with name [%s] is unknown or not configured properly",indexName);
-        Preconditions.checkArgument(index.isExternalIndex());
-        return (ExternalIndexType)index;
+        Preconditions.checkArgument(index.isMixedIndex());
+        return (MixedIndexType)index;
     }
 
     private static final String element2String(TitanElement element) {
-        if (element instanceof TitanVertex) return longID2Name(element.getID());
-        else {
-            RelationIdentifier rid = (RelationIdentifier) element.getId();
-            return rid.toString();
-        }
+        return element2String(element.getId());
+    }
+
+    private static final String element2String(Object elementId) {
+        Preconditions.checkArgument(elementId instanceof Long || elementId instanceof RelationIdentifier);
+        if (elementId instanceof Long) return longID2Name((Long)elementId);
+        else return ((RelationIdentifier) elementId).toString();
     }
 
     private static final Object string2ElementId(String str) {
@@ -558,13 +666,13 @@ public class IndexSerializer {
         else return name2LongID(str);
     }
 
-    private static final String key2Field(ExternalIndexType index, PropertyKey key) {
+    private static final String key2Field(MixedIndexType index, PropertyKey key) {
         return key2Field(index.getField(key));
     }
 
     private static final String key2Field(ParameterIndexField field) {
         assert field!=null;
-        return ParameterType.MAPPED_NAME.findParameter(field.getParameters(),longID2Name(field.getFieldKey().getID()));
+        return ParameterType.MAPPED_NAME.findParameter(field.getParameters(),longID2Name(field.getFieldKey().getLongId()));
     }
 
     private static final String longID2Name(long id) {
@@ -577,11 +685,11 @@ public class IndexSerializer {
     }
 
 
-    private final StaticBuffer getIndexKey(InternalIndexType index, RecordEntry[] record) {
+    private final StaticBuffer getIndexKey(CompositeIndexType index, RecordEntry[] record) {
         return getIndexKey(index,IndexRecords.getValues(record));
     }
 
-    private final StaticBuffer getIndexKey(InternalIndexType index, Object[] values) {
+    private final StaticBuffer getIndexKey(CompositeIndexType index, Object[] values) {
         DataOutput out = serializer.getDataOutput(8*DEFAULT_OBJECT_BYTELEN + 8);
         VariableLong.writePositive(out, index.getID());
         IndexField[] fields = index.getFieldKeys();
@@ -593,7 +701,7 @@ public class IndexSerializer {
             if (AttributeUtil.hasGenericDataType(f.getFieldKey())) {
                 out.writeClassAndObject(value);
             } else {
-                assert value.getClass().equals(f.getFieldKey().getDataType());
+                assert value.getClass().equals(f.getFieldKey().getDataType()) : value.getClass() + " - " + f.getFieldKey().getDataType();
                 out.writeObjectNotNull(value);
             }
         }
@@ -602,11 +710,11 @@ public class IndexSerializer {
         return key;
     }
 
-    private final Entry getIndexEntry(InternalIndexType index, RecordEntry[] record, TitanElement element) {
+    private final Entry getIndexEntry(CompositeIndexType index, RecordEntry[] record, TitanElement element) {
         DataOutput out = serializer.getDataOutput(1+8+8*record.length+4*8);
         out.putByte(FIRST_INDEX_COLUMN_BYTE);
         if (index.getCardinality()!=Cardinality.SINGLE) {
-            VariableLong.writePositive(out,element.getID());
+            VariableLong.writePositive(out,element.getLongId());
             if (index.getCardinality()!=Cardinality.SET) {
                 for (RecordEntry re : record) {
                     VariableLong.writePositive(out,re.relationId);
@@ -615,7 +723,7 @@ public class IndexSerializer {
         }
         int valuePosition=out.getPosition();
         if (element instanceof TitanVertex) {
-            VariableLong.writePositive(out,element.getID());
+            VariableLong.writePositive(out,element.getLongId());
         } else {
             assert element instanceof TitanRelation;
             RelationIdentifier rid = (RelationIdentifier)element.getId();

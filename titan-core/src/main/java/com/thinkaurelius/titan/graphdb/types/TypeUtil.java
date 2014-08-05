@@ -1,10 +1,10 @@
 package com.thinkaurelius.titan.graphdb.types;
 
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 import com.thinkaurelius.titan.core.*;
 import com.thinkaurelius.titan.core.Cardinality;
 import com.thinkaurelius.titan.core.schema.ConsistencyModifier;
+import com.thinkaurelius.titan.graphdb.database.management.ModifierType;
 import com.thinkaurelius.titan.graphdb.internal.ElementCategory;
 import com.thinkaurelius.titan.graphdb.internal.InternalRelationType;
 import com.tinkerpop.blueprints.Direction;
@@ -15,6 +15,7 @@ import java.util.Set;
 
 /**
  * @author Matthias Broecheler (me@matthiasb.com)
+ * @author Joshua Shinavier (http://fortytwo.net)
  */
 public class TypeUtil {
 
@@ -30,12 +31,13 @@ public class TypeUtil {
     public static boolean hasSimpleInternalVertexKeyIndex(PropertyKey key) {
         InternalRelationType type = (InternalRelationType)key;
         for (IndexType index : type.getKeyIndexes()) {
-            if (index.getElement()== ElementCategory.VERTEX && index.isInternalIndex()) {
-                InternalIndexType iIndex = (InternalIndexType)index;
-                if (iIndex.getFieldKeys().length==1) {
-                    assert iIndex.getFieldKeys()[0].getFieldKey().equals(key);
-                    return true;
-                }
+            if (index.getElement()== ElementCategory.VERTEX && index.isCompositeIndex()) {
+                if (index.indexesKey(key)) return true;
+//                InternalIndexType iIndex = (InternalIndexType)index;
+//                if (iIndex.getFieldKeys().length==1) {
+//                    assert iIndex.getFieldKeys()[0].getFieldKey().equals(key);
+//                    return true;
+//                }
             }
         }
         return false;
@@ -55,11 +57,11 @@ public class TypeUtil {
         return s;
     }
 
-    public static List<InternalIndexType> getUniqueIndexes(PropertyKey key) {
-        List<InternalIndexType> indexes = new ArrayList<InternalIndexType>();
+    public static List<CompositeIndexType> getUniqueIndexes(PropertyKey key) {
+        List<CompositeIndexType> indexes = new ArrayList<CompositeIndexType>();
         for (IndexType index : ((InternalRelationType)key).getKeyIndexes()) {
-            if (index.isInternalIndex()) {
-                InternalIndexType iIndex = (InternalIndexType)index;
+            if (index.isCompositeIndex()) {
+                CompositeIndexType iIndex = (CompositeIndexType)index;
                 assert index.indexesKey(key);
                 if (iIndex.getCardinality()== Cardinality.SINGLE) {
                     assert iIndex.getElement()==ElementCategory.VERTEX;
@@ -70,11 +72,23 @@ public class TypeUtil {
         return indexes;
     }
 
-    public static ConsistencyModifier getConsistencyModifier(SchemaSource schema) {
-        SchemaSource.Entry entry = Iterables.getFirst(schema.getRelated(TypeDefinitionCategory.CONSISTENCY_MODIFIER, Direction.OUT), null);
-        if (entry==null) return ConsistencyModifier.DEFAULT;
-        else return entry.getSchemaType().getDefinition().getValue(TypeDefinitionCategory.CONSISTENCY_LEVEL,ConsistencyModifier.class);
+    private static <T> T getTypeModifier(final SchemaSource schema,
+                                         final ModifierType modifierType,
+                                         final T defaultValue) {
+        for (SchemaSource.Entry entry : schema.getRelated(TypeDefinitionCategory.TYPE_MODIFIER, Direction.OUT)) {
+            T value = entry.getSchemaType().getDefinition().getValue(modifierType.getCategory());
+            if (null != value) {
+                return value;
+            }
+        }
+        return defaultValue;
     }
 
+    public static ConsistencyModifier getConsistencyModifier(SchemaSource schema) {
+        return getTypeModifier(schema, ModifierType.CONSISTENCY, ConsistencyModifier.DEFAULT);
+    }
 
+    public static int getTTL(final SchemaSource schema) {
+        return getTypeModifier(schema, ModifierType.TTL, 0).intValue();
+    }
 }

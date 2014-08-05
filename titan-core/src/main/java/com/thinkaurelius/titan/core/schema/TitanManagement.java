@@ -1,9 +1,12 @@
 package com.thinkaurelius.titan.core.schema;
 
 import com.thinkaurelius.titan.core.*;
-import com.thinkaurelius.titan.diskstorage.BaseTransaction;
+import com.thinkaurelius.titan.core.attribute.Duration;
 import com.tinkerpop.blueprints.Direction;
 import com.tinkerpop.blueprints.Element;
+
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 /**
  * The TitanManagement interface provides methods to define, update, and inspect the schema of a Titan graph.
@@ -31,7 +34,7 @@ public interface TitanManagement extends TitanConfiguration {
      */
 
     /**
-     * Identical to {@link #createEdgeIndex(com.thinkaurelius.titan.core.EdgeLabel, String, com.tinkerpop.blueprints.Direction, com.thinkaurelius.titan.core.Order, com.thinkaurelius.titan.core.RelationType...)}
+     * Identical to {@link #buildEdgeIndex(com.thinkaurelius.titan.core.EdgeLabel, String, com.tinkerpop.blueprints.Direction, com.thinkaurelius.titan.core.Order, com.thinkaurelius.titan.core.RelationType...)}
      * with default sort order {@link Order#ASC}.
      *
      * @param label
@@ -40,7 +43,7 @@ public interface TitanManagement extends TitanConfiguration {
      * @param sortKeys
      * @return the created {@link RelationTypeIndex}
      */
-    public RelationTypeIndex createEdgeIndex(EdgeLabel label, String name, Direction direction, RelationType... sortKeys);
+    public RelationTypeIndex buildEdgeIndex(EdgeLabel label, String name, Direction direction, RelationType... sortKeys);
 
     /**
      * Creates a {@link RelationTypeIndex} for the provided edge label. That means, that all edges of that label will be
@@ -56,10 +59,10 @@ public interface TitanManagement extends TitanConfiguration {
      * @param sortKeys
      * @return the created {@link RelationTypeIndex}
      */
-    public RelationTypeIndex createEdgeIndex(EdgeLabel label, String name, Direction direction, Order sortOrder, RelationType... sortKeys);
+    public RelationTypeIndex buildEdgeIndex(EdgeLabel label, String name, Direction direction, Order sortOrder, RelationType... sortKeys);
 
     /**
-     * Identical to {@link #createPropertyIndex(com.thinkaurelius.titan.core.PropertyKey, String, com.thinkaurelius.titan.core.Order, com.thinkaurelius.titan.core.RelationType...)}
+     * Identical to {@link #buildPropertyIndex(com.thinkaurelius.titan.core.PropertyKey, String, com.thinkaurelius.titan.core.Order, com.thinkaurelius.titan.core.RelationType...)}
      * with default sort order {@link Order#ASC}.
      *
      * @param key
@@ -67,7 +70,7 @@ public interface TitanManagement extends TitanConfiguration {
      * @param sortKeys
      * @return the created {@link RelationTypeIndex}
      */
-    public RelationTypeIndex createPropertyIndex(PropertyKey key, String name, RelationType... sortKeys);
+    public RelationTypeIndex buildPropertyIndex(PropertyKey key, String name, RelationType... sortKeys);
 
     /**
      * Creates a {@link RelationTypeIndex} for the provided property key. That means, that all properties of that key will be
@@ -81,7 +84,7 @@ public interface TitanManagement extends TitanConfiguration {
      * @param sortKeys
      * @return the created {@link RelationTypeIndex}
      */
-    public RelationTypeIndex createPropertyIndex(PropertyKey key, String name, Order sortOrder, RelationType... sortKeys);
+    public RelationTypeIndex buildPropertyIndex(PropertyKey key, String name, Order sortOrder, RelationType... sortKeys);
 
     /**
      * Whether a {@link RelationTypeIndex} with the given name has been defined for the provided {@link RelationType}
@@ -161,7 +164,7 @@ public interface TitanManagement extends TitanConfiguration {
          * @param key
          * @return this IndexBuilder
          */
-        public IndexBuilder indexKey(PropertyKey key);
+        public IndexBuilder addKey(PropertyKey key);
 
         /**
          * Adds the given key and associated parameters to the composite key of this index
@@ -169,7 +172,7 @@ public interface TitanManagement extends TitanConfiguration {
          * @param parameters
          * @return this IndexBuilder
          */
-        public IndexBuilder indexKey(PropertyKey key, Parameter... parameters);
+        public IndexBuilder addKey(PropertyKey key, Parameter... parameters);
 
         /**
          * Restricts this index to only those elements that have the provided schemaType. If this graph index indexes
@@ -190,20 +193,20 @@ public interface TitanManagement extends TitanConfiguration {
         public IndexBuilder unique();
 
         /**
-         * Builds an internal index according to the specification
+         * Builds a composite index according to the specification
          *
-         * @return the created internal {@link TitanGraphIndex}
+         * @return the created composite {@link TitanGraphIndex}
          */
-        public TitanGraphIndex buildInternalIndex();
+        public TitanGraphIndex buildCompositeIndex();
 
         /**
-         * Builds an external index according to the specification against the backend index with the given name (i.e.
+         * Builds a mixed index according to the specification against the backend index with the given name (i.e.
          * the name under which that index is configured in the graph configuration)
          *
-         * @param backingIndex the name of the external index
-         * @return the created internal {@link TitanGraphIndex}
+         * @param backingIndex the name of the mixed index
+         * @return the created mixed {@link TitanGraphIndex}
          */
-        public TitanGraphIndex buildExternalIndex(String backingIndex);
+        public TitanGraphIndex buildMixedIndex(String backingIndex);
 
     }
 
@@ -222,12 +225,81 @@ public interface TitanManagement extends TitanConfiguration {
 
     /**
      * Sets the consistency modifier for the given {@link TitanSchemaElement}. Note, that only {@link RelationType}s
-     * and internal graph indexes allow changing of the consistency level.
+     * and composite graph indexes allow changing of the consistency level.
      *
      * @param element
      * @param consistency
      */
     public void setConsistency(TitanSchemaElement element, ConsistencyModifier consistency);
+
+    /**
+     * Retrieves the time-to-live for the given {@link TitanSchemaType} as a {@link Duration}.
+     * If none has been explicitly defined, a zero-length {@link Duration} is returned.
+     *
+     * @param type
+     * @return
+     */
+    public Duration getTTL(TitanSchemaType type);
+
+    /**
+     * Sets the time-to-live for the given {@link TitanSchemaType}. The most granular time unit used for TTL values
+     *  is seconds. Any argument will be rounded to seconds if it is more granular than that.
+     *
+     * @param type the affected type
+     * @param ttl time-to-live
+     * @param unit time unit of the specified ttl
+     */
+    public void setTTL(TitanSchemaType type, int ttl, TimeUnit unit);
+
+    /*
+    ##################### SCHEMA UPDATE ##########################
+     */
+
+    /**
+     * Changes the name of a {@link TitanSchemaElement} to the provided new name.
+     * The new name must be valid and not already in use, otherwise an {@link IllegalArgumentException} is thrown.
+     *
+     * @param element
+     * @param newName
+     */
+    public void changeName(TitanSchemaElement element, String newName);
+
+    /**
+     * Updates the provided index according to the given {@link SchemaAction}
+     *
+     * @param index
+     * @param updateAction
+     */
+    public void updateIndex(TitanIndex index, SchemaAction updateAction);
+
+    /*
+    ##################### CLUSTER MANAGEMENT ##########################
+     */
+
+    /**
+     * Returns a set of unique instance ids for all Titan instances that are currently
+     * part of this graph cluster.
+     *
+     * @return
+     */
+    public Set<String> getOpenInstances();
+
+    /**
+     * Forcefully removes a Titan instance from this graph cluster as identified by its name.
+     * <p/>
+     * This method should be used with great care and only in cases where a Titan instance
+     * has been abnormally terminated (i.e. killed instead of properly shut-down). If this happens, the instance
+     * will continue to be listed as an open instance which means that 1) a new instance with the same id cannot
+     * be started and 2) schema updates will fail because the killed instance cannot acknowledge the schema update.
+     *
+     * <p/>
+     * Throws an exception if the instance is not part of this cluster or if the instance has
+     * been started after the start of this management transaction which is indicative of the instance
+     * having been restarted successfully.
+     *
+     * @param instanceId
+     */
+    public void forceCloseInstance(String instanceId);
 
 
     /*
@@ -317,6 +389,13 @@ public interface TitanManagement extends TitanConfiguration {
     public VertexLabelMaker makeVertexLabel(String name);
 
     /**
+     * Returns an {@link Iterable} over all defined {@link VertexLabel}s.
+     *
+     * @return
+     */
+    public Iterable<VertexLabel> getVertexLabels();
+
+    /**
      * Whether this management transaction is open or has been closed (i.e. committed or rolled-back)
      * @return
      */
@@ -324,7 +403,7 @@ public interface TitanManagement extends TitanConfiguration {
 
     /**
      * Commits this management transaction and persists all schema changes. Closes this transaction.
-     * @see com.thinkaurelius.titan.core.TitanTransaction#commit() 
+     * @see com.thinkaurelius.titan.core.TitanTransaction#commit()
      */
     public void commit();
 

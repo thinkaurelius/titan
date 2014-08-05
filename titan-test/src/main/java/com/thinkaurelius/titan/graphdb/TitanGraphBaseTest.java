@@ -7,16 +7,14 @@ import com.thinkaurelius.titan.core.*;
 import com.thinkaurelius.titan.core.Cardinality;
 import com.thinkaurelius.titan.core.schema.TitanGraphIndex;
 import com.thinkaurelius.titan.core.schema.TitanManagement;
+import com.thinkaurelius.titan.diskstorage.BackendException;
 import com.thinkaurelius.titan.diskstorage.util.time.StandardDuration;
 import com.thinkaurelius.titan.diskstorage.Backend;
-import com.thinkaurelius.titan.diskstorage.StorageException;
 import com.thinkaurelius.titan.diskstorage.configuration.*;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.KeyColumnValueStoreManager;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.StoreFeatures;
-import com.thinkaurelius.titan.diskstorage.locking.consistentkey.ExpectedValueCheckingStore;
 import com.thinkaurelius.titan.diskstorage.log.Log;
 import com.thinkaurelius.titan.diskstorage.log.LogManager;
-import com.thinkaurelius.titan.diskstorage.log.ReadMarker;
 import com.thinkaurelius.titan.diskstorage.log.kcvs.KCVSLogManager;
 import com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfiguration;
 import com.thinkaurelius.titan.graphdb.database.StandardTitanGraph;
@@ -35,7 +33,7 @@ import java.util.concurrent.TimeUnit;
 
 import static com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfiguration.LOG_BACKEND;
 import static com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfiguration.TRANSACTION_LOG;
-import static com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfiguration.TRIGGER_LOG;
+import static com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfiguration.USER_LOG;
 
 /**
  * @author Matthias Broecheler (me@matthiasb.com)
@@ -55,13 +53,17 @@ public abstract class TitanGraphBaseTest {
 
     public abstract WriteConfiguration getConfiguration();
 
+    public Configuration getConfig() {
+        return new BasicConfiguration(GraphDatabaseConfiguration.ROOT_NS,config.copy(), BasicConfiguration.Restriction.NONE);
+    }
+
     @Before
     public void setUp() throws Exception {
         this.config = getConfiguration();
         TestGraphConfigs.applyOverrides(config);
         Preconditions.checkNotNull(config);
         ModifiableConfiguration configuration = new ModifiableConfiguration(GraphDatabaseConfiguration.ROOT_NS,config.copy(), BasicConfiguration.Restriction.NONE);
-        configuration.set(ExpectedValueCheckingStore.LOCAL_LOCK_MEDIATOR_PREFIX, "tmp");
+        configuration.set(GraphDatabaseConfiguration.LOCK_LOCAL_MEDIATOR_GROUP, "tmp");
         configuration.set(GraphDatabaseConfiguration.UNIQUE_INSTANCE_ID, "inst");
         Backend backend = new Backend(configuration);
         backend.initialize(configuration);
@@ -84,8 +86,8 @@ public abstract class TitanGraphBaseTest {
     }
 
     public void finishSchema() {
-        assert mgmt!=null;
-        mgmt.commit();
+        if (mgmt!=null && mgmt.isOpen())
+            mgmt.commit();
         mgmt=graph.getManagementSystem();
         newTx();
         graph.commit();
@@ -97,7 +99,7 @@ public abstract class TitanGraphBaseTest {
             tx.commit();
 
 
-        if (null != graph)
+        if (null != graph && graph.isOpen())
             graph.shutdown();
     }
 
@@ -171,7 +173,7 @@ public abstract class TitanGraphBaseTest {
                 logStoreManager.close();
                 logStoreManager=null;
             }
-        } catch (StorageException e) {
+        } catch (BackendException e) {
             throw new TitanException(e);
         }
     }
@@ -180,21 +182,21 @@ public abstract class TitanGraphBaseTest {
         if (logManagers.containsKey(logManagerName)) {
             try {
                 logManagers.remove(logManagerName).close();
-            } catch (StorageException e) {
+            } catch (BackendException e) {
                 throw new TitanException("Could not close log manager " + logManagerName,e);
             }
         }
     }
 
-    public Log openTriggerLog(String identifier, ReadMarker readMarker) {
-        return openLog(TRIGGER_LOG, Backend.TRIGGER_LOG_PREFIX +identifier, readMarker);
+    public Log openUserLog(String identifier) {
+        return openLog(USER_LOG, GraphDatabaseConfiguration.USER_LOG_PREFIX +identifier);
     }
 
-    public Log openTxLog(ReadMarker readMarker) {
-        return openLog(TRANSACTION_LOG, Backend.SYSTEM_TX_LOG_NAME, readMarker);
+    public Log openTxLog() {
+        return openLog(TRANSACTION_LOG, Backend.SYSTEM_TX_LOG_NAME);
     }
 
-    private Log openLog(String logManagerName, String logName, ReadMarker readMarker) {
+    private Log openLog(String logManagerName, String logName) {
         try {
             ModifiableConfiguration configuration = new ModifiableConfiguration(GraphDatabaseConfiguration.ROOT_NS,config.copy(), BasicConfiguration.Restriction.NONE);
             configuration.set(GraphDatabaseConfiguration.UNIQUE_INSTANCE_ID, "reader");
@@ -213,25 +215,25 @@ public abstract class TitanGraphBaseTest {
                 logManagers.put(logManagerName,new KCVSLogManager(logStoreManager,logConfig));
             }
             assert logManagers.containsKey(logManagerName);
-            return logManagers.get(logManagerName).openLog(logName, readMarker);
-        } catch (StorageException e) {
+            return logManagers.get(logManagerName).openLog(logName);
+        } catch (BackendException e) {
             throw new TitanException("Could not open log: "+ logName,e);
         }
     }
 
     /*
-    ========= Type Definition Helpers ============
+    ========= Schema Type Definition Helpers ============
      */
 
     public PropertyKey makeVertexIndexedKey(String name, Class datatype) {
         PropertyKey key = mgmt.makePropertyKey(name).dataType(datatype).cardinality(Cardinality.SINGLE).make();
-        mgmt.buildIndex(name,Vertex.class).indexKey(key).buildInternalIndex();
+        mgmt.buildIndex(name,Vertex.class).addKey(key).buildCompositeIndex();
         return key;
     }
 
     public PropertyKey makeVertexIndexedUniqueKey(String name, Class datatype) {
         PropertyKey key = mgmt.makePropertyKey(name).dataType(datatype).cardinality(Cardinality.SINGLE).make();
-        mgmt.buildIndex(name,Vertex.class).indexKey(key).unique().buildInternalIndex();
+        mgmt.buildIndex(name,Vertex.class).addKey(key).unique().buildCompositeIndex();
         return key;
     }
 
@@ -244,10 +246,16 @@ public abstract class TitanGraphBaseTest {
     }
 
     public TitanGraphIndex getExternalIndex(Class<? extends Element> clazz, String backingIndex) {
-        String indexName = (Vertex.class.isAssignableFrom(clazz)?"v":"e")+backingIndex;
+        String prefix;
+        if (Vertex.class.isAssignableFrom(clazz)) prefix = "v";
+        else if (Edge.class.isAssignableFrom(clazz)) prefix = "e";
+        else if (TitanProperty.class.isAssignableFrom(clazz)) prefix = "p";
+        else throw new AssertionError(clazz.toString());
+
+        String indexName = prefix+backingIndex;
         TitanGraphIndex index = mgmt.getGraphIndex(indexName);
         if (index==null) {
-            index = mgmt.buildIndex(indexName,clazz).buildExternalIndex(backingIndex);
+            index = mgmt.buildIndex(indexName,clazz).buildMixedIndex(backingIndex);
         }
         return index;
     }
@@ -305,6 +313,10 @@ public abstract class TitanGraphBaseTest {
 
     public static TitanVertex getVertex(TitanTransaction tx, PropertyKey key, Object value) {
         return Iterables.getOnlyElement(tx.getVertices(key,value),null);
+    }
+
+    public static double round(double d) {
+        return Math.round(d*1000.0)/1000.0;
     }
 
 }

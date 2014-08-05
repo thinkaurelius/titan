@@ -10,9 +10,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+import com.thinkaurelius.titan.diskstorage.EntryMetaData;
+import com.thinkaurelius.titan.diskstorage.*;
 import com.thinkaurelius.titan.diskstorage.cassandra.utils.CassandraHelper;
+import com.thinkaurelius.titan.diskstorage.configuration.ConfigElement;
+import com.thinkaurelius.titan.diskstorage.configuration.ConfigNamespace;
+import com.thinkaurelius.titan.diskstorage.configuration.ConfigOption;
 import com.thinkaurelius.titan.diskstorage.configuration.Configuration;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.KeyRange;
+import com.thinkaurelius.titan.graphdb.configuration.PreInitializeConfigOptions;
 import com.thinkaurelius.titan.util.system.NetworkUtil;
 
 import org.apache.cassandra.dht.AbstractByteOrderedPartitioner;
@@ -28,16 +34,11 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
-import com.thinkaurelius.titan.diskstorage.Backend;
-import com.thinkaurelius.titan.diskstorage.PermanentStorageException;
-import com.thinkaurelius.titan.diskstorage.StaticBuffer;
-import com.thinkaurelius.titan.diskstorage.StorageException;
-import com.thinkaurelius.titan.diskstorage.TemporaryStorageException;
+import com.thinkaurelius.titan.diskstorage.BackendException;
 import com.thinkaurelius.titan.diskstorage.cassandra.AbstractCassandraStoreManager;
 import com.thinkaurelius.titan.diskstorage.cassandra.thrift.thriftpool.CTConnection;
 import com.thinkaurelius.titan.diskstorage.cassandra.thrift.thriftpool.CTConnectionFactory;
 import com.thinkaurelius.titan.diskstorage.cassandra.thrift.thriftpool.CTConnectionPool;
-import com.thinkaurelius.titan.diskstorage.Entry;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.KCVMutation;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.StoreTransaction;
 import com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfiguration;
@@ -49,14 +50,112 @@ import com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfiguration;
  *
  * @author Dan LaRocque <dalaro@hopcount.org>
  */
+@PreInitializeConfigOptions
 public class CassandraThriftStoreManager extends AbstractCassandraStoreManager {
+
+    public enum PoolExhaustedAction {
+        BLOCK(GenericKeyedObjectPool.WHEN_EXHAUSTED_BLOCK),
+        FAIL(GenericKeyedObjectPool.WHEN_EXHAUSTED_FAIL),
+        GROW(GenericKeyedObjectPool.WHEN_EXHAUSTED_GROW);
+
+        private final byte b;
+
+        PoolExhaustedAction(byte b) {
+            this.b = b;
+        }
+
+        public byte getByte() {
+            return b;
+        }
+    }
+
     private static final Logger log = LoggerFactory.getLogger(CassandraThriftStoreManager.class);
+
+    public static final ConfigNamespace THRIFT_NS =
+            new ConfigNamespace(AbstractCassandraStoreManager.CASSANDRA_NS, "thrift",
+                    "Options for Titan's own Thrift Cassandra backend");
+    /**
+     * THRIFT_FRAME_SIZE_IN_MB should be appropriately set when server-side Thrift counterpart was changed,
+     * because otherwise client wouldn't be able to accept read/write frames from server as incorrectly sized.
+     * <p/>
+     * HEADS UP: setting max message size proved itself hazardous to be set on the client, only server needs that
+     * kind of protection.
+     * <p/>
+     * Note: property is sized in megabytes for user convenience (defaults are 15MB by cassandra.yaml).
+     */
+    public static final ConfigOption<Integer> THRIFT_FRAME_SIZE =
+            new ConfigOption<Integer>(THRIFT_NS, "frame-size",
+            "The thrift frame size in mega bytes", ConfigOption.Type.MASKABLE, 15);
+
+
+    public static final ConfigNamespace CPOOL_NS =
+            new ConfigNamespace(THRIFT_NS, "cpool", "Options for the Apache commons-pool connection manager");
+
+    public static final ConfigOption<PoolExhaustedAction> CPOOL_WHEN_EXHAUSTED =
+            new ConfigOption<PoolExhaustedAction>(CPOOL_NS, "when-exhausted",
+            "What to do when clients concurrently request more active connections than are allowed " +
+            "by the pool.  The value must be one of BLOCK, FAIL, or GROW.",
+            ConfigOption.Type.MASKABLE, PoolExhaustedAction.class, PoolExhaustedAction.BLOCK);
+
+    public static final ConfigOption<Integer> CPOOL_MAX_TOTAL =
+            new ConfigOption<Integer>(CPOOL_NS, "max-total",
+            "Max number of allowed Thrift connections, idle or active (-1 to leave undefined)",
+            ConfigOption.Type.MASKABLE, 32);
+
+    public static final ConfigOption<Integer> CPOOL_MAX_ACTIVE =
+            new ConfigOption<Integer>(CPOOL_NS, "max-active",
+            "Maximum number of concurrently in-use connections (-1 to leave undefined)",
+            ConfigOption.Type.MASKABLE, -1);
+
+    public static final ConfigOption<Integer> CPOOL_MAX_IDLE =
+            new ConfigOption<Integer>(CPOOL_NS, "max-idle",
+            "Maximum number of concurrently idle connections (-1 to leave undefined)",
+            ConfigOption.Type.MASKABLE, -1);
+
+    public static final ConfigOption<Integer> CPOOL_MIN_IDLE =
+            new ConfigOption<Integer>(CPOOL_NS, "min-idle",
+            "Minimum number of idle connections the pool attempts to maintain",
+            ConfigOption.Type.MASKABLE, 0);
+
+    // Wart: allowing -1 like commons-pool's convention precludes using StandardDuration
+    public static final ConfigOption<Long> CPOOL_MAX_WAIT =
+            new ConfigOption<Long>(CPOOL_NS, "max-wait",
+            "Maximum number of milliseconds to block when " + ConfigElement.getPath(CPOOL_WHEN_EXHAUSTED) +
+            " is set to BLOCK.  Has no effect when set to actions besides BLOCK.  Set to -1 to wait indefinitely.",
+            ConfigOption.Type.MASKABLE, -1L);
+
+    // Wart: allowing -1 like commons-pool's convention precludes using StandardDuration
+    public static final ConfigOption<Long> CPOOL_EVICTOR_PERIOD =
+            new ConfigOption<Long>(CPOOL_NS, "evictor-period",
+            "Approximate number of milliseconds between runs of the idle connection evictor.  " +
+            "Set to -1 to never run the idle connection evictor.",
+            ConfigOption.Type.MASKABLE, 30L * 1000L);
+
+    // Wart: allowing -1 like commons-pool's convention precludes using StandardDuration
+    public static final ConfigOption<Long> CPOOL_MIN_EVICTABLE_IDLE_TIME =
+            new ConfigOption<Long>(CPOOL_NS, "min-evictable-idle-time",
+            "Minimum number of milliseconds a connection must be idle before it is eligible for " +
+            "eviction.  See also " + ConfigElement.getPath(CPOOL_EVICTOR_PERIOD) + ".  Set to -1 to never evict " +
+            "idle connections.", ConfigOption.Type.MASKABLE, 60L * 1000L);
+
+    public static final ConfigOption<Boolean> CPOOL_IDLE_TESTS =
+            new ConfigOption<Boolean>(CPOOL_NS, "idle-test",
+            "Whether the idle connection evictor validates idle connections and drops those that fail to validate",
+            ConfigOption.Type.MASKABLE, false);
+
+    public static final ConfigOption<Integer> CPOOL_IDLE_TESTS_PER_EVICTION_RUN =
+            new ConfigOption<Integer>(CPOOL_NS, "idle-tests-per-eviction-run",
+            "When the value is negative, e.g. -n, roughly one nth of the idle connections are tested per run.  " +
+            "When the value is positive, e.g. n, the min(idle-count, n) connections are tested per run.",
+            ConfigOption.Type.MASKABLE, 0);
+
 
     private final Map<String, CassandraThriftKeyColumnValueStore> openStores;
     private final CTConnectionPool pool;
     private final Deployment deployment;
+    private final int thriftFrameSizeBytes;
 
-    public CassandraThriftStoreManager(Configuration config) throws StorageException {
+    public CassandraThriftStoreManager(Configuration config) throws BackendException {
         super(config);
 
         /*
@@ -65,20 +164,30 @@ public class CassandraThriftStoreManager extends AbstractCassandraStoreManager {
          */
         int thriftTimeoutMS = (int)config.get(GraphDatabaseConfiguration.CONNECTION_TIMEOUT).getLength(TimeUnit.MILLISECONDS);
 
-        int maxTotalConnections = config.get(GraphDatabaseConfiguration.CONNECTION_POOL_SIZE);
+        thriftFrameSizeBytes = config.get(THRIFT_FRAME_SIZE) * 1024 * 1024;
 
-        CTConnectionFactory factory = new CTConnectionFactory(hostnames, port, username, password, thriftTimeoutMS, thriftFrameSize);
-        CTConnectionPool p = new CTConnectionPool(factory);
+        CTConnectionFactory.Config factoryConfig = new CTConnectionFactory.Config(hostnames, port, username, password)
+                                                                            .setTimeoutMS(thriftTimeoutMS)
+                                                                            .setFrameSize(thriftFrameSizeBytes);
+
+        if (config.get(SSL_ENABLED)) {
+            factoryConfig.setSSLTruststoreLocation(config.get(SSL_TRUSTSTORE_LOCATION));
+            factoryConfig.setSSLTruststorePassword(config.get(SSL_TRUSTSTORE_PASSWORD));
+        }
+
+        CTConnectionPool p = new CTConnectionPool(factoryConfig.build());
         p.setTestOnBorrow(true);
         p.setTestOnReturn(true);
-        p.setTestWhileIdle(false);
-        p.setWhenExhaustedAction(GenericKeyedObjectPool.WHEN_EXHAUSTED_BLOCK);
-        p.setMaxActive(-1); // "A negative value indicates no limit"
-        p.setMaxTotal(maxTotalConnections); // maxTotal limits active + idle
-        p.setMinIdle(0); // prevent evictor from eagerly creating unused connections
-        p.setMinEvictableIdleTimeMillis(60 * 1000L);
-        p.setTimeBetweenEvictionRunsMillis(30 * 1000L);
-
+        p.setTestWhileIdle(config.get(CPOOL_IDLE_TESTS));
+        p.setNumTestsPerEvictionRun(config.get(CPOOL_IDLE_TESTS_PER_EVICTION_RUN));
+        p.setWhenExhaustedAction(config.get(CPOOL_WHEN_EXHAUSTED).getByte());
+        p.setMaxActive(config.get(CPOOL_MAX_ACTIVE));
+        p.setMaxTotal(config.get(CPOOL_MAX_TOTAL)); // maxTotal limits active + idle
+        p.setMaxIdle(config.get(CPOOL_MAX_IDLE));
+        p.setMinIdle(config.get(CPOOL_MIN_IDLE));
+        p.setMaxWait(config.get(CPOOL_MAX_WAIT));
+        p.setTimeBetweenEvictionRunsMillis(config.get(CPOOL_EVICTOR_PERIOD));
+        p.setMinEvictableIdleTimeMillis(config.get(CPOOL_MIN_EVICTABLE_IDLE_TIME));
         this.pool = p;
 
         this.openStores = new HashMap<String, CassandraThriftKeyColumnValueStore>();
@@ -100,13 +209,13 @@ public class CassandraThriftStoreManager extends AbstractCassandraStoreManager {
 
     @Override
     @SuppressWarnings("unchecked")
-    public IPartitioner<? extends Token<?>> getCassandraPartitioner() throws StorageException {
+    public IPartitioner<? extends Token<?>> getCassandraPartitioner() throws BackendException {
         CTConnection conn = null;
         try {
             conn = pool.borrowObject(SYSTEM_KS);
             return FBUtilities.newPartitioner(conn.getClient().describe_partitioner());
         } catch (Exception e) {
-            throw new TemporaryStorageException(e);
+            throw new TemporaryBackendException(e);
         } finally {
             pool.returnObjectUnsafe(SYSTEM_KS, conn);
         }
@@ -118,13 +227,13 @@ public class CassandraThriftStoreManager extends AbstractCassandraStoreManager {
     }
 
     @Override
-    public void close() throws StorageException {
+    public void close() throws BackendException {
         openStores.clear();
         closePool();
     }
 
     @Override
-    public void mutateMany(Map<String, Map<StaticBuffer, KCVMutation>> mutations, StoreTransaction txh) throws StorageException {
+    public void mutateMany(Map<String, Map<StaticBuffer, KCVMutation>> mutations, StoreTransaction txh) throws BackendException {
         Preconditions.checkNotNull(mutations);
 
         final MaskedTimestamp commitTime = new MaskedTimestamp(txh);
@@ -173,7 +282,14 @@ public class CassandraThriftStoreManager extends AbstractCassandraStoreManager {
                         ColumnOrSuperColumn cosc = new ColumnOrSuperColumn();
                         Column column = new Column(ent.getColumnAs(StaticBuffer.BB_FACTORY));
                         column.setValue(ent.getValueAs(StaticBuffer.BB_FACTORY));
+
                         column.setTimestamp(commitTime.getAdditionTime(times.getUnit()));
+
+                        Integer ttl = (Integer) ent.getMetaData().get(EntryMetaData.TTL);
+                        if (null != ttl && ttl > 0) {
+                            column.setTtl(ttl);
+                        }
+
                         cosc.setColumn(column);
                         org.apache.cassandra.thrift.Mutation m = new org.apache.cassandra.thrift.Mutation();
                         m.setColumn_or_supercolumn(cosc);
@@ -189,7 +305,11 @@ public class CassandraThriftStoreManager extends AbstractCassandraStoreManager {
         try {
             conn = pool.borrowObject(keySpaceName);
             Cassandra.Client client = conn.getClient();
-            client.batch_mutate(batch, consistency);
+            if (atomicBatch) {
+                client.atomic_batch_mutate(batch, consistency);
+            } else {
+                client.batch_mutate(batch, consistency);
+            }
         } catch (Exception ex) {
             throw CassandraThriftKeyColumnValueStore.convertException(ex);
         } finally {
@@ -200,7 +320,7 @@ public class CassandraThriftStoreManager extends AbstractCassandraStoreManager {
     }
 
     @Override // TODO: *BIG FAT WARNING* 'synchronized is always *bad*, change openStores to use ConcurrentLinkedHashMap
-    public synchronized CassandraThriftKeyColumnValueStore openDatabase(final String name) throws StorageException {
+    public synchronized CassandraThriftKeyColumnValueStore openDatabase(final String name) throws BackendException {
         if (openStores.containsKey(name))
             return openStores.get(name);
 
@@ -212,7 +332,7 @@ public class CassandraThriftStoreManager extends AbstractCassandraStoreManager {
     }
 
     @Override
-    public List<KeyRange> getLocalKeyPartition() throws StorageException {
+    public List<KeyRange> getLocalKeyPartition() throws BackendException {
         CTConnection conn = null;
         IPartitioner<?> partitioner = getCassandraPartitioner();
 
@@ -253,9 +373,9 @@ public class CassandraThriftStoreManager extends AbstractCassandraStoreManager {
      * leaves nodes in the inconsistent state and could result in read/write failures.
      * Any schema modifications are discouraged until there is no traffic to Keyspace or ColumnFamilies.
      *
-     * @throws StorageException if any checked Thrift or UnknownHostException is thrown in the body of this method
+     * @throws com.thinkaurelius.titan.diskstorage.BackendException if any checked Thrift or UnknownHostException is thrown in the body of this method
      */
-    public void clearStorage() throws StorageException {
+    public void clearStorage() throws BackendException {
         openStores.clear();
         final String lp = "ClearStorage: "; // "log prefix"
         /*
@@ -306,7 +426,7 @@ public class CassandraThriftStoreManager extends AbstractCassandraStoreManager {
              * remain valid.
              */
         } catch (Exception e) {
-            throw new TemporaryStorageException(e);
+            throw new TemporaryBackendException(e);
         } finally {
             if (conn != null && conn.getClient() != null) {
                 try {
@@ -321,7 +441,7 @@ public class CassandraThriftStoreManager extends AbstractCassandraStoreManager {
         }
     }
 
-    private KsDef ensureKeyspaceExists(String keyspaceName) throws TException, StorageException {
+    private KsDef ensureKeyspaceExists(String keyspaceName) throws TException, BackendException {
         CTConnection connection = null;
 
         try {
@@ -356,13 +476,13 @@ public class CassandraThriftStoreManager extends AbstractCassandraStoreManager {
 
             return client.describe_keyspace(keyspaceName);
         } catch (Exception e) {
-            throw new TemporaryStorageException(e);
+            throw new TemporaryBackendException(e);
         } finally {
             pool.returnObjectUnsafe(SYSTEM_KS, connection);
         }
     }
 
-    private void retrySetKeyspace(String ksName, Cassandra.Client client) throws StorageException {
+    private void retrySetKeyspace(String ksName, Cassandra.Client client) throws BackendException {
         final long end = System.currentTimeMillis() + (60L * 1000L);
 
         while (System.currentTimeMillis() <= end) {
@@ -374,19 +494,19 @@ public class CassandraThriftStoreManager extends AbstractCassandraStoreManager {
                 try {
                     Thread.sleep(1000L);
                 } catch (InterruptedException ie) {
-                    throw new PermanentStorageException("Unexpected interrupt (shutting down?)", ie);
+                    throw new PermanentBackendException("Unexpected interrupt (shutting down?)", ie);
                 }
             }
         }
 
-        throw new PermanentStorageException("Could change to keyspace " + ksName + " after creating it");
+        throw new PermanentBackendException("Could change to keyspace " + ksName + " after creating it");
     }
 
-    private void ensureColumnFamilyExists(String ksName, String cfName) throws StorageException {
+    private void ensureColumnFamilyExists(String ksName, String cfName) throws BackendException {
         ensureColumnFamilyExists(ksName, cfName, "org.apache.cassandra.db.marshal.BytesType");
     }
 
-    private void ensureColumnFamilyExists(String ksName, String cfName, String comparator) throws StorageException {
+    private void ensureColumnFamilyExists(String ksName, String cfName, String comparator) throws BackendException {
         CTConnection conn = null;
         try {
             KsDef keyspaceDef = ensureKeyspaceExists(ksName);
@@ -409,9 +529,9 @@ public class CassandraThriftStoreManager extends AbstractCassandraStoreManager {
                 log.debug("Keyspace {} and ColumnFamily {} were found.", ksName, cfName);
             }
         } catch (SchemaDisagreementException e) {
-            throw new TemporaryStorageException(e);
+            throw new TemporaryBackendException(e);
         } catch (Exception e) {
-            throw new PermanentStorageException(e);
+            throw new PermanentBackendException(e);
         } finally {
             pool.returnObjectUnsafe(ksName, conn);
         }
@@ -420,7 +540,7 @@ public class CassandraThriftStoreManager extends AbstractCassandraStoreManager {
     private void createColumnFamily(Cassandra.Client client,
                                     String ksName,
                                     String cfName,
-                                    String comparator) throws StorageException {
+                                    String comparator) throws BackendException {
 
         CfDef createColumnFamily = new CfDef();
         createColumnFamily.setName(cfName);
@@ -447,16 +567,16 @@ public class CassandraThriftStoreManager extends AbstractCassandraStoreManager {
         try {
             client.system_add_column_family(createColumnFamily);
         } catch (SchemaDisagreementException e) {
-            throw new TemporaryStorageException("Error in setting up column family", e);
+            throw new TemporaryBackendException("Error in setting up column family", e);
         } catch (Exception e) {
-            throw new PermanentStorageException(e);
+            throw new PermanentBackendException(e);
         }
 
         log.debug("Added column family {} to keyspace {}.", cfName, ksName);
     }
 
     @Override
-    public Map<String, String> getCompressionOptions(String cf) throws StorageException {
+    public Map<String, String> getCompressionOptions(String cf) throws BackendException {
         CTConnection conn = null;
         Map<String, String> result = null;
 
@@ -478,7 +598,7 @@ public class CassandraThriftStoreManager extends AbstractCassandraStoreManager {
             log.debug("Keyspace {} does not exist", keySpaceName);
             return null;
         } catch (Exception e) {
-            throw new TemporaryStorageException(e);
+            throw new TemporaryBackendException(e);
         } finally {
             pool.returnObjectUnsafe(keySpaceName, conn);
         }

@@ -1,7 +1,10 @@
 package com.thinkaurelius.titan.diskstorage.util;
 
 import com.google.common.base.Preconditions;
-import com.thinkaurelius.titan.diskstorage.*;
+import com.thinkaurelius.titan.diskstorage.Entry;
+import com.thinkaurelius.titan.diskstorage.EntryMetaData;
+import com.thinkaurelius.titan.diskstorage.MetaAnnotatable;
+import com.thinkaurelius.titan.diskstorage.StaticBuffer;
 import com.thinkaurelius.titan.graphdb.relations.RelationCache;
 
 import java.nio.ByteBuffer;
@@ -10,7 +13,7 @@ import java.util.Map;
 /**
  * @author Matthias Broecheler (me@matthiasb.com)
  */
-public class StaticArrayEntry extends BaseStaticArrayEntry implements Entry {
+public class StaticArrayEntry extends BaseStaticArrayEntry implements Entry, MetaAnnotatable {
 
     public StaticArrayEntry(byte[] array, int offset, int limit, int valuePosition) {
         super(array, offset, limit, valuePosition);
@@ -36,6 +39,7 @@ public class StaticArrayEntry extends BaseStaticArrayEntry implements Entry {
 
     private Map<EntryMetaData,Object> metadata = EntryMetaData.EMPTY_METADATA;
 
+    @Override
     public synchronized Object setMetaData(EntryMetaData key, Object value) {
         if (metadata==EntryMetaData.EMPTY_METADATA) metadata = new EntryMetaData.Map();
         return metadata.put(key,value);
@@ -240,7 +244,6 @@ class BaseStaticArrayEntry extends StaticArrayBuffer implements Entry {
         this.valuePosition=valuePosition;
     }
 
-
     @Override
     public int getValuePosition() {
         return valuePosition;
@@ -298,7 +301,7 @@ class BaseStaticArrayEntry extends StaticArrayBuffer implements Entry {
     public String toString() {
         String s = super.toString();
         int pos = getValuePosition()*4;
-        return s.substring(0,pos-1) + "->" + s.substring(pos);
+        return s.substring(0,pos-1) + "->" + (getValuePosition()<length()?s.substring(pos):"");
     }
 
     //########## CACHE ############

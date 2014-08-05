@@ -2,11 +2,11 @@ package com.thinkaurelius.titan.diskstorage.common;
 
 import com.google.common.base.Preconditions;
 import com.thinkaurelius.titan.core.attribute.Duration;
+import com.thinkaurelius.titan.diskstorage.BackendException;
+import com.thinkaurelius.titan.diskstorage.PermanentBackendException;
 import com.thinkaurelius.titan.diskstorage.util.time.StandardTimepoint;
 import com.thinkaurelius.titan.diskstorage.util.time.Timepoint;
 import com.thinkaurelius.titan.diskstorage.util.time.TimestampProvider;
-import com.thinkaurelius.titan.diskstorage.PermanentStorageException;
-import com.thinkaurelius.titan.diskstorage.StorageException;
 import com.thinkaurelius.titan.diskstorage.configuration.Configuration;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.StoreTransaction;
 
@@ -52,7 +52,6 @@ public abstract class DistributedStoreManager extends AbstractStoreManager {
     protected final String[] hostnames;
     protected final int port;
     protected final Duration connectionTimeoutMS;
-    protected final int connectionPoolSize;
     protected final int pageSize;
 
     protected final String username;
@@ -67,7 +66,6 @@ public abstract class DistributedStoreManager extends AbstractStoreManager {
         if (storageConfig.has(STORAGE_PORT)) this.port = storageConfig.get(STORAGE_PORT);
         else this.port = portDefault;
         this.connectionTimeoutMS = storageConfig.get(CONNECTION_TIMEOUT);
-        this.connectionPoolSize = storageConfig.get(CONNECTION_POOL_SIZE);
         this.pageSize = storageConfig.get(PAGE_SIZE);
         this.times = storageConfig.get(TIMESTAMP_PROVIDER);
 
@@ -213,12 +211,12 @@ public abstract class DistributedStoreManager extends AbstractStoreManager {
 //        return tentativeRid;
 //    }
 
-    protected void sleepAfterWrite(StoreTransaction txh, MaskedTimestamp mustPass) throws StorageException {
+    protected void sleepAfterWrite(StoreTransaction txh, MaskedTimestamp mustPass) throws BackendException {
         assert mustPass.getDeletionTime(times.getUnit()) < mustPass.getAdditionTime(times.getUnit());
         try {
             times.sleepPast(mustPass.getAdditionTime());
         } catch (InterruptedException e) {
-            throw new PermanentStorageException("Unexpected interrupt", e);
+            throw new PermanentBackendException("Unexpected interrupt", e);
         }
     }
 

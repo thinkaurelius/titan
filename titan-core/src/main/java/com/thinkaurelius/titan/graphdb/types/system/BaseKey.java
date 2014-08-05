@@ -2,15 +2,19 @@ package com.thinkaurelius.titan.graphdb.types.system;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
-import com.thinkaurelius.titan.core.*;
 import com.thinkaurelius.titan.core.Cardinality;
-import com.thinkaurelius.titan.core.schema.ConsistencyModifier;
 import com.thinkaurelius.titan.core.Multiplicity;
+import com.thinkaurelius.titan.core.PropertyKey;
+import com.thinkaurelius.titan.core.schema.ConsistencyModifier;
+import com.thinkaurelius.titan.core.schema.SchemaStatus;
 import com.thinkaurelius.titan.core.schema.TitanSchemaType;
 import com.thinkaurelius.titan.graphdb.internal.ElementCategory;
 import com.thinkaurelius.titan.graphdb.internal.TitanSchemaCategory;
 import com.thinkaurelius.titan.graphdb.internal.Token;
-import com.thinkaurelius.titan.graphdb.types.*;
+import com.thinkaurelius.titan.graphdb.types.CompositeIndexType;
+import com.thinkaurelius.titan.graphdb.types.IndexField;
+import com.thinkaurelius.titan.graphdb.types.IndexType;
+import com.thinkaurelius.titan.graphdb.types.TypeDefinitionDescription;
 import com.tinkerpop.blueprints.Direction;
 
 import java.util.Collections;
@@ -84,14 +88,14 @@ public class BaseKey extends BaseRelationType implements PropertyKey {
         return ImmutableList.of((IndexType)indexDef);
     }
 
-    private final InternalIndexType indexDef = new InternalIndexType() {
+    private final CompositeIndexType indexDef = new CompositeIndexType() {
 
         private final IndexField[] fields = {IndexField.of(BaseKey.this)};
 //        private final Set<TitanKey> fieldSet = ImmutableSet.of((TitanKey)SystemKey.this);
 
         @Override
         public long getID() {
-            return BaseKey.this.getID();
+            return BaseKey.this.getLongId();
         }
 
         @Override
@@ -114,7 +118,7 @@ public class BaseKey extends BaseRelationType implements PropertyKey {
         public Cardinality getCardinality() {
             switch(index) {
                 case UNIQUE: return Cardinality.SINGLE;
-                case STANDARD: return Cardinality.SET;
+                case STANDARD: return Cardinality.LIST;
                 default: throw new AssertionError();
             }
         }
@@ -140,12 +144,12 @@ public class BaseKey extends BaseRelationType implements PropertyKey {
         }
 
         @Override
-        public boolean isInternalIndex() {
+        public boolean isCompositeIndex() {
             return true;
         }
 
         @Override
-        public boolean isExternalIndex() {
+        public boolean isMixedIndex() {
             return false;
         }
 
@@ -169,6 +173,5 @@ public class BaseKey extends BaseRelationType implements PropertyKey {
 
         //Use default hashcode and equals
     };
-
 
 }

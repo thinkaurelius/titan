@@ -7,7 +7,7 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
     <artifactId>titan-hbase</artifactId>
-    <name>Titan-HBase: Jar with Core and Compat Shims</name>
+    <name>Titan-HBase: Universal binary</name>
     <url>http://thinkaurelius.github.com/titan/</url>
     
     <properties>
@@ -33,36 +33,132 @@
             <version>${project.version}</version>
             <optional>true</optional>
         </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>titan-hbase-098</artifactId>
+            <version>${project.version}</version>
+            <optional>true</optional>
+        </dependency>
     </dependencies>
 
-    <build>
-      <plugins>
-	<plugin>
-	  <artifactId>maven-assembly-plugin</artifactId>
-	  <executions>
-	    <execution>
-	      <id>build-hbase-jar</id>
-	      <phase>package</phase>
-	      <goals>
-		<goal>single</goal>
-	      </goals>
-	      <configuration>
-		<appendAssemblyId>false</appendAssemblyId>
-		<finalName>titan-hbase-${project.version}</finalName>
-		<attach>true</attach>
-		<descriptors>
-		  <descriptor>${project.basedir}/hbasejar.xml</descriptor>
-		</descriptors>
-	      </configuration>
-	    </execution>
-	    <execution>
-	      <id>copy-hbase-bin</id>
-	      <phase>none</phase>
-	    </execution>
-	  </executions>
-	</plugin>
 
-	    <plugin>
+    <profiles>
+        <profile>
+            <id>aurelius-release</id>
+
+            <dependencies>
+                <dependency>
+                    <groupId>${project.groupId}</groupId>
+                    <artifactId>titan-hbase-core</artifactId>
+                    <version>${project.version}</version>
+                    <classifier>sources</classifier>
+                    <optional>true</optional>
+                </dependency>
+                <dependency>
+                    <groupId>${project.groupId}</groupId>
+                    <artifactId>titan-hbase-core</artifactId>
+                    <version>${project.version}</version>
+                    <classifier>javadoc</classifier>
+                    <optional>true</optional>
+                </dependency>
+                <dependency>
+                    <groupId>${project.groupId}</groupId>
+                    <artifactId>titan-hbase-094</artifactId>
+                    <version>${project.version}</version>
+                    <classifier>sources</classifier>
+                    <optional>true</optional>
+                </dependency>
+                <dependency>
+                    <groupId>${project.groupId}</groupId>
+                    <artifactId>titan-hbase-096</artifactId>
+                    <version>${project.version}</version>
+                    <classifier>sources</classifier>
+                    <optional>true</optional>
+                </dependency>
+                <dependency>
+                    <groupId>${project.groupId}</groupId>
+                    <artifactId>titan-hbase-098</artifactId>
+                    <version>${project.version}</version>
+                    <classifier>sources</classifier>
+                    <optional>true</optional>
+                </dependency>
+            </dependencies>
+
+            <build>
+                <plugins>
+                    <plugin>
+                        <artifactId>maven-assembly-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>build-hbase-source-and-javdoc-jars</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>single</goal>
+                                </goals>
+                                <configuration>
+                                    <attach>true</attach>
+                                    <appendAssemblyId>true</appendAssemblyId>
+                                    <descriptors>
+                                        <descriptor>${project.basedir}/src/assembly/sources-jar.xml</descriptor>
+                                        <descriptor>${project.basedir}/src/assembly/javadoc-jar.xml</descriptor>
+                                    </descriptors>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+
+        </profile>
+    </profiles>
+
+    <build>
+        <plugins>
+            <plugin>
+                <artifactId>maven-assembly-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>build-hbase-code-jar</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>single</goal>
+                        </goals>
+                        <configuration>
+                            <attach>true</attach>
+                            <appendAssemblyId>false</appendAssemblyId>
+                            <descriptors>
+                                <descriptor>${project.basedir}/src/assembly/code-jar.xml</descriptor>
+                            </descriptors>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>copy-hbase-bin</id>
+                        <phase>none</phase>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <artifactId>maven-resources-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>filter-hbase-conf</id>
+                        <phase>none</phase>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <artifactId>maven-clean-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>clean-hbase-files</id>
+                        <phase>none</phase>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
                 <artifactId>maven-jar-plugin</artifactId>
                 <executions>
                     <execution>
@@ -71,6 +167,18 @@
                     </execution>
                 </executions>
             </plugin>
-      </plugins>
+
+            <!-- Redeclare gpg-plugin's sign-artifacts execution below the
+                 assembly plugin to guarantee that signing happens after assembly
+                 during the package lifecycle phase -->
+            <plugin>
+                <artifactId>maven-gpg-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>sign-artifacts</id>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
     </build>
 </project>

@@ -1,15 +1,12 @@
 package com.thinkaurelius.titan.diskstorage.indexing;
 
-import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.thinkaurelius.titan.core.attribute.Duration;
 import com.thinkaurelius.titan.diskstorage.*;
-import com.thinkaurelius.titan.diskstorage.keycolumnvalue.cache.KCVEntryMutation;
 import com.thinkaurelius.titan.diskstorage.util.BackendOperation;
 import com.thinkaurelius.titan.graphdb.database.idhandling.VariableLong;
 import com.thinkaurelius.titan.graphdb.database.serialize.DataOutput;
 
-import javax.annotation.Nullable;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -37,7 +34,7 @@ public class IndexTransaction implements BaseTransaction, LoggableTransaction {
 
     public IndexTransaction(final IndexProvider index, final KeyInformation.IndexRetriever keyInformations,
                             BaseTransactionConfig config,
-                            Duration maxWriteTime) throws StorageException {
+                            Duration maxWriteTime) throws BackendException {
         Preconditions.checkNotNull(index);
         Preconditions.checkNotNull(keyInformations);
         this.index=index;
@@ -46,6 +43,10 @@ public class IndexTransaction implements BaseTransaction, LoggableTransaction {
         Preconditions.checkNotNull(indexTx);
         this.maxWriteTime = maxWriteTime;
         this.mutations = new HashMap<String,Map<String,IndexMutation>>(DEFAULT_OUTER_MAP_SIZE);
+    }
+
+    public void add(String store, String docid, IndexEntry entry, boolean isNew) {
+        getIndexMutation(store,docid, isNew, false).addition(new IndexEntry(entry.field, entry.value, entry.getMetaData()));
     }
 
     public void add(String store, String docid, String key, Object value, boolean isNew) {
@@ -67,38 +68,48 @@ public class IndexTransaction implements BaseTransaction, LoggableTransaction {
         if (m==null) {
             m = new IndexMutation(isNew,isDeleted);
             storeMutations.put(docid, m);
+        } else {
+            //IndexMutation already exists => if we deleted and re-created it we need to remove the deleted flag
+            if (isNew && m.isDeleted()) {
+                m.resetDelete();
+                assert !m.isNew() && !m.isDeleted();
+            }
         }
         return m;
     }
 
 
-    public void register(String store, String key, KeyInformation information) throws StorageException {
+    public void register(String store, String key, KeyInformation information) throws BackendException {
         index.register(store,key,information,indexTx);
     }
 
-    public List<String> query(IndexQuery query) throws StorageException {
+    public List<String> query(IndexQuery query) throws BackendException {
         return index.query(query,keyInformations,indexTx);
     }
 
-    public Iterable<RawQuery.Result<String>> query(RawQuery query) throws StorageException {
+    public Iterable<RawQuery.Result<String>> query(RawQuery query) throws BackendException {
         return index.query(query,keyInformations,indexTx);
+    }
+
+    public void restore(Map<String, Map<String,List<IndexEntry>>> documents) throws BackendException {
+        index.restore(documents,keyInformations,indexTx);
     }
 
     @Override
-    public void commit() throws StorageException {
+    public void commit() throws BackendException {
         flushInternal();
         indexTx.commit();
     }
 
     @Override
-    public void rollback() throws StorageException {
+    public void rollback() throws BackendException {
         mutations=null;
         indexTx.rollback();
     }
 
 
 
-    private void flushInternal() throws StorageException {
+    private void flushInternal() throws BackendException {
         if (mutations!=null && !mutations.isEmpty()) {
             //Consolidate all mutations prior to persistence to ensure that no addition accidentally gets swallowed by a delete
             for (Map<String, IndexMutation> store : mutations.values()) {

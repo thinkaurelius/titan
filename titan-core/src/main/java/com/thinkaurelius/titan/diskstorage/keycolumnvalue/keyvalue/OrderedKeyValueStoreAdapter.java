@@ -1,13 +1,17 @@
 package com.thinkaurelius.titan.diskstorage.keycolumnvalue.keyvalue;
 
 import com.google.common.base.Preconditions;
+import com.google.common.base.Predicate;
+import com.google.common.base.Predicates;
 import com.thinkaurelius.titan.diskstorage.*;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.*;
 import com.thinkaurelius.titan.diskstorage.util.*;
 
+import com.thinkaurelius.titan.graphdb.query.BaseQuery;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.*;
@@ -48,14 +52,27 @@ public class OrderedKeyValueStoreAdapter extends BaseKeyColumnValueAdapter {
     }
 
     @Override
-    public EntryList getSlice(KeySliceQuery query, StoreTransaction txh) throws StorageException {
-        return convert(store.getSlice(concatenatePrefix(query.getKey(), query.getSliceStart()),
-                concatenatePrefix(query.getKey(), query.getSliceEnd()),
-                new KeyColumnSliceSelector(query.getKey(), query.getLimit()), txh));
+    public EntryList getSlice(KeySliceQuery query, StoreTransaction txh) throws BackendException {
+        return convert(store.getSlice(convertQuery(query), txh));
     }
 
     @Override
-    public void mutate(StaticBuffer key, List<Entry> additions, List<StaticBuffer> deletions, StoreTransaction txh) throws StorageException {
+    public Map<StaticBuffer,EntryList> getSlice(List<StaticBuffer> keys, SliceQuery query, StoreTransaction txh) throws BackendException {
+        List<KVQuery> queries = new ArrayList<KVQuery>(keys.size());
+        for (int i = 0; i < keys.size(); i++) {
+            queries.add(convertQuery(new KeySliceQuery(keys.get(i),query)));
+        }
+        Map<KVQuery,RecordIterator<KeyValueEntry>> results = store.getSlices(queries,txh);
+        Map<StaticBuffer,EntryList> convResults = new HashMap<StaticBuffer, EntryList>(keys.size());
+        assert queries.size()==keys.size();
+        for (int i = 0; i < queries.size(); i++) {
+            convResults.put(keys.get(i),convert(results.get(queries.get(i))));
+        }
+        return convResults;
+    }
+
+    @Override
+    public void mutate(StaticBuffer key, List<Entry> additions, List<StaticBuffer> deletions, StoreTransaction txh) throws BackendException {
         if (!deletions.isEmpty()) {
             for (StaticBuffer deletion : deletions) {
                 StaticBuffer del = concatenate(key, deletion.as(StaticBuffer.STATIC_FACTORY));
@@ -73,26 +90,36 @@ public class OrderedKeyValueStoreAdapter extends BaseKeyColumnValueAdapter {
 
 
     @Override
-    public KeyIterator getKeys(final KeyRangeQuery keyQuery, final StoreTransaction txh) throws StorageException {
-        return new KeyIteratorImpl(keyQuery, store.getSlice(concatenatePrefix(keyQuery.getKeyStart(), keyQuery.getSliceStart()),
+    public KeyIterator getKeys(final KeyRangeQuery keyQuery, final StoreTransaction txh) throws BackendException {
+        KVQuery query = new KVQuery(
+                concatenatePrefix(keyQuery.getKeyStart(), keyQuery.getSliceStart()),
                 concatenatePrefix(keyQuery.getKeyEnd(), keyQuery.getSliceEnd()),
-                new KeyRangeSliceSelector(keyQuery),
-                txh));
+                new Predicate<StaticBuffer>() {
+                    @Override
+                    public boolean apply(@Nullable StaticBuffer keycolumn) {
+                        StaticBuffer key = getKey(keycolumn);
+                        return !(key.compareTo(keyQuery.getKeyStart()) < 0 || key.compareTo(keyQuery.getKeyEnd()) >= 0)
+                                && columnInRange(keycolumn, keyQuery.getSliceStart(), keyQuery.getSliceEnd());
+                    }
+                },
+                BaseQuery.NO_LIMIT); //limit will be introduced in iterator
+
+        return new KeyIteratorImpl(keyQuery,store.getSlice(query,txh));
     }
 
 
     @Override
-    public KeyIterator getKeys(SliceQuery columnQuery, StoreTransaction txh) throws StorageException {
+    public KeyIterator getKeys(SliceQuery columnQuery, StoreTransaction txh) throws BackendException {
         throw new UnsupportedOperationException("This store has ordered keys, use getKeys(KeyRangeQuery, StoreTransaction) instead");
     }
 
     @Override
     public void acquireLock(StaticBuffer key, StaticBuffer column, StaticBuffer expectedValue,
-                            StoreTransaction txh) throws StorageException {
+                            StoreTransaction txh) throws BackendException {
         store.acquireLock(concatenate(key, column), expectedValue, txh);
     }
 
-    private EntryList convert(RecordIterator<KeyValueEntry> entries) throws StorageException {
+    private EntryList convert(RecordIterator<KeyValueEntry> entries) throws BackendException {
         try {
             return StaticArrayEntryList.ofStaticBuffer(entries,kvEntryGetter);
         } finally {
@@ -104,7 +131,7 @@ public class OrderedKeyValueStoreAdapter extends BaseKeyColumnValueAdapter {
              * allows useful retries of transient failures but also allows
              * futile retries of permanent failures.
              */
-                throw new TemporaryStorageException(e);
+                throw new TemporaryBackendException(e);
             }
         }
     }
@@ -154,6 +181,20 @@ public class OrderedKeyValueStoreAdapter extends BaseKeyColumnValueAdapter {
     final KeyValueEntry concatenate(StaticBuffer front, Entry entry) {
         return new KeyValueEntry(concatenate(front, entry.getColumnAs(StaticBuffer.STATIC_FACTORY)),
                 entry.getValueAs(StaticBuffer.STATIC_FACTORY));
+    }
+
+    final KVQuery convertQuery(final KeySliceQuery query) {
+        Predicate<StaticBuffer> filter = Predicates.alwaysTrue();
+        if (!hasFixedKeyLength()) filter = new Predicate<StaticBuffer>() {
+            @Override
+            public boolean apply(@Nullable StaticBuffer keyAndColumn) {
+                return equalKey(keyAndColumn, query.getKey());
+            }
+        };
+        return new KVQuery(
+                concatenatePrefix(query.getKey(), query.getSliceStart()),
+                concatenatePrefix(query.getKey(), query.getSliceEnd()),
+                filter,query.getLimit());
     }
 
     final StaticBuffer concatenate(StaticBuffer front, StaticBuffer end) {
@@ -212,86 +253,6 @@ public class OrderedKeyValueStoreAdapter extends BaseKeyColumnValueAdapter {
         return column.compareTo(columnStart) >= 0 && column.compareTo(columnEnd) < 0;
     }
 
-    private class ContainsSelector implements KeySelector {
-
-        private final StaticBuffer checkKey;
-        private boolean contains = false;
-
-        private ContainsSelector(StaticBuffer key) {
-            checkKey = key;
-        }
-
-        public boolean contains() {
-            return contains;
-        }
-
-        @Override
-        public boolean include(StaticBuffer keycolumn) {
-            contains = equalKey(keycolumn, checkKey);
-            return false;
-        }
-
-        @Override
-        public boolean reachedLimit() {
-            return true;
-        }
-
-    }
-
-    private class KeyRangeSliceSelector implements KeySelector {
-        private final KeyRangeQuery query;
-
-        public KeyRangeSliceSelector(KeyRangeQuery query) {
-            this.query = query;
-        }
-
-        @Override
-        public boolean include(StaticBuffer keycolumn) {
-            StaticBuffer key = getKey(keycolumn);
-            return !(key.compareTo(query.getKeyStart()) < 0 || key.compareTo(query.getKeyEnd()) >= 0)
-                    && columnInRange(keycolumn, query.getSliceStart(), query.getSliceEnd());
-
-        }
-
-        @Override
-        public boolean reachedLimit() {
-            return false;
-        }
-
-    }
-
-    private class KeyColumnSliceSelector implements KeySelector {
-
-        private final StaticBuffer key;
-        private final int limit;
-
-        public KeyColumnSliceSelector(StaticBuffer key, int limit) {
-            Preconditions.checkArgument(limit > 0, "The count limit needs to be positive. Given: " + limit);
-            this.key = key;
-            this.limit = limit;
-        }
-
-        private int count = 0;
-
-        @Override
-        public boolean include(StaticBuffer keyAndColumn) {
-            Preconditions.checkArgument(count < limit);
-
-            if (equalKey(keyAndColumn, key)) {
-                count++;
-                return true;
-            }
-
-            return false;
-        }
-
-        @Override
-        public boolean reachedLimit() {
-            return count >= limit;
-        }
-
-    }
-
     private class KeyIteratorImpl implements KeyIterator {
 
         private final KeyRangeQuery query;
@@ -307,7 +268,7 @@ public class OrderedKeyValueStoreAdapter extends BaseKeyColumnValueAdapter {
             this.iter = iter;
         }
 
-        private StaticBuffer nextKey() throws StorageException {
+        private StaticBuffer nextKey() throws BackendException {
             while (iter.hasNext()) {
                 current = iter.next();
                 StaticBuffer key = getKey(current.getKey());
@@ -329,7 +290,7 @@ public class OrderedKeyValueStoreAdapter extends BaseKeyColumnValueAdapter {
             if (currentKeyReturned) {
                 try {
                     currentKey = nextKey();
-                } catch (StorageException e) {
+                } catch (BackendException e) {
                     throw new RuntimeException(e);
                 }
                 currentKeyReturned = false;

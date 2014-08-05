@@ -3,11 +3,11 @@ package com.thinkaurelius.titan.diskstorage.berkeleyje;
 
 import com.google.common.base.Preconditions;
 import com.sleepycat.je.*;
-import com.thinkaurelius.titan.diskstorage.PermanentStorageException;
-import com.thinkaurelius.titan.diskstorage.StaticBuffer;
-import com.thinkaurelius.titan.diskstorage.StorageException;
-import com.thinkaurelius.titan.diskstorage.BaseTransactionConfig;
+import com.thinkaurelius.titan.diskstorage.*;
+import com.thinkaurelius.titan.diskstorage.PermanentBackendException;
+import com.thinkaurelius.titan.diskstorage.BackendException;
 import com.thinkaurelius.titan.diskstorage.common.LocalStoreManager;
+import com.thinkaurelius.titan.diskstorage.configuration.ConfigNamespace;
 import com.thinkaurelius.titan.diskstorage.configuration.ConfigOption;
 import com.thinkaurelius.titan.diskstorage.configuration.Configuration;
 import com.thinkaurelius.titan.diskstorage.configuration.MergedConfiguration;
@@ -36,26 +36,31 @@ public class BerkeleyJEStoreManager extends LocalStoreManager implements Ordered
 
     private static final Logger log = LoggerFactory.getLogger(BerkeleyJEStoreManager.class);
 
-    public static final ConfigOption<Integer> JVM_CACHE = new ConfigOption<Integer>(GraphDatabaseConfiguration.STORAGE_NS,"cache-percentage",
+    public static final ConfigNamespace BERKELEY_NS =
+            new ConfigNamespace(GraphDatabaseConfiguration.STORAGE_NS, "berkeleydb", "BerkeleyDB configuration options");
+
+    public static final ConfigOption<Integer> JVM_CACHE =
+            new ConfigOption<Integer>(BERKELEY_NS,"cache-percentage",
             "Percentage of JVM heap reserved for BerkeleyJE's cache",
             ConfigOption.Type.MASKABLE, 65, ConfigOption.positiveInt());
-//    public static final String CACHE_KEY = "cache-percentage";
-//    public static final int CACHE_DEFAULT = 65;
 
-    public static final ConfigOption<LockMode> LOCK_MODE = new ConfigOption<LockMode>(GraphDatabaseConfiguration.STORAGE_NS, "lock-mode",
+    public static final ConfigOption<LockMode> LOCK_MODE =
+            new ConfigOption<LockMode>(BERKELEY_NS, "lock-mode",
             "The BDB record lock mode used for read operations",
             ConfigOption.Type.MASKABLE, LockMode.class, LockMode.DEFAULT, disallowEmpty(LockMode.class));
 
-    public static final ConfigOption<IsolationLevel> ISOLATION_LEVEL = new ConfigOption<IsolationLevel>(GraphDatabaseConfiguration.STORAGE_NS, "isolation-level",
+    public static final ConfigOption<IsolationLevel> ISOLATION_LEVEL =
+            new ConfigOption<IsolationLevel>(BERKELEY_NS, "isolation-level",
             "The isolation level used by transactions",
-            ConfigOption.Type.MASKABLE,  IsolationLevel.class, IsolationLevel.REPEATABLE_READ, disallowEmpty(IsolationLevel.class));
+            ConfigOption.Type.MASKABLE,  IsolationLevel.class,
+            IsolationLevel.REPEATABLE_READ, disallowEmpty(IsolationLevel.class));
 
     private final Map<String, BerkeleyJEKeyValueStore> stores;
 
     protected Environment environment;
     protected final StoreFeatures features;
 
-    public BerkeleyJEStoreManager(Configuration configuration) throws StorageException {
+    public BerkeleyJEStoreManager(Configuration configuration) throws BackendException {
         super(configuration);
         stores = new HashMap<String, BerkeleyJEKeyValueStore>();
 
@@ -83,7 +88,7 @@ public class BerkeleyJEStoreManager extends LocalStoreManager implements Ordered
 //        features.supportsMultiQuery = false;
     }
 
-    private void initialize(int cachePercent) throws StorageException {
+    private void initialize(int cachePercent) throws BackendException {
         try {
             EnvironmentConfig envConfig = new EnvironmentConfig();
             envConfig.setAllowCreate(true);
@@ -100,7 +105,7 @@ public class BerkeleyJEStoreManager extends LocalStoreManager implements Ordered
 
 
         } catch (DatabaseException e) {
-            throw new PermanentStorageException("Error during BerkeleyJE initialization: ", e);
+            throw new PermanentBackendException("Error during BerkeleyJE initialization: ", e);
         }
 
     }
@@ -111,12 +116,12 @@ public class BerkeleyJEStoreManager extends LocalStoreManager implements Ordered
     }
 
     @Override
-    public List<KeyRange> getLocalKeyPartition() throws StorageException {
+    public List<KeyRange> getLocalKeyPartition() throws BackendException {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public BerkeleyJETx beginTransaction(final BaseTransactionConfig txCfg) throws StorageException {
+    public BerkeleyJETx beginTransaction(final BaseTransactionConfig txCfg) throws BackendException {
         try {
             Transaction tx = null;
 
@@ -128,15 +133,20 @@ public class BerkeleyJEStoreManager extends LocalStoreManager implements Ordered
                 effectiveCfg.get(ISOLATION_LEVEL).configure(txnConfig);
                 tx = environment.beginTransaction(null, txnConfig);
             }
+            BerkeleyJETx btx = new BerkeleyJETx(tx, effectiveCfg.get(LOCK_MODE), txCfg);
 
-            return new BerkeleyJETx(tx, effectiveCfg.get(LOCK_MODE), txCfg);
+            if (log.isTraceEnabled()) {
+                log.trace("Berkeley tx created", new TransactionBegin(btx.toString()));
+            }
+
+            return btx;
         } catch (DatabaseException e) {
-            throw new PermanentStorageException("Could not start BerkeleyJE transaction", e);
+            throw new PermanentBackendException("Could not start BerkeleyJE transaction", e);
         }
     }
 
     @Override
-    public BerkeleyJEKeyValueStore openDatabase(String name) throws StorageException {
+    public BerkeleyJEKeyValueStore openDatabase(String name) throws BackendException {
         Preconditions.checkNotNull(name);
         if (stores.containsKey(name)) {
             BerkeleyJEKeyValueStore store = stores.get(name);
@@ -155,24 +165,40 @@ public class BerkeleyJEStoreManager extends LocalStoreManager implements Ordered
             }
 
             Database db = environment.openDatabase(null, name, dbConfig);
+
+            log.debug("Opened database {}", name, new Throwable());
+
             BerkeleyJEKeyValueStore store = new BerkeleyJEKeyValueStore(name, db, this);
             stores.put(name, store);
             return store;
         } catch (DatabaseException e) {
-            throw new PermanentStorageException("Could not open BerkeleyJE data store", e);
+            throw new PermanentBackendException("Could not open BerkeleyJE data store", e);
         }
     }
 
     @Override
-    public void mutateMany(Map<String, KVMutation> mutations, StoreTransaction txh) throws StorageException {
+    public void mutateMany(Map<String, KVMutation> mutations, StoreTransaction txh) throws BackendException {
         for (Map.Entry<String,KVMutation> muts : mutations.entrySet()) {
             BerkeleyJEKeyValueStore store = openDatabase(muts.getKey());
             KVMutation mut = muts.getValue();
+
+            if (!mut.hasAdditions() && !mut.hasDeletions()) {
+                log.debug("Empty mutation set for {}, doing nothing", muts.getKey());
+            } else {
+                log.debug("Mutating {}", muts.getKey());
+            }
+
             if (mut.hasAdditions()) {
-                for (KeyValueEntry entry : mut.getAdditions()) store.insert(entry.getKey(),entry.getValue(),txh);
+                for (KeyValueEntry entry : mut.getAdditions()) {
+                    store.insert(entry.getKey(),entry.getValue(),txh);
+                    log.trace("Insertion on {}: {}", muts.getKey(), entry);
+                }
             }
             if (mut.hasDeletions()) {
-                for (StaticBuffer del : mut.getDeletions()) store.delete(del,txh);
+                for (StaticBuffer del : mut.getDeletions()) {
+                    store.delete(del,txh);
+                    log.trace("Deletion on {}: {}", muts.getKey(), del);
+                }
             }
         }
     }
@@ -181,16 +207,19 @@ public class BerkeleyJEStoreManager extends LocalStoreManager implements Ordered
         if (!stores.containsKey(db.getName())) {
             throw new IllegalArgumentException("Tried to remove an unkown database from the storage manager");
         }
-        stores.remove(db.getName());
+        String name = db.getName();
+        stores.remove(name);
+        log.debug("Removed database {}", name);
     }
 
 
     @Override
-    public void close() throws StorageException {
+    public void close() throws BackendException {
         if (environment != null) {
             if (!stores.isEmpty())
                 throw new IllegalStateException("Cannot shutdown manager since some databases are still open");
             try {
+                // TODO this looks like a race condition
                 //Wait just a little bit before closing so that independent transaction threads can clean up.
                 Thread.sleep(30);
             } catch (InterruptedException e) {
@@ -199,20 +228,21 @@ public class BerkeleyJEStoreManager extends LocalStoreManager implements Ordered
             try {
                 environment.close();
             } catch (DatabaseException e) {
-                throw new PermanentStorageException("Could not close BerkeleyJE database", e);
+                throw new PermanentBackendException("Could not close BerkeleyJE database", e);
             }
         }
 
     }
 
     @Override
-    public void clearStorage() throws StorageException {
+    public void clearStorage() throws BackendException {
         if (!stores.isEmpty())
             throw new IllegalStateException("Cannot delete store, since database is open: " + stores.keySet().toString());
 
         Transaction tx = null;
         for (String db : environment.getDatabaseNames()) {
             environment.removeDatabase(tx, db);
+            log.debug("Removed database {} (clearStorage)", db);
         }
         close();
         IOUtils.deleteFromDirectory(directory);
@@ -250,4 +280,12 @@ public class BerkeleyJEStoreManager extends LocalStoreManager implements Ordered
 
         abstract void configure(TransactionConfig cfg);
     };
+
+    private static class TransactionBegin extends Exception {
+        private static final long serialVersionUID = 1L;
+
+        private TransactionBegin(String msg) {
+            super(msg);
+        }
+    }
 }

@@ -1,21 +1,19 @@
 package com.thinkaurelius.titan.diskstorage.locking.consistentkey;
 
-import com.google.common.base.Preconditions;
-import com.thinkaurelius.titan.diskstorage.Entry;
-import com.thinkaurelius.titan.diskstorage.EntryList;
-import com.thinkaurelius.titan.diskstorage.StaticBuffer;
-import com.thinkaurelius.titan.diskstorage.StorageException;
-import com.thinkaurelius.titan.diskstorage.configuration.ConfigOption;
-import com.thinkaurelius.titan.diskstorage.keycolumnvalue.*;
-import com.thinkaurelius.titan.diskstorage.locking.Locker;
-import com.thinkaurelius.titan.diskstorage.locking.PermanentLockingException;
-import com.thinkaurelius.titan.diskstorage.util.KeyColumn;
-import com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfiguration;
+import java.util.List;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.List;
-import java.util.Map;
+import com.thinkaurelius.titan.diskstorage.BackendException;
+import com.thinkaurelius.titan.diskstorage.Entry;
+import com.thinkaurelius.titan.diskstorage.StaticBuffer;
+import com.thinkaurelius.titan.diskstorage.keycolumnvalue.KCVSProxy;
+import com.thinkaurelius.titan.diskstorage.keycolumnvalue.KeyColumnValueStore;
+import com.thinkaurelius.titan.diskstorage.keycolumnvalue.StoreTransaction;
+import com.thinkaurelius.titan.diskstorage.locking.Locker;
+import com.thinkaurelius.titan.diskstorage.locking.PermanentLockingException;
+import com.thinkaurelius.titan.diskstorage.util.KeyColumn;
 
 /**
  * A {@link KeyColumnValueStore} wrapper intended for nontransactional stores
@@ -40,84 +38,36 @@ import java.util.Map;
  * This relies on a {@code Locker} instance supplied during construction for
  * locking.
  */
-public class ExpectedValueCheckingStore implements KeyColumnValueStore {
-
-    /**
-     * Configuration setting key for the local lock mediator prefix
-     */
-    public static final ConfigOption<String> LOCAL_LOCK_MEDIATOR_PREFIX = new ConfigOption<String>(GraphDatabaseConfiguration.STORAGE_NS,
-            "local-lock-mediator-prefix","Local prefix to disambiguate multiple local titan instances",
-            ConfigOption.Type.LOCAL,String.class);
+public class ExpectedValueCheckingStore extends KCVSProxy {
 
     private static final Logger log = LoggerFactory.getLogger(ExpectedValueCheckingStore.class);
 
-    /**
-     * Titan data store.
-     */
-    final KeyColumnValueStore dataStore;
-
     final Locker locker;
 
-    public ExpectedValueCheckingStore(KeyColumnValueStore dataStore, Locker locker) {
-        Preconditions.checkNotNull(dataStore);
-        this.dataStore = dataStore;
+    public ExpectedValueCheckingStore(KeyColumnValueStore store, Locker locker) {
+        super(store);
         this.locker = locker;
-    }
-
-    public KeyColumnValueStore getDataStore() {
-        return dataStore;
-    }
-
-    static StoreTransaction getDataTx(StoreTransaction t) {
-        Preconditions.checkNotNull(t);
-        Preconditions.checkArgument(t instanceof ExpectedValueCheckingTransaction);
-        return ((ExpectedValueCheckingTransaction) t).getDataTransaction();
-    }
-
-    static StoreTransaction getLockTx(StoreTransaction t) {
-        Preconditions.checkNotNull(t);
-        Preconditions.checkArgument(t instanceof ExpectedValueCheckingTransaction);
-        return ((ExpectedValueCheckingTransaction) t).getLockTransaction();
-    }
-
-    @Override
-    public EntryList getSlice(KeySliceQuery query, StoreTransaction txh) throws StorageException {
-        return dataStore.getSlice(query, getDataTx(txh));
-    }
-
-    @Override
-    public Map<StaticBuffer,EntryList> getSlice(List<StaticBuffer> keys, SliceQuery query, StoreTransaction txh) throws StorageException {
-        return dataStore.getSlice(keys, query, getDataTx(txh));
     }
 
     /**
      * {@inheritDoc}
      * <p/>
-     * <p/>
-     * <p/>
      * This implementation supports locking when {@code lockStore} is non-null.
      */
     @Override
-    public void mutate(StaticBuffer key, List<Entry> additions, List<StaticBuffer> deletions, StoreTransaction txh) throws StorageException {
-        verifyLocksOnMutations(txh);
-        dataStore.mutate(key, additions, deletions, getDataTx(txh));
-    }
-
-    void verifyLocksOnMutations(StoreTransaction txh) throws StorageException {
-        if (locker != null) {
-            ExpectedValueCheckingTransaction tx = (ExpectedValueCheckingTransaction) txh;
-            if (!tx.isMutationStarted()) {
-                tx.mutationStarted();
-                locker.checkLocks(getLockTx(tx));
-                tx.checkExpectedValues();
-            }
+    public void mutate(StaticBuffer key, List<Entry> additions, List<StaticBuffer> deletions, StoreTransaction txh) throws BackendException {
+        ExpectedValueCheckingTransaction etx = (ExpectedValueCheckingTransaction)txh;
+        boolean hasAtLeastOneLock = etx.prepareForMutations();
+        if (hasAtLeastOneLock) {
+            // Force all mutations on this transaction to use strong consistency
+            store.mutate(key, additions, deletions, getConsistentTx(txh));
+        } else {
+            store.mutate(key, additions, deletions, unwrapTx(txh));
         }
     }
 
     /**
      * {@inheritDoc}
-     * <p/>
-     * <p/>
      * <p/>
      * This implementation supports locking when {@code lockStore} is non-null.
      * <p/>
@@ -129,41 +79,41 @@ public class ExpectedValueCheckingStore implements KeyColumnValueStore {
      * only the initial expectedValue argument should be considered.
      */
     @Override
-    public void acquireLock(StaticBuffer key, StaticBuffer column, StaticBuffer expectedValue, StoreTransaction txh) throws StorageException {
+    public void acquireLock(StaticBuffer key, StaticBuffer column, StaticBuffer expectedValue, StoreTransaction txh) throws BackendException {
         if (locker != null) {
             ExpectedValueCheckingTransaction tx = (ExpectedValueCheckingTransaction) txh;
             if (tx.isMutationStarted())
                 throw new PermanentLockingException("Attempted to obtain a lock after mutations had been persisted");
             KeyColumn lockID = new KeyColumn(key, column);
             log.debug("Attempting to acquireLock on {} ev={}", lockID, expectedValue);
-            locker.writeLock(lockID, tx.getLockTransaction());
+            locker.writeLock(lockID, tx.getConsistentTx());
             tx.storeExpectedValue(this, lockID, expectedValue);
         } else {
-            dataStore.acquireLock(key, column, expectedValue, getDataTx(txh));
+            store.acquireLock(key, column, expectedValue, unwrapTx(txh));
         }
     }
 
-    @Override
-    public KeyIterator getKeys(KeyRangeQuery query, StoreTransaction txh) throws StorageException {
-        return dataStore.getKeys(query, getDataTx(txh));
+    Locker getLocker() {
+        return locker;
     }
 
-    @Override
-    public KeyIterator getKeys(SliceQuery query, StoreTransaction txh) throws StorageException {
-        return dataStore.getKeys(query, getDataTx(txh));
+    void deleteLocks(ExpectedValueCheckingTransaction tx) throws BackendException {
+        locker.deleteLocks(tx.getConsistentTx());
     }
 
-    @Override
-    public String getName() {
-        return dataStore.getName();
+    KeyColumnValueStore getBackingStore() {
+        return store;
     }
 
-    @Override
-    public void close() throws StorageException {
-        dataStore.close();
+    protected StoreTransaction unwrapTx(StoreTransaction t) {
+        assert null != t;
+        assert t instanceof ExpectedValueCheckingTransaction;
+        return ((ExpectedValueCheckingTransaction) t).getInconsistentTx();
     }
 
-    void deleteLocks(ExpectedValueCheckingTransaction tx) throws StorageException {
-        locker.deleteLocks(tx.getLockTransaction());
+    private static StoreTransaction getConsistentTx(StoreTransaction t) {
+        assert null != t;
+        assert t instanceof ExpectedValueCheckingTransaction;
+        return ((ExpectedValueCheckingTransaction) t).getConsistentTx();
     }
 }

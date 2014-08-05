@@ -5,7 +5,7 @@ import com.thinkaurelius.titan.core.Multiplicity;
 import com.thinkaurelius.titan.core.Order;
 import com.thinkaurelius.titan.core.RelationType;
 import com.thinkaurelius.titan.graphdb.types.IndexType;
-import com.thinkaurelius.titan.graphdb.types.SchemaStatus;
+import com.thinkaurelius.titan.core.schema.SchemaStatus;
 import com.tinkerpop.blueprints.Direction;
 
 /**
@@ -27,6 +27,7 @@ public interface InternalRelationType extends RelationType, InternalVertex {
 
     public ConsistencyModifier getConsistencyModifier();
 
+    public Integer getTTL();
 
     public boolean isUnidirected(Direction dir);
 

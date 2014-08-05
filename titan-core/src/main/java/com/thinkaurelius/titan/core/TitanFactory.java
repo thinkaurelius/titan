@@ -2,33 +2,31 @@ package com.thinkaurelius.titan.core;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
-import com.google.common.base.Stopwatch;
 import com.google.common.collect.Iterators;
+import com.thinkaurelius.titan.core.log.LogProcessorFramework;
+import com.thinkaurelius.titan.core.log.TransactionRecovery;
 import com.thinkaurelius.titan.core.util.ReflectiveConfigOptionLoader;
 import com.thinkaurelius.titan.diskstorage.Backend;
 import com.thinkaurelius.titan.diskstorage.configuration.*;
 import com.thinkaurelius.titan.diskstorage.configuration.backend.CommonsConfiguration;
+import com.thinkaurelius.titan.diskstorage.util.time.StandardTimestamp;
 import com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfiguration;
-import com.thinkaurelius.titan.graphdb.configuration.PreInitializeConfigOptions;
 
 import static com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfiguration.*;
 
 import com.thinkaurelius.titan.graphdb.database.StandardTitanGraph;
 
+import com.thinkaurelius.titan.graphdb.log.StandardLogProcessorFramework;
+import com.thinkaurelius.titan.graphdb.log.StandardTransactionLogProcessor;
 import org.apache.commons.configuration.BaseConfiguration;
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.PropertiesConfiguration;
 import org.apache.commons.lang.StringUtils;
-import org.reflections.Reflections;
-import org.reflections.scanners.TypeAnnotationsScanner;
-import org.reflections.util.ClasspathHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
-import java.lang.reflect.Field;
-import java.lang.reflect.Modifier;
 import java.util.Iterator;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
@@ -44,8 +42,6 @@ public class TitanFactory {
 
     private static final Logger log =
             LoggerFactory.getLogger(TitanFactory.class);
-
-    private static boolean preloadedConfigOptions = false;
 
     /**
      * Opens a {@link TitanGraph} database.
@@ -114,6 +110,7 @@ public class TitanFactory {
 
         private Builder() {
             super(GraphDatabaseConfiguration.buildConfiguration());
+            ReflectiveConfigOptionLoader.loadOnce();
         }
 
         /**
@@ -138,6 +135,30 @@ public class TitanFactory {
         }
 
 
+    }
+
+    /**
+     * Returns a {@link com.thinkaurelius.titan.core.log.LogProcessorFramework} for processing transaction log entries
+     * against the provided graph instance.
+     *
+     * @param graph
+     * @return
+     */
+    public static LogProcessorFramework openTransactionLog(TitanGraph graph) {
+        return new StandardLogProcessorFramework((StandardTitanGraph)graph);
+    }
+
+    /**
+     * Returns a {@link TransactionRecovery} process for recovering partially failed transactions. The recovery process
+     * will start processing the write-ahead transaction log at the specified transaction time.
+     *
+     * @param graph
+     * @param sinceEpoch
+     * @param unit
+     * @return
+     */
+    public static TransactionRecovery startTransactionRecovery(TitanGraph graph, long sinceEpoch, TimeUnit unit) {
+        return new StandardTransactionLogProcessor((StandardTitanGraph)graph, new StandardTimestamp(sinceEpoch,unit));
     }
 
     //###################################
@@ -215,14 +236,16 @@ public class TitanFactory {
             Preconditions.checkNotNull(configParent);
             Preconditions.checkArgument(configParent.isDirectory());
 
-            final Pattern p = Pattern.compile(
+            // TODO this mangling logic is a relic from the hardcoded string days; it should be deleted and rewritten as a setting on ConfigOption
+            final Pattern p = Pattern.compile("(" +
                     Pattern.quote(STORAGE_NS.getName()) + "\\..*" +
-                            "(" +
-                            Pattern.quote(STORAGE_DIRECTORY.getName()) + "|" +
-                            Pattern.quote(STORAGE_CONF_FILE.getName()) + "|" +
-                            Pattern.quote(INDEX_DIRECTORY.getName()) + "|" +
-                            Pattern.quote(INDEX_CONF_FILE.getName()) +
-                            ")");
+                            "(" + Pattern.quote(STORAGE_DIRECTORY.getName()) + "|" +
+                                  Pattern.quote(STORAGE_CONF_FILE.getName()) + ")"
+                    + "|" +
+                    Pattern.quote(INDEX_NS.getName()) + "\\..*" +
+                            "(" + Pattern.quote(INDEX_DIRECTORY.getName()) + "|" +
+                                  Pattern.quote(INDEX_CONF_FILE.getName()) +  ")"
+            + ")");
 
             final Iterator<String> keysToMangle = Iterators.filter(configuration.getKeys(), new Predicate<String>() {
                 @Override

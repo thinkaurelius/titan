@@ -3,6 +3,7 @@ package com.thinkaurelius.titan.graphdb.blueprints;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
 import com.thinkaurelius.titan.core.*;
+import com.thinkaurelius.titan.graphdb.database.StandardTitanGraph;
 import com.thinkaurelius.titan.graphdb.database.serialize.AttributeUtil;
 import com.thinkaurelius.titan.graphdb.internal.InternalRelationType;
 import com.thinkaurelius.titan.graphdb.internal.TitanSchemaCategory;
@@ -30,6 +31,11 @@ public abstract class TitanBlueprintsTransaction implements TitanTransaction {
     private static final Logger log =
             LoggerFactory.getLogger(TitanBlueprintsTransaction.class);
 
+    /**
+     * Returns the graph that this transaction is based on
+     * @return
+     */
+    protected abstract TitanGraph getGraph();
 
     @Override
     public void stopTransaction(Conclusion conclusion) {
@@ -47,7 +53,7 @@ public abstract class TitanBlueprintsTransaction implements TitanTransaction {
 
     @Override
     public Features getFeatures() {
-        throw new UnsupportedOperationException("Not supported threaded transaction graph. Call on parent graph");
+        return getGraph().getFeatures();
     }
 
     /**
@@ -66,6 +72,10 @@ public abstract class TitanBlueprintsTransaction implements TitanTransaction {
     public TitanVertex addVertex(Object id) {
         if (id instanceof Number && AttributeUtil.isWholeNumber((Number) id)) {
             return addVertex(((Number) id).longValue(),null);
+        } else if (id instanceof VertexLabel) {
+            return addVertex((VertexLabel)id);
+        } else if (id instanceof String) {
+            return addVertex((String)id);
         } else {
 //            if (id != null) log.warn("Provided vertex id [{}] is not supported by Titan and hence ignored.", id);
             return addVertex(null,null);

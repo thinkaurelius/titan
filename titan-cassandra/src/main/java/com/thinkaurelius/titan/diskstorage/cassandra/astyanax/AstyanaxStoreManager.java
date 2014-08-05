@@ -3,31 +3,41 @@ package com.thinkaurelius.titan.diskstorage.cassandra.astyanax;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableMap;
-import com.netflix.astyanax.*;
+import com.netflix.astyanax.AstyanaxContext;
+import com.netflix.astyanax.Cluster;
+import com.netflix.astyanax.ColumnListMutation;
+import com.netflix.astyanax.Keyspace;
+import com.netflix.astyanax.MutationBatch;
 import com.netflix.astyanax.connectionpool.Host;
 import com.netflix.astyanax.connectionpool.NodeDiscoveryType;
 import com.netflix.astyanax.connectionpool.RetryBackoffStrategy;
+import com.netflix.astyanax.connectionpool.SSLConnectionContext;
 import com.netflix.astyanax.connectionpool.exceptions.ConnectionException;
-import com.netflix.astyanax.connectionpool.impl.*;
+import com.netflix.astyanax.connectionpool.impl.ConnectionPoolConfigurationImpl;
+import com.netflix.astyanax.connectionpool.impl.ConnectionPoolType;
+import com.netflix.astyanax.connectionpool.impl.CountingConnectionPoolMonitor;
+import com.netflix.astyanax.connectionpool.impl.ExponentialRetryBackoffStrategy;
+import com.netflix.astyanax.connectionpool.impl.SimpleAuthenticationCredentials;
 import com.netflix.astyanax.ddl.ColumnFamilyDefinition;
 import com.netflix.astyanax.ddl.KeyspaceDefinition;
 import com.netflix.astyanax.impl.AstyanaxConfigurationImpl;
 import com.netflix.astyanax.model.ColumnFamily;
 import com.netflix.astyanax.retry.RetryPolicy;
 import com.netflix.astyanax.thrift.ThriftFamilyFactory;
-import com.thinkaurelius.titan.diskstorage.PermanentStorageException;
+import com.thinkaurelius.titan.diskstorage.BackendException;
+import com.thinkaurelius.titan.diskstorage.Entry;
+import com.thinkaurelius.titan.diskstorage.EntryMetaData;
+import com.thinkaurelius.titan.diskstorage.PermanentBackendException;
 import com.thinkaurelius.titan.diskstorage.StaticBuffer;
-import com.thinkaurelius.titan.diskstorage.StorageException;
-import com.thinkaurelius.titan.diskstorage.TemporaryStorageException;
+import com.thinkaurelius.titan.diskstorage.TemporaryBackendException;
 import com.thinkaurelius.titan.diskstorage.cassandra.AbstractCassandraStoreManager;
+import com.thinkaurelius.titan.diskstorage.configuration.ConfigNamespace;
 import com.thinkaurelius.titan.diskstorage.configuration.ConfigOption;
 import com.thinkaurelius.titan.diskstorage.configuration.Configuration;
-import com.thinkaurelius.titan.diskstorage.Entry;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.KCVMutation;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.KeyRange;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.StoreTransaction;
 import com.thinkaurelius.titan.graphdb.configuration.PreInitializeConfigOptions;
-
 import org.apache.cassandra.dht.IPartitioner;
 import org.apache.cassandra.dht.Token;
 import org.apache.cassandra.exceptions.ConfigurationException;
@@ -44,7 +54,6 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import static com.thinkaurelius.titan.diskstorage.cassandra.CassandraTransaction.getTx;
-import static com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfiguration.STORAGE_NS;
 
 @PreInitializeConfigOptions
 public class AstyanaxStoreManager extends AbstractCassandraStoreManager {
@@ -53,11 +62,15 @@ public class AstyanaxStoreManager extends AbstractCassandraStoreManager {
 
     //################### ASTYANAX SPECIFIC CONFIGURATION OPTIONS ######################
 
+    public static final ConfigNamespace ASTYANAX_NS =
+            new ConfigNamespace(CASSANDRA_NS, "astyanax", "Astyanax-specific Cassandra options");
+
     /**
      * Default name for the Cassandra cluster
      * <p/>
      */
-    public static final ConfigOption<String> CLUSTER_NAME = new ConfigOption<String>(STORAGE_NS,"cluster-name",
+    public static final ConfigOption<String> CLUSTER_NAME =
+            new ConfigOption<String>(ASTYANAX_NS, "cluster-name",
             "Default name for the Cassandra cluster",
             ConfigOption.Type.MASKABLE, "Titan Cluster");
 
@@ -65,7 +78,8 @@ public class AstyanaxStoreManager extends AbstractCassandraStoreManager {
      * Maximum pooled connections per host.
      * <p/>
      */
-    public static final ConfigOption<Integer> MAX_CONNECTIONS_PER_HOST = new ConfigOption<Integer>(STORAGE_NS,"max-connections-per-host",
+    public static final ConfigOption<Integer> MAX_CONNECTIONS_PER_HOST =
+            new ConfigOption<Integer>(ASTYANAX_NS, "max-connections-per-host",
             "Maximum pooled connections per host",
             ConfigOption.Type.MASKABLE, 32);
 
@@ -73,7 +87,8 @@ public class AstyanaxStoreManager extends AbstractCassandraStoreManager {
      * Maximum open connections allowed in the pool (counting all hosts).
      * <p/>
      */
-    public static final ConfigOption<Integer> MAX_CONNECTIONS = new ConfigOption<Integer>(STORAGE_NS,"max-connections",
+    public static final ConfigOption<Integer> MAX_CONNECTIONS =
+            new ConfigOption<Integer>(ASTYANAX_NS, "max-connections",
             "Maximum open connections allowed in the pool (counting all hosts)",
             ConfigOption.Type.MASKABLE, -1);
 
@@ -81,9 +96,10 @@ public class AstyanaxStoreManager extends AbstractCassandraStoreManager {
      * Maximum number of operations allowed per connection before the connection is closed.
      * <p/>
      */
-    public static final ConfigOption<Integer> MAX_OPERATIONS_PER_CONNECTION = new ConfigOption<Integer>(STORAGE_NS,"max-operations-per-connection",
+    public static final ConfigOption<Integer> MAX_OPERATIONS_PER_CONNECTION =
+            new ConfigOption<Integer>(ASTYANAX_NS, "max-operations-per-connection",
             "Maximum number of operations allowed per connection before the connection is closed",
-            ConfigOption.Type.MASKABLE, 100*1000);
+            ConfigOption.Type.MASKABLE, 100 * 1000);
 
     /**
      * Maximum pooled "cluster" connections per host.
@@ -92,7 +108,8 @@ public class AstyanaxStoreManager extends AbstractCassandraStoreManager {
      * (like creating keyspaces).  Titan doesn't need many of these connections
      * in ordinary operation.
      */
-    public static final ConfigOption<Integer> MAX_CLUSTER_CONNECTIONS_PER_HOST = new ConfigOption<Integer>(STORAGE_NS,"max-cluster-connections-per-host",
+    public static final ConfigOption<Integer> MAX_CLUSTER_CONNECTIONS_PER_HOST =
+            new ConfigOption<Integer>(ASTYANAX_NS, "max-cluster-connections-per-host",
             "Maximum pooled \"cluster\" connections per host",
             ConfigOption.Type.MASKABLE, 3);
 
@@ -101,7 +118,8 @@ public class AstyanaxStoreManager extends AbstractCassandraStoreManager {
      * values of the Astyanax NodeDiscoveryType enum.
      * <p/>
      */
-    public static final ConfigOption<String> NODE_DISCOVERY_TYPE = new ConfigOption<String>(STORAGE_NS,"node-discovery-type",
+    public static final ConfigOption<String> NODE_DISCOVERY_TYPE =
+            new ConfigOption<String>(ASTYANAX_NS, "node-discovery-type",
             "How Astyanax discovers Cassandra cluster nodes",
             ConfigOption.Type.MASKABLE, "RING_DESCRIBE");
 
@@ -109,7 +127,8 @@ public class AstyanaxStoreManager extends AbstractCassandraStoreManager {
      * Astyanax specific host supplier useful only when discovery type set to DISCOVERY_SERVICE or TOKEN_AWARE.
      * Excepts fully qualified class name which extends google.common.base.Supplier<List<Host>>.
      */
-    public static final ConfigOption<String> HOST_SUPPLIER = new ConfigOption<String>(STORAGE_NS, "host-supplier",
+    public static final ConfigOption<String> HOST_SUPPLIER =
+            new ConfigOption<String>(ASTYANAX_NS, "host-supplier",
             "Host supplier to use when discovery type is set to DISCOVERY_SERVICE or TOKEN_AWARE",
             ConfigOption.Type.MASKABLE, String.class);
 
@@ -118,7 +137,8 @@ public class AstyanaxStoreManager extends AbstractCassandraStoreManager {
      * values of the Astyanax ConnectionPoolType enum.
      * <p/>
      */
-    public static final ConfigOption<String> CONNECTION_POOL_TYPE = new ConfigOption<String>(STORAGE_NS,"connection-pool-type",
+    public static final ConfigOption<String> CONNECTION_POOL_TYPE =
+            new ConfigOption<String>(ASTYANAX_NS, "connection-pool-type",
             "Astyanax's connection pooler implementation",
             ConfigOption.Type.MASKABLE, "TOKEN_AWARE");
 
@@ -128,7 +148,8 @@ public class AstyanaxStoreManager extends AbstractCassandraStoreManager {
      * operations. RetryBackoffStrategy is for retrying attempts to talk to
      * uncommunicative hosts. This config option controls RetryPolicy.
      */
-    public static final ConfigOption<String> RETRY_POLICY = new ConfigOption<String>(STORAGE_NS,"retry-policy",
+    public static final ConfigOption<String> RETRY_POLICY =
+            new ConfigOption<String>(ASTYANAX_NS, "retry-policy",
             "Astyanax's retry policy implementation with configuration parameters",
             ConfigOption.Type.MASKABLE, "com.netflix.astyanax.retry.BoundedExponentialBackoff,100,25000,8");
 
@@ -162,7 +183,8 @@ public class AstyanaxStoreManager extends AbstractCassandraStoreManager {
      * operations. RetryBackoffStrategy is for retrying attempts to talk to
      * uncommunicative hosts. This config option controls RetryBackoffStrategy.
      */
-    public static final ConfigOption<String> RETRY_BACKOFF_STRATEGY = new ConfigOption<String>(STORAGE_NS, "retry-backoff-strategy",
+    public static final ConfigOption<String> RETRY_BACKOFF_STRATEGY =
+            new ConfigOption<String>(ASTYANAX_NS, "retry-backoff-strategy",
             "Astyanax's retry backoff strategy with configuration parameters",
             ConfigOption.Type.MASKABLE, "com.netflix.astyanax.connectionpool.impl.FixedRetryBackoffStrategy,1000,5000");
 
@@ -177,7 +199,8 @@ public class AstyanaxStoreManager extends AbstractCassandraStoreManager {
      * This parameter is not meaningful for and has no effect on
      * FixedRetryBackoffStrategy.
      */
-    public static final ConfigOption<Integer> RETRY_DELAY_SLICE = new ConfigOption<Integer>(STORAGE_NS, "retry-delay-slice",
+    public static final ConfigOption<Integer> RETRY_DELAY_SLICE =
+            new ConfigOption<Integer>(ASTYANAX_NS, "retry-delay-slice",
             "Astyanax's connection pool \"retryDelaySlice\" parameter",
             ConfigOption.Type.MASKABLE, ConnectionPoolConfigurationImpl.DEFAULT_RETRY_DELAY_SLICE);
     /**
@@ -191,7 +214,8 @@ public class AstyanaxStoreManager extends AbstractCassandraStoreManager {
      * This parameter is not meaningful for and has no effect on
      * FixedRetryBackoffStrategy.
      */
-    public static final ConfigOption<Integer> RETRY_MAX_DELAY_SLICE = new ConfigOption<Integer>(STORAGE_NS, "retry-max-delay-slice",
+    public static final ConfigOption<Integer> RETRY_MAX_DELAY_SLICE =
+            new ConfigOption<Integer>(ASTYANAX_NS, "retry-max-delay-slice",
             "Astyanax's connection pool \"retryMaxDelaySlice\" parameter",
             ConfigOption.Type.MASKABLE, ConnectionPoolConfigurationImpl.DEFAULT_RETRY_MAX_DELAY_SLICE);
 
@@ -206,7 +230,8 @@ public class AstyanaxStoreManager extends AbstractCassandraStoreManager {
      * This parameter is not meaningful for and has no effect on
      * FixedRetryBackoffStrategy.
      */
-    public static final ConfigOption<Integer> RETRY_SUSPEND_WINDOW = new ConfigOption<Integer>(STORAGE_NS, "retry-suspend-window",
+    public static final ConfigOption<Integer> RETRY_SUSPEND_WINDOW =
+            new ConfigOption<Integer>(ASTYANAX_NS, "retry-suspend-window",
             "Astyanax's connection pool \"retryMaxDelaySlice\" parameter",
             ConfigOption.Type.MASKABLE, ConnectionPoolConfigurationImpl.DEFAULT_RETRY_SUSPEND_WINDOW);
 
@@ -224,15 +249,8 @@ public class AstyanaxStoreManager extends AbstractCassandraStoreManager {
 
     private final Map<String, AstyanaxKeyColumnValueStore> openStores;
 
-    public AstyanaxStoreManager(Configuration config) throws StorageException {
+    public AstyanaxStoreManager(Configuration config) throws BackendException {
         super(config);
-
-
-        // Check if we have non-default thrift frame size or max message size set and warn users
-        // because there is nothing we can do in Astyanax to apply those, warning is good enough here
-        // otherwise it would make bad user experience if we don't warn at all or crash on this.
-        if (config.has(CASSANDRA_THRIFT_FRAME_SIZE))
-            log.warn("Couldn't set custom Thrift Frame Size property, use 'cassandrathrift' instead.");
 
         this.clusterName = config.get(CLUSTER_NAME);
 
@@ -263,14 +281,14 @@ public class AstyanaxStoreManager extends AbstractCassandraStoreManager {
 
     @Override
     @SuppressWarnings("unchecked")
-    public IPartitioner<? extends Token<?>> getCassandraPartitioner() throws StorageException {
+    public IPartitioner<? extends Token<?>> getCassandraPartitioner() throws BackendException {
         Cluster cl = clusterContext.getClient();
         try {
             return FBUtilities.newPartitioner(cl.describePartitioner());
         } catch (ConnectionException e) {
-            throw new TemporaryStorageException(e);
+            throw new TemporaryBackendException(e);
         } catch (ConfigurationException e) {
-            throw new PermanentStorageException(e);
+            throw new PermanentBackendException(e);
         }
     }
 
@@ -288,7 +306,7 @@ public class AstyanaxStoreManager extends AbstractCassandraStoreManager {
     }
 
     @Override
-    public synchronized AstyanaxKeyColumnValueStore openDatabase(String name) throws StorageException {
+    public synchronized AstyanaxKeyColumnValueStore openDatabase(String name) throws BackendException {
         if (openStores.containsKey(name)) return openStores.get(name);
         else {
             ensureColumnFamilyExists(name);
@@ -299,8 +317,8 @@ public class AstyanaxStoreManager extends AbstractCassandraStoreManager {
     }
 
     @Override
-    public void mutateMany(Map<String, Map<StaticBuffer, KCVMutation>> batch, StoreTransaction txh) throws StorageException {
-        MutationBatch m = keyspaceContext.getClient().prepareMutationBatch()
+    public void mutateMany(Map<String, Map<StaticBuffer, KCVMutation>> batch, StoreTransaction txh) throws BackendException {
+        MutationBatch m = keyspaceContext.getClient().prepareMutationBatch().withAtomicBatch(atomicBatch)
                 .setConsistencyLevel(getTx(txh).getWriteConsistencyLevel().getAstyanax())
                 .withRetryPolicy(retryPolicy.duplicate());
 
@@ -332,8 +350,15 @@ public class AstyanaxStoreManager extends AbstractCassandraStoreManager {
                     ColumnListMutation<ByteBuffer> upds = m.withRow(columnFamily, key);
                     upds.setTimestamp(commitTime.getAdditionTime(times.getUnit()));
 
-                    for (Entry e : titanMutation.getAdditions())
-                        upds.putColumn(e.getColumnAs(StaticBuffer.BB_FACTORY), e.getValueAs(StaticBuffer.BB_FACTORY));
+                    for (Entry e : titanMutation.getAdditions()) {
+                        Integer ttl = (Integer) e.getMetaData().get(EntryMetaData.TTL);
+
+                        if (null != ttl && ttl > 0) {
+                            upds.putColumn(e.getColumnAs(StaticBuffer.BB_FACTORY), e.getValueAs(StaticBuffer.BB_FACTORY), ttl);
+                        } else {
+                            upds.putColumn(e.getColumnAs(StaticBuffer.BB_FACTORY), e.getValueAs(StaticBuffer.BB_FACTORY));
+                        }
+                    }
                 }
             }
         }
@@ -341,19 +366,19 @@ public class AstyanaxStoreManager extends AbstractCassandraStoreManager {
         try {
             m.execute();
         } catch (ConnectionException e) {
-            throw new TemporaryStorageException(e);
+            throw new TemporaryBackendException(e);
         }
 
         sleepAfterWrite(txh, commitTime);
     }
 
     @Override
-    public List<KeyRange> getLocalKeyPartition() throws StorageException {
+    public List<KeyRange> getLocalKeyPartition() throws BackendException {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public void clearStorage() throws StorageException {
+    public void clearStorage() throws BackendException {
         try {
             Cluster cluster = clusterContext.getClient();
 
@@ -369,15 +394,15 @@ public class AstyanaxStoreManager extends AbstractCassandraStoreManager {
                 ks.truncateColumnFamily(new ColumnFamily<Object, Object>(cf.getName(), null, null));
             }
         } catch (ConnectionException e) {
-            throw new PermanentStorageException(e);
+            throw new PermanentBackendException(e);
         }
     }
 
-    private void ensureColumnFamilyExists(String name) throws StorageException {
+    private void ensureColumnFamilyExists(String name) throws BackendException {
         ensureColumnFamilyExists(name, "org.apache.cassandra.db.marshal.BytesType");
     }
 
-    private void ensureColumnFamilyExists(String name, String comparator) throws StorageException {
+    private void ensureColumnFamilyExists(String name, String comparator) throws BackendException {
         Cluster cl = clusterContext.getClient();
         try {
             KeyspaceDefinition ksDef = cl.describeKeyspace(keySpaceName);
@@ -404,7 +429,7 @@ public class AstyanaxStoreManager extends AbstractCassandraStoreManager {
                 cl.addColumnFamily(cfDef.setCompressionOptions(compressionOptions.build()));
             }
         } catch (ConnectionException e) {
-            throw new TemporaryStorageException(e);
+            throw new TemporaryBackendException(e);
         }
     }
 
@@ -460,6 +485,10 @@ public class AstyanaxStoreManager extends AbstractCassandraStoreManager {
             cpool.setAuthenticationCredentials(new SimpleAuthenticationCredentials(username, password));
         }
 
+        if (config.get(SSL_ENABLED)) {
+            cpool.setSSLConnectionContext(new SSLConnectionContext(config.get(SSL_TRUSTSTORE_LOCATION), config.get(SSL_TRUSTSTORE_PASSWORD)));
+        }
+
         AstyanaxContext.Builder ctxBuilder = new AstyanaxContext.Builder();
 
         // Standard context builder options
@@ -487,7 +516,7 @@ public class AstyanaxStoreManager extends AbstractCassandraStoreManager {
         return ctxBuilder;
     }
 
-    private void ensureKeyspaceExists(Cluster cl) throws StorageException {
+    private void ensureKeyspaceExists(Cluster cl) throws BackendException {
         KeyspaceDefinition ksDef;
 
         try {
@@ -512,11 +541,11 @@ public class AstyanaxStoreManager extends AbstractCassandraStoreManager {
             log.debug("Created keyspace {}", keySpaceName);
         } catch (ConnectionException e) {
             log.debug("Failed to create keyspace {}, keySpaceName");
-            throw new TemporaryStorageException(e);
+            throw new TemporaryBackendException(e);
         }
     }
 
-    private static RetryBackoffStrategy getRetryBackoffStrategy(String desc) throws PermanentStorageException {
+    private static RetryBackoffStrategy getRetryBackoffStrategy(String desc) throws PermanentBackendException {
         if (null == desc)
             return null;
 
@@ -534,11 +563,11 @@ public class AstyanaxStoreManager extends AbstractCassandraStoreManager {
             log.debug("Instantiated RetryBackoffStrategy object {} from config string \"{}\"", rbs, desc);
             return rbs;
         } catch (Exception e) {
-            throw new PermanentStorageException("Failed to instantiate Astyanax RetryBackoffStrategy implementation", e);
+            throw new PermanentBackendException("Failed to instantiate Astyanax RetryBackoffStrategy implementation", e);
         }
     }
 
-    private static RetryPolicy getRetryPolicy(String serializedRetryPolicy) throws StorageException {
+    private static RetryPolicy getRetryPolicy(String serializedRetryPolicy) throws BackendException {
         String[] tokens = serializedRetryPolicy.split(",");
         String policyClassName = tokens[0];
         int argCount = tokens.length - 1;
@@ -552,7 +581,7 @@ public class AstyanaxStoreManager extends AbstractCassandraStoreManager {
             log.debug("Instantiated RetryPolicy object {} from config string \"{}\"", rp, serializedRetryPolicy);
             return rp;
         } catch (Exception e) {
-            throw new PermanentStorageException("Failed to instantiate Astyanax Retry Policy class", e);
+            throw new PermanentBackendException("Failed to instantiate Astyanax Retry Policy class", e);
         }
     }
 
@@ -589,25 +618,25 @@ public class AstyanaxStoreManager extends AbstractCassandraStoreManager {
     }
 
     @Override
-    public Map<String, String> getCompressionOptions(String cf) throws StorageException {
+    public Map<String, String> getCompressionOptions(String cf) throws BackendException {
         try {
             Keyspace k = keyspaceContext.getClient();
 
             KeyspaceDefinition kdef = k.describeKeyspace();
 
             if (null == kdef) {
-                throw new PermanentStorageException("Keyspace " + k.getKeyspaceName() + " is undefined");
+                throw new PermanentBackendException("Keyspace " + k.getKeyspaceName() + " is undefined");
             }
 
             ColumnFamilyDefinition cfdef = kdef.getColumnFamily(cf);
 
             if (null == cfdef) {
-                throw new PermanentStorageException("Column family " + cf + " is undefined");
+                throw new PermanentBackendException("Column family " + cf + " is undefined");
             }
 
             return cfdef.getCompressionOptions();
         } catch (ConnectionException e) {
-            throw new PermanentStorageException(e);
+            throw new PermanentBackendException(e);
         }
     }
 }

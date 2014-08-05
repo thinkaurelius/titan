@@ -1,5 +1,6 @@
 package com.thinkaurelius.titan.graphdb.vertices;
 
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
 import com.thinkaurelius.titan.core.*;
 import com.thinkaurelius.titan.core.Cardinality;
@@ -16,7 +17,6 @@ import com.thinkaurelius.titan.graphdb.types.system.BaseVertexLabel;
 import com.tinkerpop.blueprints.Direction;
 import com.tinkerpop.blueprints.Edge;
 import com.tinkerpop.blueprints.Vertex;
-import com.tinkerpop.blueprints.util.ElementHelper;
 import com.tinkerpop.blueprints.util.StringFactory;
 
 import java.util.*;
@@ -37,7 +37,7 @@ public abstract class AbstractVertex extends AbstractElement implements Internal
         if (tx.isOpen())
             return this;
 
-        InternalVertex next = (InternalVertex) tx.getNextTx().getVertex(getID());
+        InternalVertex next = (InternalVertex) tx.getNextTx().getVertex(getLongId());
         if (next == null) throw InvalidElementException.removedException(this);
         else return next;
     }
@@ -49,8 +49,8 @@ public abstract class AbstractVertex extends AbstractElement implements Internal
 
     @Override
     public long getCompareId() {
-        if (tx.isPartitionedVertex(this)) return tx.getIdInspector().getCanonicalVertexId(getID());
-        else return getID();
+        if (tx.isPartitionedVertex(this)) return tx.getIdInspector().getCanonicalVertexId(getLongId());
+        else return getLongId();
     }
 
     @Override
@@ -60,7 +60,7 @@ public abstract class AbstractVertex extends AbstractElement implements Internal
 
     @Override
     public Object getId() {
-        return getID();
+        return getLongId();
     }
 
     @Override
@@ -103,7 +103,7 @@ public abstract class AbstractVertex extends AbstractElement implements Internal
     }
 
     protected Vertex getVertexLabelInternal() {
-        return Iterables.getOnlyElement(query().noPartitionRestriction().type(BaseLabel.VertexLabelEdge).direction(Direction.OUT).vertices(),null);
+        return Iterables.getOnlyElement(tx().query(this).noPartitionRestriction().type(BaseLabel.VertexLabelEdge).direction(Direction.OUT).vertices(),null);
     }
 
     @Override
@@ -115,7 +115,8 @@ public abstract class AbstractVertex extends AbstractElement implements Internal
 
     @Override
     public VertexCentricQueryBuilder query() {
-        return tx().query(it());
+        Preconditions.checkArgument(!isRemoved(), "Cannot access a removed vertex: %s", this);
+        return tx().query(this);
     }
 
     @Override

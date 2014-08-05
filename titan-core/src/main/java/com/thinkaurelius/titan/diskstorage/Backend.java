@@ -4,6 +4,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Maps;
 import com.thinkaurelius.titan.core.TitanConfigurationException;
 import com.thinkaurelius.titan.core.TitanException;
 import com.thinkaurelius.titan.core.TitanFactory;
@@ -23,7 +24,7 @@ import com.thinkaurelius.titan.diskstorage.locking.consistentkey.ConsistentKeyLo
 import com.thinkaurelius.titan.diskstorage.locking.consistentkey.ExpectedValueCheckingStoreManager;
 import com.thinkaurelius.titan.diskstorage.log.Log;
 import com.thinkaurelius.titan.diskstorage.log.LogManager;
-import com.thinkaurelius.titan.diskstorage.log.ReadMarker;
+import com.thinkaurelius.titan.diskstorage.log.kcvs.KCVSLog;
 import com.thinkaurelius.titan.diskstorage.log.kcvs.KCVSLogManager;
 import com.thinkaurelius.titan.diskstorage.util.BackendOperation;
 import com.thinkaurelius.titan.diskstorage.util.MetricInstrumentedStore;
@@ -37,6 +38,7 @@ import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Constructor;
@@ -71,7 +73,6 @@ public class Backend implements LockerProvider {
 
     public static final String ID_STORE_NAME = "titan_ids";
 
-    public static final String TITAN_BACKEND_VERSION = "titan-version";
     public static final String METRICS_MERGED_STORE = "stores";
     public static final String METRICS_MERGED_CACHE = "caches";
     public static final String METRICS_CACHE_SUFFIX = ".cache";
@@ -79,7 +80,6 @@ public class Backend implements LockerProvider {
 
     public static final String SYSTEM_TX_LOG_NAME = "txlog";
     public static final String SYSTEM_MGMT_LOG_NAME = "systemlog";
-    public static final String TRIGGER_LOG_PREFIX = "trigger_";
 
     public static final double EDGESTORE_CACHE_PERCENT = 0.8;
     public static final double INDEXSTORE_CACHE_PERCENT = 0.2;
@@ -100,12 +100,14 @@ public class Backend implements LockerProvider {
 
     private KCVSCache edgeStore;
     private KCVSCache indexStore;
+    private KCVSCache txLogStore;
     private IDAuthority idAuthority;
     private KCVSConfiguration systemConfig;
+    private boolean hasAttemptedClose;
 
-    private final LogManager mgmtLogManager;
-    private final LogManager txLogManager;
-    private final LogManager triggerLogManager;
+    private final KCVSLogManager mgmtLogManager;
+    private final KCVSLogManager txLogManager;
+    private final LogManager userLogManager;
 
 
     private final Map<String, IndexProvider> indexes;
@@ -115,7 +117,6 @@ public class Backend implements LockerProvider {
     private final Duration maxReadTime;
     private final boolean cacheEnabled;
     private final ExecutorService threadPool;
-
 
     private final Function<String, Locker> lockerCreator;
     private final ConcurrentHashMap<String, Locker> lockers =
@@ -130,9 +131,9 @@ public class Backend implements LockerProvider {
         indexes = getIndexes(configuration);
         storeFeatures = storeManager.getFeatures();
 
-        mgmtLogManager = getLogManager(configuration,MANAGEMENT_LOG,storeManager);
-        txLogManager = getLogManager(configuration,TRANSACTION_LOG,storeManager);
-        triggerLogManager = getLogManager(configuration,TRIGGER_LOG,storeManager);
+        mgmtLogManager = getKCVSLogManager(MANAGEMENT_LOG);
+        txLogManager = getKCVSLogManager(TRANSACTION_LOG);
+        userLogManager = getLogManager(USER_LOG);
 
 
         cacheEnabled = !configuration.get(STORAGE_BATCH) && configuration.get(DB_CACHE);
@@ -209,7 +210,7 @@ public class Backend implements LockerProvider {
             //EdgeStore & VertexIndexStore
             KeyColumnValueStore idStore = storeManager.openDatabase(ID_STORE_NAME);
             if (reportMetrics) {
-                idStore = new MetricInstrumentedStore(idStore, getMetricsStoreName("idStore"));
+                idStore = new MetricInstrumentedStore(idStore, getMetricsStoreName(ID_STORE_NAME));
             }
             idAuthority = null;
             if (storeFeatures.isKeyConsistent()) {
@@ -222,8 +223,8 @@ public class Backend implements LockerProvider {
             KeyColumnValueStore indexStoreRaw = storeManagerLocking.openDatabase(INDEXSTORE_NAME);
 
             if (reportMetrics) {
-                edgeStoreRaw = new MetricInstrumentedStore(edgeStoreRaw, getMetricsStoreName("edgeStore"));
-                indexStoreRaw = new MetricInstrumentedStore(indexStoreRaw, getMetricsStoreName("vertexIndexStore"));
+                edgeStoreRaw = new MetricInstrumentedStore(edgeStoreRaw, getMetricsStoreName(EDGESTORE_NAME));
+                indexStoreRaw = new MetricInstrumentedStore(indexStoreRaw, getMetricsStoreName(INDEXSTORE_NAME));
             }
 
             //Configure caches
@@ -257,28 +258,29 @@ public class Backend implements LockerProvider {
             }
 
             //Just open them so that they are cached
-            txLogManager.openLog(SYSTEM_TX_LOG_NAME, ReadMarker.fromNow());
-            mgmtLogManager.openLog(SYSTEM_MGMT_LOG_NAME, ReadMarker.fromNow());
+            txLogManager.openLog(SYSTEM_TX_LOG_NAME);
+            mgmtLogManager.openLog(SYSTEM_MGMT_LOG_NAME);
+            txLogStore = new NoKCVSCache(storeManager.openDatabase(SYSTEM_TX_LOG_NAME));
 
 
             //Open global configuration
             KeyColumnValueStore systemConfigStore = storeManagerLocking.openDatabase(SYSTEM_PROPERTIES_STORE_NAME);
             systemConfig = getGlobalConfiguration(new BackendOperation.TransactionalProvider() {
                 @Override
-                public StoreTransaction openTx() throws StorageException {
+                public StoreTransaction openTx() throws BackendException {
                     return storeManagerLocking.beginTransaction(StandardBaseTransactionConfig.of(
                             configuration.get(TIMESTAMP_PROVIDER),
                             storeFeatures.getKeyConsistentTxConfig()));
                 }
 
                 @Override
-                public void close() throws StorageException {
+                public void close() throws BackendException {
                     //Do nothing, storeManager is closed explicitly by Backend
                 }
             },systemConfigStore,configuration);
 
 
-        } catch (StorageException e) {
+        } catch (BackendException e) {
             throw new TitanException("Could not initialize backend", e);
         }
     }
@@ -293,27 +295,35 @@ public class Backend implements LockerProvider {
         copy.putAll(indexes);
         return copy.build();
     }
+//
+//    public IndexProvider getIndexProvider(String name) {
+//        return indexes.get(name);
+//    }
 
-    public Log getSystemTxLog() {
+    public KCVSLog getSystemTxLog() {
         try {
-            return txLogManager.openLog(SYSTEM_TX_LOG_NAME, ReadMarker.fromNow());
-        } catch (StorageException e) {
+            return txLogManager.openLog(SYSTEM_TX_LOG_NAME);
+        } catch (BackendException e) {
             throw new TitanException("Could not re-open transaction log", e);
         }
     }
 
     public Log getSystemMgmtLog() {
         try {
-            return mgmtLogManager.openLog(SYSTEM_MGMT_LOG_NAME, ReadMarker.fromNow());
-        } catch (StorageException e) {
+            return mgmtLogManager.openLog(SYSTEM_MGMT_LOG_NAME);
+        } catch (BackendException e) {
             throw new TitanException("Could not re-open management log", e);
         }
 
     }
 
-    public Log getTriggerLog(String identifier) throws StorageException {
+    public Log getUserLog(String identifier) throws BackendException {
+        return userLogManager.openLog(getUserLogName(identifier));
+    }
+
+    public static final String getUserLogName(String identifier) {
         Preconditions.checkArgument(StringUtils.isNotBlank(identifier));
-        return triggerLogManager.openLog(TRIGGER_LOG_PREFIX +identifier,ReadMarker.fromNow());
+        return USER_LOG_PREFIX +identifier;
     }
 
     public KCVSConfiguration getGlobalSystemConfig() {
@@ -329,22 +339,27 @@ public class Backend implements LockerProvider {
         return configuration.get(METRICS_MERGE_STORES) ? METRICS_MERGED_CACHE : storeName + METRICS_CACHE_SUFFIX;
     }
 
-    public static LogManager getLogManager(Configuration config, String logName, KeyColumnValueStoreManager sm) {
+    public KCVSLogManager getKCVSLogManager(String logName) {
+        Preconditions.checkArgument(configuration.restrictTo(logName).get(LOG_BACKEND).equalsIgnoreCase(LOG_BACKEND.getDefaultValue()));
+        return (KCVSLogManager)getLogManager(logName);
+    }
+
+    public LogManager getLogManager(String logName) {
+        return getLogManager(configuration, logName, storeManager);
+    }
+
+    private static LogManager getLogManager(Configuration config, String logName, KeyColumnValueStoreManager sm) {
         Configuration logConfig = config.restrictTo(logName);
         String backend = logConfig.get(LOG_BACKEND);
         if (backend.equalsIgnoreCase(LOG_BACKEND.getDefaultValue())) {
             return new KCVSLogManager(sm,logConfig);
         } else {
-            return getLogManager(logConfig);
+            Preconditions.checkArgument(config!=null);
+            LogManager lm = getImplementationClass(logConfig,logConfig.get(LOG_BACKEND),REGISTERED_LOG_MANAGERS);
+            Preconditions.checkNotNull(lm);
+            return lm;
         }
 
-    }
-
-    public final static LogManager getLogManager(Configuration config) {
-        Preconditions.checkArgument(config!=null);
-        LogManager lm = getImplementationClass(config,config.get(LOG_BACKEND),REGISTERED_LOG_MANAGERS);
-        Preconditions.checkNotNull(lm);
-        return lm;
     }
 
     public static KeyColumnValueStoreManager getStorageManager(Configuration storageConfig) {
@@ -364,7 +379,7 @@ public class Backend implements LockerProvider {
             KCVSConfiguration kcvsConfig = new KCVSConfiguration(txProvider,config.get(TIMESTAMP_PROVIDER),store,SYSTEM_CONFIGURATION_IDENTIFIER);
             kcvsConfig.setMaxOperationWaitTime(config.get(SETUP_WAITTIME));
             return kcvsConfig;
-        } catch (StorageException e) {
+        } catch (BackendException e) {
             throw new TitanException("Could not open global configuration",e);
         }
     }
@@ -375,16 +390,16 @@ public class Backend implements LockerProvider {
             final StoreFeatures features = manager.getFeatures();
             return getGlobalConfiguration(new BackendOperation.TransactionalProvider() {
                 @Override
-                public StoreTransaction openTx() throws StorageException {
+                public StoreTransaction openTx() throws BackendException {
                     return manager.beginTransaction(StandardBaseTransactionConfig.of(config.get(TIMESTAMP_PROVIDER),features.getKeyConsistentTxConfig()));
                 }
 
                 @Override
-                public void close() throws StorageException {
+                public void close() throws BackendException {
                     manager.close();
                 }
             },manager.openDatabase(SYSTEM_PROPERTIES_STORE_NAME),config);
-        } catch (StorageException e) {
+        } catch (BackendException e) {
             throw new TitanException("Could not open global configuration",e);
         }
     }
@@ -431,12 +446,25 @@ public class Backend implements LockerProvider {
     }
 
     /**
+     * Returns the {@link IndexFeatures} of all configured index backends
+     */
+    public Map<String,IndexFeatures> getIndexFeatures() {
+        return Maps.transformValues(indexes,new Function<IndexProvider, IndexFeatures>() {
+            @Nullable
+            @Override
+            public IndexFeatures apply(@Nullable IndexProvider indexProvider) {
+                return indexProvider.getFeatures();
+            }
+        });
+    }
+
+    /**
      * Opens a new transaction against all registered backend system wrapped in one {@link BackendTransaction}.
      *
      * @return
-     * @throws StorageException
+     * @throws BackendException
      */
-    public BackendTransaction beginTransaction(TransactionConfiguration configuration, KeyInformation.Retriever indexKeyRetriever) throws StorageException {
+    public BackendTransaction beginTransaction(TransactionConfiguration configuration, KeyInformation.Retriever indexKeyRetriever) throws BackendException {
 
         StoreTransaction tx = storeManagerLocking.beginTransaction(configuration);
 
@@ -450,25 +478,30 @@ public class Backend implements LockerProvider {
         }
 
         return new BackendTransaction(cacheTx, configuration, storeFeatures,
-                edgeStore, indexStore,
+                edgeStore, indexStore, txLogStore,
                 maxReadTime, indexTx, threadPool);
     }
 
-    public void close() throws StorageException {
-        mgmtLogManager.close();
-        txLogManager.close();
-        triggerLogManager.close();
+    public synchronized void close() throws BackendException {
+        if (!hasAttemptedClose) {
+            hasAttemptedClose = true;
+            mgmtLogManager.close();
+            txLogManager.close();
+            userLogManager.close();
 
-        edgeStore.close();
-        indexStore.close();
-        idAuthority.close();
-        systemConfig.close();
-        storeManager.close();
-        if(threadPool != null) {
-        	threadPool.shutdown();
+            edgeStore.close();
+            indexStore.close();
+            idAuthority.close();
+            systemConfig.close();
+            storeManager.close();
+            if(threadPool != null) {
+            	threadPool.shutdown();
+            }
+            //Indexes
+            for (IndexProvider index : indexes.values()) index.close();
+        } else {
+            log.debug("Backend {} has already been closed or cleared", this);
         }
-        //Indexes
-        for (IndexProvider index : indexes.values()) index.close();
     }
 
     /**
@@ -476,20 +509,29 @@ public class Backend implements LockerProvider {
      * <p/>
      * IMPORTANT: Clearing storage means that ALL data will be lost and cannot be recovered.
      *
-     * @throws StorageException
+     * @throws BackendException
      */
-    public void clearStorage() throws StorageException {
-        mgmtLogManager.close();
-        txLogManager.close();
-        triggerLogManager.close();
+    public synchronized void clearStorage() throws BackendException {
+        if (!hasAttemptedClose) {
+            hasAttemptedClose = true;
+            mgmtLogManager.close();
+            txLogManager.close();
+            userLogManager.close();
 
-        edgeStore.close();
-        indexStore.close();
-        idAuthority.close();
-        systemConfig.close();
-        storeManager.clearStorage();
-        //Indexes
-        for (IndexProvider index : indexes.values()) index.clearStorage();
+            edgeStore.close();
+            indexStore.close();
+            idAuthority.close();
+            systemConfig.close();
+            storeManager.clearStorage();
+            storeManager.close();
+            //Indexes
+            for (IndexProvider index : indexes.values()) {
+                index.clearStorage();
+                index.close();
+            }
+        } else {
+            log.debug("Backend {} has already been closed or cleared", this);
+        }
     }
 
     //############ Registered Storage Managers ##############
@@ -518,13 +560,13 @@ public class Backend implements LockerProvider {
         put("inmemory", null);
     }};
 
-    private static final Map<String, String> REGISTERED_INDEX_PROVIDERS = new HashMap<String, String>() {{
+    public static final Map<String, String> REGISTERED_INDEX_PROVIDERS = new HashMap<String, String>() {{
         put("lucene", "com.thinkaurelius.titan.diskstorage.lucene.LuceneIndex");
         put("elasticsearch", "com.thinkaurelius.titan.diskstorage.es.ElasticSearchIndex");
         put("es", "com.thinkaurelius.titan.diskstorage.es.ElasticSearchIndex");
     }};
 
-    private static final Map<String,String> REGISTERED_LOG_MANAGERS = new HashMap<String, String>() {{
+    public static final Map<String,String> REGISTERED_LOG_MANAGERS = new HashMap<String, String>() {{
         put("default","com.thinkaurelius.titan.diskstorage.log.kcvs.KCVSLogManager");
     }};
 
@@ -534,7 +576,7 @@ public class Backend implements LockerProvider {
             KeyColumnValueStore lockerStore;
             try {
                 lockerStore = storeManager.openDatabase(lockerName);
-            } catch (StorageException e) {
+            } catch (BackendException e) {
                 throw new TitanConfigurationException("Could not retrieve store named " + lockerName + " for locker configuration", e);
             }
             return new ConsistentKeyLocker.Builder(lockerStore, storeManager).fromConfig(configuration).build();

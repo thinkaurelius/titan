@@ -43,18 +43,18 @@ public class ExpirationKCVSCache extends KCVSCache {
     private final ConcurrentHashMap<StaticBuffer,Long> expiredKeys;
 
     private final long cacheTimeMS;
-    private final long expirationGracePeriodMS;
+    private final long invalidationGracePeriodMS;
     private final CleanupThread cleanupThread;
 
 
-    public ExpirationKCVSCache(final KeyColumnValueStore store, String metricsName, final long cacheTimeMS, final long expirationGracePeriodMS, final long maximumByteSize) {
+    public ExpirationKCVSCache(final KeyColumnValueStore store, String metricsName, final long cacheTimeMS, final long invalidationGracePeriodMS, final long maximumByteSize) {
         super(store, metricsName);
         Preconditions.checkArgument(cacheTimeMS > 0, "Cache expiration must be positive: %s", cacheTimeMS);
         Preconditions.checkArgument(System.currentTimeMillis()+1000l*3600*24*365*100+cacheTimeMS>0,"Cache expiration time too large, overflow may occur: %s",cacheTimeMS);
         this.cacheTimeMS = cacheTimeMS;
         int concurrencyLevel = Runtime.getRuntime().availableProcessors();
-        Preconditions.checkArgument(expirationGracePeriodMS>=0,"Invalid expiration grace peiod: %s",expirationGracePeriodMS);
-        this.expirationGracePeriodMS = expirationGracePeriodMS;
+        Preconditions.checkArgument(invalidationGracePeriodMS >=0,"Invalid expiration grace peiod: %s", invalidationGracePeriodMS);
+        this.invalidationGracePeriodMS = invalidationGracePeriodMS;
         CacheBuilder<KeySliceQuery,EntryList> cachebuilder = CacheBuilder.newBuilder()
                 .maximumWeight(maximumByteSize)
                 .concurrencyLevel(concurrencyLevel)
@@ -76,11 +76,11 @@ public class ExpirationKCVSCache extends KCVSCache {
     }
 
     @Override
-    public EntryList getSlice(final KeySliceQuery query, final StoreTransaction txh) throws StorageException {
+    public EntryList getSlice(final KeySliceQuery query, final StoreTransaction txh) throws BackendException {
         incActionBy(1, CacheMetricsAction.RETRIEVAL,txh);
         if (isExpired(query)) {
             incActionBy(1, CacheMetricsAction.MISS,txh);
-            return store.getSlice(query, getTx(txh));
+            return store.getSlice(query, unwrapTx(txh));
         }
 
         try {
@@ -88,7 +88,7 @@ public class ExpirationKCVSCache extends KCVSCache {
                 @Override
                 public EntryList call() throws Exception {
                     incActionBy(1, CacheMetricsAction.MISS,txh);
-                    return store.getSlice(query, getTx(txh));
+                    return store.getSlice(query, unwrapTx(txh));
                 }
             });
         } catch (Exception e) {
@@ -99,7 +99,7 @@ public class ExpirationKCVSCache extends KCVSCache {
     }
 
     @Override
-    public Map<StaticBuffer,EntryList> getSlice(final List<StaticBuffer> keys, final SliceQuery query, final StoreTransaction txh) throws StorageException {
+    public Map<StaticBuffer,EntryList> getSlice(final List<StaticBuffer> keys, final SliceQuery query, final StoreTransaction txh) throws BackendException {
         Map<StaticBuffer,EntryList> results = new HashMap<StaticBuffer, EntryList>(keys.size());
         List<StaticBuffer> remainingKeys = new ArrayList<StaticBuffer>(keys.size());
         KeySliceQuery[] ksqs = new KeySliceQuery[keys.size()];
@@ -117,7 +117,7 @@ public class ExpirationKCVSCache extends KCVSCache {
         //Request remaining ones from backend
         if (!remainingKeys.isEmpty()) {
             incActionBy(remainingKeys.size(), CacheMetricsAction.MISS,txh);
-            Map<StaticBuffer,EntryList> subresults = store.getSlice(remainingKeys, query, getTx(txh));
+            Map<StaticBuffer,EntryList> subresults = store.getSlice(remainingKeys, query, unwrapTx(txh));
             for (int i=0;i<keys.size();i++) {
                 StaticBuffer key = keys.get(i);
                 EntryList subresult = subresults.get(key);
@@ -145,7 +145,7 @@ public class ExpirationKCVSCache extends KCVSCache {
     }
 
     @Override
-    public void close() throws StorageException {
+    public void close() throws BackendException {
         cleanupThread.stopThread();
         super.close();
     }
@@ -157,7 +157,7 @@ public class ExpirationKCVSCache extends KCVSCache {
             expiredKeys.remove(query.getKey(),until);
             return false;
         }
-        //We suffer
+        //We suffer a cache miss, hence decrease the count down
         penaltyCountdown.countDown();
         return true;
     }
@@ -201,7 +201,7 @@ public class ExpirationKCVSCache extends KCVSCache {
                 for (Map.Entry<StaticBuffer,Long> expKey : expiredKeys.entrySet()) {
                     if (isBeyondExpirationTime(expKey.getValue()))
                         expiredKeys.remove(expKey.getKey(), expKey.getValue());
-                    else if (getAge(expKey.getValue())>=expirationGracePeriodMS)
+                    else if (getAge(expKey.getValue())>= invalidationGracePeriodMS)
                         expiredKeysCopy.put(expKey.getKey(),expKey.getValue());
                 }
                 for (KeySliceQuery ksq : cache.asMap().keySet()) {

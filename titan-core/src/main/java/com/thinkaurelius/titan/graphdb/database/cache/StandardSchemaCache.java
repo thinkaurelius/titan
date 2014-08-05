@@ -15,6 +15,7 @@ import com.tinkerpop.blueprints.Direction;
 import org.cliffc.high_scale_lib.NonBlockingHashMapLong;
 
 import java.util.Iterator;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
@@ -124,7 +125,7 @@ public class StandardSchemaCache implements SchemaCache {
 
     @Override
     public EntryList getSchemaRelations(final long schemaId, final BaseRelationType type, final Direction dir, final StandardTitanTx tx) {
-        assert IDManager.isSystemRelationTypeId(type.getID()) && type.getID()>0;
+        assert IDManager.isSystemRelationTypeId(type.getLongId()) && type.getLongId()>0;
         Preconditions.checkArgument(IDManager.VertexIDType.Schema.is(schemaId));
         Preconditions.checkArgument((Long.MAX_VALUE>>>(SCHEMAID_TOTALFORW_SHIFT-SCHEMAID_BACK_SHIFT))>= schemaId);
 
@@ -154,9 +155,7 @@ public class StandardSchemaCache implements SchemaCache {
                 } else {
                     //Expand map
                     entries = retriever.retrieveSchemaRelations(schemaId, type, dir, tx);
-                    if (!entries.isEmpty()) { //only cache if type exists
-                        types.put(typePlusRelation,entries);
-                    }
+                    types.put(typePlusRelation,entries);
                 }
             }
         }
@@ -164,15 +163,16 @@ public class StandardSchemaCache implements SchemaCache {
         return entries;
     }
 
-    @Override
-    public void expireSchemaName(final String name) {
-        ConcurrentMap<String,Long> types = typeNames;
-        if (types!=null) types.remove(name);
-        typeNamesBackup.invalidate(name);
-    }
+//    @Override
+//    public void expireSchemaName(final String name) {
+//        ConcurrentMap<String,Long> types = typeNames;
+//        if (types!=null) types.remove(name);
+//        typeNamesBackup.invalidate(name);
+//    }
 
     @Override
-    public void expireSchemaRelations(final long schemaId) {
+    public void expireSchemaElement(final long schemaId) {
+        //1) expire relations
         final long cuttypeid = (schemaId >>> SCHEMAID_BACK_SHIFT);
         ConcurrentMap<Long,EntryList> types = schemaRelations;
         if (types!=null) {
@@ -186,6 +186,17 @@ public class StandardSchemaCache implements SchemaCache {
         while (keys.hasNext()) {
             long key = keys.next();
             if ((key>>>SCHEMAID_TOTALFORW_SHIFT)==cuttypeid) schemaRelationsBackup.invalidate(key);
+        }
+        //2) expire names
+        ConcurrentMap<String,Long> names = typeNames;
+        if (names!=null) {
+            for (Iterator<Map.Entry<String, Long>> iter = names.entrySet().iterator(); iter.hasNext(); ) {
+                Map.Entry<String, Long> next = iter.next();
+                if (next.getValue().equals(schemaId)) iter.remove();
+            }
+        }
+        for (Map.Entry<String,Long> entry : typeNamesBackup.asMap().entrySet()) {
+            if (entry.getValue().equals(schemaId)) typeNamesBackup.invalidate(entry.getKey());
         }
     }
 

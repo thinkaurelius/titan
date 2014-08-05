@@ -15,12 +15,13 @@ import com.google.common.base.Preconditions
 import com.tinkerpop.blueprints.Vertex
 import com.thinkaurelius.titan.core.TitanVertex
 import com.thinkaurelius.titan.core.TitanGraph
-import com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfiguration
 import com.thinkaurelius.titan.graphdb.database.StandardTitanGraph
 import com.thinkaurelius.titan.testutil.gen.Schema
 import com.thinkaurelius.titan.testutil.gen.GraphGenerator
 import com.tinkerpop.gremlin.groovy.Gremlin
-import com.thinkaurelius.titan.diskstorage.StorageException
+import com.thinkaurelius.titan.diskstorage.BackendException
+
+import com.google.common.collect.Iterables
 
 import java.util.zip.GZIPInputStream
 
@@ -59,7 +60,7 @@ abstract class GroovyTestSupport {
         Gremlin.load()
     }
 
-    GroovyTestSupport(WriteConfiguration conf) throws StorageException {
+    GroovyTestSupport(WriteConfiguration conf) throws BackendException {
         this.conf = conf
     }
 
@@ -70,7 +71,7 @@ abstract class GroovyTestSupport {
         if (null == graph) {
             try {
                 graph = getGraph()
-            } catch (StorageException e) {
+            } catch (BackendException e) {
                 throw new RuntimeException(e)
             }
         }
@@ -90,7 +91,7 @@ abstract class GroovyTestSupport {
             graph.shutdown()
     }
 
-    protected abstract StandardTitanGraph getGraph() throws StorageException;
+    protected abstract StandardTitanGraph getGraph() throws BackendException;
 
     protected abstract Schema getSchema();
 
@@ -126,7 +127,7 @@ abstract class GroovyTestSupport {
 
         while (uids.hasNext()) {
             long u = uids.next()
-            Vertex v = tx.getVertex(Schema.UID_PROP, u)
+            Vertex v = Iterables.getOnlyElement(tx.getVertices(Schema.UID_PROP, u))
             assertNotNull(v)
             vbuf[vloaded++] = v
             if (vloaded == chunksize) {
@@ -153,7 +154,7 @@ abstract class GroovyTestSupport {
         assertNotNull(pkey)
 
         def tx = graph.newTransaction()
-        def v = tx.getVertex(Schema.UID_PROP, uid)
+        def v = Iterables.getOnlyElement(tx.getVertices(Schema.UID_PROP, uid))
 //            def v = graph.V(Schema.UID_PROP, uid).next()
         assertNotNull(v)
         closure(v, label, pkey)
@@ -191,13 +192,12 @@ abstract class GroovyTestSupport {
         tx.commit()
     }
 
-    protected void initializeGraph(TitanGraph g) throws StorageException {
+    protected void initializeGraph(TitanGraph g) throws BackendException {
         log.info("Initializing graph...");
         long before = System.currentTimeMillis()
         Schema schema = getSchema();
         GraphGenerator generator = new GraphGenerator(schema);
-        GraphDatabaseConfiguration graphconfig = new GraphDatabaseConfiguration(conf);
-        graphconfig.getBackend().clearStorage();
+        
 //        generator.generate(g);
         try {
             generator.generateTypesAndLoadData(g, new GZIPInputStream(new FileInputStream(RELATION_FILE)))
