@@ -2,6 +2,7 @@ package com.thinkaurelius.titan.hadoop.config;
 
 import com.google.common.base.Predicate;
 import com.thinkaurelius.titan.diskstorage.configuration.*;
+import com.tinkerpop.blueprints.Direction;
 import org.apache.hadoop.conf.Configuration;
 
 import com.google.common.base.Preconditions;
@@ -44,6 +45,12 @@ public class TitanHadoopConfiguration {
             "The version of the Titan database being read",
             ConfigOption.Type.LOCAL, "current");
 
+    public static final ConfigOption<Direction> INPUT_EDGE_COPY_DIR = new ConfigOption<Direction>(
+            INPUT_NS, "edge-copy-dir",
+            "The edge direction to read and mirror in the opposing direction. " +
+            "OUT creates IN edges.  IN creates out EDGES.  BOTH is not supported.",
+            ConfigOption.Type.LOCAL, Direction.class, Direction.OUT);
+
     public static final ConfigNamespace OUTPUT_NS =
             new ConfigNamespace(TRUNK_NS, "output", "Graph output format configuration");
 
@@ -63,7 +70,7 @@ public class TitanHadoopConfiguration {
     public static final ConfigOption<String> JOBDIR_LOCATION = new ConfigOption<String>(
             JOBDIR_NS, "location",
             "An HDFS path used to store temporary SequenceFiles in between executions of MR jobs chained together by Titan-Hadoop",
-            ConfigOption.Type.LOCAL, String.class);
+            ConfigOption.Type.LOCAL, "jobs");
 
     public static final ConfigOption<Boolean> JOBDIR_OVERWRITE = new ConfigOption<Boolean>(
             JOBDIR_NS, "overwrite",
