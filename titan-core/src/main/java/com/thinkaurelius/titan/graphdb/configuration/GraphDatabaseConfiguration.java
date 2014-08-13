@@ -1306,6 +1306,13 @@ public class GraphDatabaseConfiguration {
         preLoadConfiguration();
     }
 
+    public final Configuration getConfiguration() {
+        if(this.configuration != null) {
+            return this.configuration;
+        }
+        return buildConfiguration();
+    }
+
     private static final AtomicLong INSTANCE_COUNTER = new AtomicLong(0);
 
     private static String computeUniqueInstanceId(Configuration config) {
