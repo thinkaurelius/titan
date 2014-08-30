@@ -20,8 +20,8 @@ import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.OutputFormat;
 import org.apache.hadoop.mapreduce.Reducer;
-import org.apache.log4j.Level;
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
@@ -50,10 +50,13 @@ public class TitanGraphOutputMapReduce {
         NULL_VERTICES_IGNORED,
         NULL_RELATIONS_IGNORED,
         SUCCESSFUL_TRANSACTIONS,
-        FAILED_TRANSACTIONS
+        FAILED_TRANSACTIONS,
+        VERTEX_MAP_EXCEPTIONS,
+        UNKNOWN_VERTEX_IDS,
+        EDGES_DISCARDED,
     }
 
-    public static final Logger LOGGER = Logger.getLogger(TitanGraphOutputMapReduce.class);
+    public static final Logger LOGGER = LoggerFactory.getLogger(TitanGraphOutputMapReduce.class);
 
     // TODO move this out-of-band
     // some random property that will 'never' be used by anyone
@@ -94,6 +97,7 @@ public class TitanGraphOutputMapReduce {
 
         private TitanGraph graph;
         private boolean trackState;
+        private boolean skipVerticesWithExceptions = true;
         private ModifiableHadoopConfiguration faunusConf;
 
         private final Holder<FaunusVertex> vertexHolder = new Holder<FaunusVertex>();
@@ -127,10 +131,14 @@ public class TitanGraphOutputMapReduce {
 //                    value.removeEdges(Tokens.Action.DROP, OUT); // no longer needed in reduce phase
                     context.write(this.longWritable, this.vertexHolder.set('v', value));
                 }
-            } catch (final Exception e) {
+            } catch (final Throwable e) {
                 graph.rollback();
                 DEFAULT_COMPAT.incrementContextCounter(context, Counters.FAILED_TRANSACTIONS, 1L);
-                throw new IOException(e.getMessage(), e);
+                if (!skipVerticesWithExceptions) {
+                    throw new IOException(e.getMessage(), e);
+                } else {
+                    DEFAULT_COMPAT.incrementContextCounter(context, Counters.VERTEX_MAP_EXCEPTIONS, 1L);
+                }
             }
 
         }
@@ -215,6 +223,12 @@ public class TitanGraphOutputMapReduce {
                 Long othervertexid = faunusEdge.getVertexId(dir.opposite());
                 if (idMap.containsKey(othervertexid)) othervertexid=idMap.get(othervertexid);
                 TitanVertex otherVertex = (TitanVertex)graph.getVertex(othervertexid);
+                if (null == otherVertex) {
+                    LOGGER.warn("Discarding edge {}: one end has unknown id {} (other end has id {})",
+                            faunusEdge, othervertexid, faunusEdge.getVertexId(dir));
+                    DEFAULT_COMPAT.incrementContextCounter(context, Counters.EDGES_DISCARDED, 1L);
+                    return null;
+                }
                 //TODO: check that other vertex has valid id assignment for unidirected edges
                 if (dir==IN) {
                     titanRelation = otherVertex.addEdge(faunusEdge.getLabel(), titanVertex);
@@ -321,9 +335,19 @@ public class TitanGraphOutputMapReduce {
 
         @Override
         public void map(final NullWritable key, final FaunusVertex value, final Mapper<NullWritable, FaunusVertex, NullWritable, FaunusVertex>.Context context) throws IOException, InterruptedException {
+            Object titanId = value.getProperty(TITAN_ID);
+            final TitanVertex titanVertex = (TitanVertex) this.graph.getVertex(titanId);
+            Iterable<TitanEdge> edges = value.query().queryAll().direction(IN).titanEdges();
+            if (null == titanVertex) {
+                long discardedEdgeCount = Iterables.size(edges);
+                LOGGER.warn("Discarding {} edge(s) on vertex with unknown id {}", discardedEdgeCount, titanId);
+                DEFAULT_COMPAT.incrementContextCounter(context, Counters.EDGES_DISCARDED, discardedEdgeCount);
+                DEFAULT_COMPAT.incrementContextCounter(context, Counters.UNKNOWN_VERTEX_IDS, 1L);
+                return;
+            }
             try {
-                for (final TitanEdge edge : value.query().queryAll().direction(IN).titanEdges()) {
-                    this.getCreateOrDeleteEdge(value, (StandardFaunusEdge)edge, context);
+                for (final TitanEdge edge : edges) {
+                    this.getCreateOrDeleteEdge(value, titanVertex, (StandardFaunusEdge)edge, context);
                 }
             } catch (final Exception e) {
                 graph.rollback();
@@ -346,8 +370,7 @@ public class TitanGraphOutputMapReduce {
             graph.shutdown();
         }
 
-        public TitanEdge getCreateOrDeleteEdge(final FaunusVertex faunusVertex, final StandardFaunusEdge faunusEdge, final Mapper<NullWritable, FaunusVertex, NullWritable, FaunusVertex>.Context context) throws InterruptedException {
-            final TitanVertex titanVertex = (TitanVertex) this.graph.getVertex(faunusVertex.getProperty(TITAN_ID));
+        public TitanEdge getCreateOrDeleteEdge(final FaunusVertex faunusVertex, final TitanVertex titanVertex, final StandardFaunusEdge faunusEdge, final Mapper<NullWritable, FaunusVertex, NullWritable, FaunusVertex>.Context context) throws InterruptedException {
             return (TitanEdge)getCreateOrDeleteRelation(graph,trackState,IN,faunusVertex,titanVertex,faunusEdge,context);
         }
 
