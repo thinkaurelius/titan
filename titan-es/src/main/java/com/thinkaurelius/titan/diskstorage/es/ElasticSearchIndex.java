@@ -302,6 +302,8 @@ public class ElasticSearchIndex implements IndexProvider {
                     } else { //double or float
                         builder.field(add.field, ((Number) add.value).doubleValue());
                     }
+                } else if (AttributeUtil.isBoolean(add.value)) {
+                    builder.field(add.field, ((Boolean) add.value).booleanValue());
                 } else if (AttributeUtil.isString(add.value)) {
                     builder.field(add.field, (String) add.value);
                 } else if (add.value instanceof Geoshape) {
@@ -479,6 +481,9 @@ public class ElasticSearchIndex implements IndexProvider {
                     default:
                         throw new IllegalArgumentException("Unexpected relation: " + numRel);
                 }
+            } else if (AttributeUtil.isBoolean(value)) {
+                Preconditions.checkArgument(titanPredicate == Cmp.EQUAL, "Relation not supported on boolean types: " + titanPredicate);
+                return FilterBuilders.termFilter(key,value);
             } else if (value instanceof String) {
                 Mapping map = Mapping.getMapping(informations.get(key));
                 if ((map==Mapping.DEFAULT || map==Mapping.TEXT) && !titanPredicate.toString().startsWith("CONTAINS"))
@@ -599,6 +604,8 @@ public class ElasticSearchIndex implements IndexProvider {
 
         if (Number.class.isAssignableFrom(dataType)) {
             if (titanPredicate instanceof Cmp) return true;
+        } else if(AttributeUtil.isBoolean(dataType)) {
+            return titanPredicate == Cmp.EQUAL;
         } else if (dataType == Geoshape.class) {
             return titanPredicate == Geo.WITHIN;
         } else if (AttributeUtil.isString(dataType)) {
@@ -618,7 +625,7 @@ public class ElasticSearchIndex implements IndexProvider {
     public boolean supports(KeyInformation information) {
         Class<?> dataType = information.getDataType();
         Mapping mapping = Mapping.getMapping(information);
-        if (Number.class.isAssignableFrom(dataType) || dataType == Geoshape.class) {
+        if (Number.class.isAssignableFrom(dataType) || dataType == Geoshape.class || AttributeUtil.isBoolean(dataType)) {
             if (mapping==Mapping.DEFAULT) return true;
         } else if (AttributeUtil.isString(dataType)) {
             if (mapping==Mapping.DEFAULT || mapping==Mapping.STRING || mapping==Mapping.TEXT) return true;
