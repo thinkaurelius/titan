@@ -9,6 +9,40 @@
     min-width: 25%;
 }
 
+/* Header ch next/prev link styles */
+.sticky-chapter-link, .fixed-chapter-link {
+    font: 14px/16px 'MuseoSlab500Regular',arial,helvetica,sans-serif !important;
+    font-family: 'Open Sans',Arial,Helvetica,sans-serif !important;
+    font-size: 15px !important;
+}
+
+.sticky-chapter-link {
+    line-height: 69px !important;
+    height: 69px;
+}
+
+.fixed-chapter-link {
+    line-height: 89px !important;
+    height: 89px;
+}
+
+.fixed-prev-chapter-link, .sticky-prev-chapter-link {
+    float: left;
+    margin-right: 100px;
+}
+
+.fixed-next-chapter-link, .sticky-next-chapter-link {
+    float: right;
+    margin-left: 100px;
+}
+
+/* Static anchor offset to compensate for the height of the floating header */
+a[name] {
+    padding-top: 88px;
+    margin-top: -88px;
+    display: inline-block;
+}
+
 .navheader {
     background-color: #F0F0F0;
     padding: 6px 30px;
@@ -37,8 +71,10 @@ div#main > div.chapter > div.section .title {
     clear: none !important;
 }
 
-div.note {
-    margin: 25px 40px;
+div.note, div.tip, div.important, div.warning, div.caution {
+    margin: 12px 18px;
+    padding: 12px 18px;
+    border: 1px dotted #A4A4A4;
 }
 
 .breadcrumbs {
@@ -170,6 +206,14 @@ div#main {
     overflow: auto;
 }
 
+.line-through {
+    text-decoration: line-through;
+}
+
+.deprecation-warning {
+    color: #E10707;
+}
+
 html {
     background-color: #000000;
 }
@@ -246,9 +290,9 @@ line-height: 22px;
 
 
 /* Make note font color grey */
-.note p, .note th {
+/* .note p, .note th {
     color: #747474 !important;
-}
+} */
 
 /* Make toc have background color and adjust padding */
 div#main > div.chapter > div.toc {

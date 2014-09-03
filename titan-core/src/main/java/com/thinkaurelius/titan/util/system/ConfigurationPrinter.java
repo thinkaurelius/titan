@@ -39,7 +39,7 @@ public class ConfigurationPrinter {
     public static void main(String args[]) throws FileNotFoundException, IllegalAccessException,
             NoSuchFieldException, ClassNotFoundException {
 
-        ReflectiveConfigOptionLoader.loadOnce();
+        ReflectiveConfigOptionLoader.INSTANCE.loadStandard(ConfigurationPrinter.class);
 
         // Write to filename argument
         if (3 != args.length) {
@@ -75,6 +75,20 @@ public class ConfigurationPrinter {
         String fieldName = raw.substring(i + 1);
 
         return (ConfigNamespace)Class.forName(fullClassName).getField(fieldName).get(null);
+    }
+
+    private String getFullPath(ConfigOption<?> opt) {
+        StringBuilder sb = new StringBuilder(64);
+        sb.insert(0, opt.getName());
+        for (ConfigNamespace parent = opt.getNamespace();
+             null != parent && !parent.isRoot();
+             parent = parent.getNamespace()) {
+            if (parent.isUmbrella())
+                sb.insert(0, "[X].");
+            sb.insert(0, ".");
+            sb.insert(0, parent.getName());
+        }
+        return sb.toString();
     }
 
     private void printNamespace(ConfigNamespace n, String prefix) {
@@ -125,7 +139,17 @@ public class ConfigurationPrinter {
     private String getTableLineForOption(ConfigOption o, String prefix) {
 
         List<String> colData = new ArrayList<String>(10);
-        colData.add(prefix + o.getName());
+        String name = prefix + o.getName();
+        if (o.isDeprecated()) {
+            ConfigOption<?> successor = o.getDeprecationReplacement();
+            if (null == successor) {
+                name = "[deprecation-warning]*Deprecated* [line-through]#" + name + "#";
+            } else {
+                name = "[deprecation-warning]*Deprecated.  See " + getFullPath(successor) + "* [line-through]#" + name + "#";
+            }
+
+        }
+        colData.add(name);
         colData.add(removeDelim(o.getDescription()));
         colData.add(o.getDatatype().getSimpleName());
         colData.add(removeDelim(getStringForDefaultValue(o)));
