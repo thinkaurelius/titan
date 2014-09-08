@@ -113,36 +113,11 @@
                 </executions>
             </plugin>
 
-            <!--
-              We use maven-resources-plugin to filter util-scripts,
-              but that plugin has an open bug about the fact that it
-              doesn't copy file permissions during filtering.  Make
-              the script executable with chmod.  Not portable.
-         
-              Bug: http://jira.codehaus.org/browse/MRESOURCES-132
-            -->
             <plugin>
                 <inherited>false</inherited>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>exec-maven-plugin</artifactId>
                 <executions>
-                    <execution>
-                        <id>fix-script-permissions</id>
-                        <phase>process-resources</phase>
-                        <goals>
-                            <goal>exec</goal>
-                        </goals>
-                        <configuration>
-                            <executable>chmod</executable>
-                            <arguments>
-                                <argument>-R</argument>
-                                <argument>ug+x</argument>
-                                <argument>${project.build.directory}/util-scripts/</argument>
-                            </arguments>
-                            <workingDirectory>${project.parent.basedir}/doc</workingDirectory>
-                        </configuration>
-                    </execution>
-                    
                     <execution>
                         <id>generate-titan-gremlin-imports</id>
                         <phase>prepare-package</phase>
@@ -188,6 +163,46 @@
     </build>
 
     <profiles>
+        <profile>
+            <id>aurelius-release</id>
+
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                        <executions>
+                            <!--
+                              We use maven-resources-plugin to filter util-scripts,
+                              but that plugin has an open bug about the fact that it
+                              doesn't copy file permissions during filtering.  Make
+                              the script executable with chmod.  Not portable.
+
+                              Bug: http://jira.codehaus.org/browse/MRESOURCES-132
+                            -->
+                            <execution>
+                                <inherited>false</inherited>
+                                <id>fix-script-permissions</id>
+                                <phase>process-resources</phase>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                                <configuration>
+                                    <executable>chmod</executable>
+                                    <arguments>
+                                        <argument>-R</argument>
+                                        <argument>ug+x</argument>
+                                        <argument>${project.build.directory}/util-scripts/</argument>
+                                    </arguments>
+                                    <workingDirectory>${project.parent.basedir}/doc</workingDirectory>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
         <profile>
             <id>pkg-tools</id>
 
