@@ -282,6 +282,8 @@ public class LuceneIndex implements IndexProvider {
                     field = new DoubleField(e.field, ((Number) e.value).doubleValue(), Field.Store.YES);
                 }
                 doc.add(field);
+            } else if (AttributeUtil.isBoolean(e.value)) {
+                doc.add(new StringField(e.field , e.value.toString(), Field.Store.YES));
             } else if (AttributeUtil.isString(e.value)) {
                 String str = (String) e.value;
                 Mapping mapping = Mapping.getMapping(store, e.field, informations);
@@ -406,6 +408,8 @@ public class LuceneIndex implements IndexProvider {
                 Preconditions.checkArgument(titanPredicate instanceof Cmp, "Relation not supported on numeric types: " + titanPredicate);
                 Preconditions.checkArgument(value instanceof Number);
                 return numericFilter(key, (Cmp) titanPredicate, (Number) value);
+            } else if (value instanceof Boolean) {
+                return new TermsFilter(new Term(key, value.toString()));
             } else if (value instanceof String) {
                 Mapping map = Mapping.getMapping(informations.get(key));
                 if ((map==Mapping.DEFAULT || map==Mapping.TEXT) && !titanPredicate.toString().startsWith("CONTAINS"))
@@ -502,6 +506,8 @@ public class LuceneIndex implements IndexProvider {
 
         if (Number.class.isAssignableFrom(dataType)) {
             if (titanPredicate instanceof Cmp) return true;
+        } else if(AttributeUtil.isBoolean(dataType)) {
+            return titanPredicate == Cmp.EQUAL;
         } else if (dataType == Geoshape.class) {
             return titanPredicate == Geo.WITHIN;
         } else if (AttributeUtil.isString(dataType)) {
@@ -521,7 +527,7 @@ public class LuceneIndex implements IndexProvider {
         if (information.getCardinality()!= Cardinality.SINGLE) return false;
         Class<?> dataType = information.getDataType();
         Mapping mapping = Mapping.getMapping(information);
-        if (Number.class.isAssignableFrom(dataType) || dataType == Geoshape.class) {
+        if (Number.class.isAssignableFrom(dataType) || dataType == Geoshape.class || AttributeUtil.isBoolean(dataType)) {
             if (mapping==Mapping.DEFAULT) return true;
         } else if (AttributeUtil.isString(dataType)) {
             if (mapping==Mapping.DEFAULT || mapping==Mapping.STRING || mapping==Mapping.TEXT) return true;
