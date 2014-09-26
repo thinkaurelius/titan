@@ -18,6 +18,7 @@ import com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfiguration;
 import com.thinkaurelius.titan.graphdb.database.serialize.AttributeUtil;
 import com.thinkaurelius.titan.graphdb.query.TitanPredicate;
 import com.thinkaurelius.titan.graphdb.query.condition.*;
+import com.thinkaurelius.titan.util.system.IOUtils;
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.StringUtils;
@@ -143,101 +144,112 @@ public class LuceneIndex implements IndexProvider {
         writerLock.lock();
         try {
             for (Map.Entry<String, Map<String, IndexMutation>> stores : mutations.entrySet()) {
-                String storename = stores.getKey();
-                IndexWriter writer = getWriter(storename);
-                IndexReader reader = DirectoryReader.open(writer, true);
-                IndexSearcher searcher = new IndexSearcher(reader);
-                for (Map.Entry<String, IndexMutation> entry : stores.getValue().entrySet()) {
-                    String docid = entry.getKey();
-                    IndexMutation mutation = entry.getValue();
-                    Term docTerm = new Term(DOCID, docid);
-
-                    if (mutation.isDeleted()) {
-                        log.trace("Deleted entire document [{}]", docid);
-                        writer.deleteDocuments(docTerm);
-                        continue;
-                    }
-
-                    Document doc = null;
-                    TopDocs hits = searcher.search(new TermQuery(docTerm), 10);
-                    Map<String, Shape> geofields = Maps.newHashMap();
-
-                    if (hits.scoreDocs.length == 0) {
-                        log.trace("Creating new document for [{}]", docid);
-                        doc = new Document();
-                        Field docidField = new StringField(DOCID, docid, Field.Store.YES);
-                        doc.add(docidField);
-                    } else if (hits.scoreDocs.length > 1) {
-                        throw new IllegalArgumentException("More than one document found for document id: " + docid);
-                    } else {
-                        log.trace("Updating existing document for [{}]", docid);
-                        int docId = hits.scoreDocs[0].doc;
-                        //retrieve the old document
-                        doc = searcher.doc(docId);
-                        for (IndexableField field : doc.getFields()) {
-                            if (field.stringValue().startsWith(GEOID)) {
-                                geofields.put(field.name(), ctx.readShape(field.stringValue().substring(GEOID.length())));
-                            }
-                        }
-                    }
-                    Preconditions.checkNotNull(doc);
-                    for (String key : mutation.getDeletions()) {
-                        if (doc.getField(key) != null) {
-                            log.trace("Removing field [{}] on document [{}]", key, docid);
-                            doc.removeFields(key);
-                            geofields.remove(key);
-                        }
-                    }
-                    for (IndexEntry add : mutation.getAdditions()) {
-                        log.trace("Adding field [{}] on document [{}]", add.key, docid);
-                        if (doc.getField(add.key) != null) doc.removeFields(add.key);
-                        if (add.value instanceof Number) {
-                            Field field = null;
-                            if (AttributeUtil.isWholeNumber((Number) add.value)) {
-                                field = new LongField(add.key, ((Number) add.value).longValue(), Field.Store.YES);
-                            } else { //double or float
-                                field = new DoubleField(add.key, ((Number) add.value).doubleValue(), Field.Store.YES);
-                            }
-                            doc.add(field);
-                        } else if (AttributeUtil.isString(add.value)) {
-                            String str = (String) add.value;
-                            Mapping mapping = Mapping.getMapping(storename,add.key,informations);
-                            Field field;
-                            switch(mapping) {
-                                case DEFAULT:
-                                case TEXT:
-                                    field = new TextField(add.key, str, Field.Store.YES);
-                                    break;
-                                case STRING:
-                                    field = new StringField(add.key, str, Field.Store.YES);
-                                    break;
-                                default: throw new IllegalArgumentException("Illegal mapping specified: " + mapping);
-                            }
-                            doc.add(field);
-                        } else if (add.value instanceof Geoshape) {
-                            Shape shape = ((Geoshape) add.value).convert2Spatial4j();
-                            geofields.put(add.key, shape);
-                            doc.add(new StoredField(add.key, GEOID + ctx.toString(shape)));
-
-                        } else throw new IllegalArgumentException("Unsupported type: " + add.value);
-                    }
-                    for (Map.Entry<String, Shape> geo : geofields.entrySet()) {
-                        log.trace("Updating geo-indexes for key {}", geo.getKey());
-                        for (IndexableField f : getSpatialStrategy(geo.getKey()).createIndexableFields(geo.getValue())) {
-                            doc.add(f);
-                        }
-                    }
-
-                    //write the old document to the index with the modifications
-                    writer.updateDocument(new Term(DOCID, docid), doc);
-                }
-                writer.commit();
+                mutateStores(stores, informations);
             }
             ltx.postCommit();
         } catch (IOException e) {
             throw new TemporaryStorageException("Could not update Lucene index", e);
         } finally {
             writerLock.unlock();
+        }
+    }
+
+    private void mutateStores(Map.Entry<String, Map<String, IndexMutation>> stores, KeyInformation.IndexRetriever informations) throws StorageException, IOException {
+
+        IndexReader reader = null;
+        try {
+            String storename = stores.getKey();
+            IndexWriter writer = getWriter(storename);
+            reader = DirectoryReader.open(writer, true);
+            IndexSearcher searcher = new IndexSearcher(reader);
+            for (Map.Entry<String, IndexMutation> entry : stores.getValue().entrySet()) {
+                String docid = entry.getKey();
+                IndexMutation mutation = entry.getValue();
+                Term docTerm = new Term(DOCID, docid);
+
+                if (mutation.isDeleted()) {
+                    log.trace("Deleted entire document [{}]", docid);
+                    writer.deleteDocuments(docTerm);
+                    continue;
+                }
+
+                Document doc = null;
+                TopDocs hits = searcher.search(new TermQuery(docTerm), 10);
+                Map<String, Shape> geofields = Maps.newHashMap();
+
+                if (hits.scoreDocs.length == 0) {
+                    log.trace("Creating new document for [{}]", docid);
+                    doc = new Document();
+                    Field docidField = new StringField(DOCID, docid, Field.Store.YES);
+                    doc.add(docidField);
+                } else if (hits.scoreDocs.length > 1) {
+                    throw new IllegalArgumentException("More than one document found for document id: " + docid);
+                } else {
+                    log.trace("Updating existing document for [{}]", docid);
+                    int docId = hits.scoreDocs[0].doc;
+                    //retrieve the old document
+                    doc = searcher.doc(docId);
+                    for (IndexableField field : doc.getFields()) {
+                        if (field.stringValue().startsWith(GEOID)) {
+                            geofields.put(field.name(), ctx.readShape(field.stringValue().substring(GEOID.length())));
+                        }
+                    }
+                }
+                Preconditions.checkNotNull(doc);
+                for (String key : mutation.getDeletions()) {
+                    if (doc.getField(key) != null) {
+                        log.trace("Removing field [{}] on document [{}]", key, docid);
+                        doc.removeFields(key);
+                        geofields.remove(key);
+                    }
+                }
+                for (IndexEntry add : mutation.getAdditions()) {
+                    log.trace("Adding field [{}] on document [{}]", add.key, docid);
+                    if (doc.getField(add.key) != null) doc.removeFields(add.key);
+                    if (add.value instanceof Number) {
+                        Field field = null;
+                        if (AttributeUtil.isWholeNumber((Number) add.value)) {
+                            field = new LongField(add.key, ((Number) add.value).longValue(), Field.Store.YES);
+                        } else { //double or float
+                            field = new DoubleField(add.key, ((Number) add.value).doubleValue(), Field.Store.YES);
+                        }
+                        doc.add(field);
+                    } else if (AttributeUtil.isString(add.value)) {
+                        String str = (String) add.value;
+                        Mapping mapping = Mapping.getMapping(storename, add.key, informations);
+                        Field field;
+                        switch (mapping) {
+                            case DEFAULT:
+                            case TEXT:
+                                field = new TextField(add.key, str, Field.Store.YES);
+                                break;
+                            case STRING:
+                                field = new StringField(add.key, str, Field.Store.YES);
+                                break;
+                            default:
+                                throw new IllegalArgumentException("Illegal mapping specified: " + mapping);
+                        }
+                        doc.add(field);
+                    } else if (add.value instanceof Geoshape) {
+                        Shape shape = ((Geoshape) add.value).convert2Spatial4j();
+                        geofields.put(add.key, shape);
+                        doc.add(new StoredField(add.key, GEOID + ctx.toString(shape)));
+
+                    } else throw new IllegalArgumentException("Unsupported type: " + add.value);
+                }
+                for (Map.Entry<String, Shape> geo : geofields.entrySet()) {
+                    log.trace("Updating geo-indexes for key {}", geo.getKey());
+                    for (IndexableField f : getSpatialStrategy(geo.getKey()).createIndexableFields(geo.getValue())) {
+                        doc.add(f);
+                    }
+                }
+
+                //write the old document to the index with the modifications
+                writer.updateDocument(new Term(DOCID, docid), doc);
+            }
+            writer.commit();
+        } finally {
+            IOUtils.closeQuietly(reader);
         }
     }
 
