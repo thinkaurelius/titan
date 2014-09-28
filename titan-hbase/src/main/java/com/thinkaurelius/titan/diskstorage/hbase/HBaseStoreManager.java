@@ -20,7 +20,6 @@ import org.apache.hadoop.hbase.HColumnDescriptor;
 import org.apache.hadoop.hbase.HTableDescriptor;
 import org.apache.hadoop.hbase.TableNotFoundException;
 import org.apache.hadoop.hbase.client.*;
-import org.apache.hadoop.hbase.io.hfile.Compression;
 import org.apache.hadoop.hbase.util.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -283,7 +282,9 @@ public class HBaseStoreManager extends DistributedStoreManager implements KeyCol
         if (cf == null) {
             try {
                 adm.disableTable(tableName);
-                desc.addFamily(new HColumnDescriptor(columnFamily).setCompressionType(Compression.Algorithm.GZ));
+                HColumnDescriptor cdesc = new HColumnDescriptor(columnFamily);
+                HBaseSupport.setCompression(cdesc, "GZ");
+                desc.addFamily(cdesc);
                 adm.modifyTable(tableName.getBytes(), desc);
 
                 try {
@@ -301,18 +302,6 @@ public class HBaseStoreManager extends DistributedStoreManager implements KeyCol
                 logger.debug("Swallowing exception {}", ee);
             } catch (IOException ee) {
                 throw new TemporaryStorageException(ee);
-            }
-        } else { // check if compression was enabled, if not - enable it
-            if (cf.getCompressionType() == null || cf.getCompressionType() == Compression.Algorithm.NONE) {
-                try {
-                    adm.disableTable(tableName);
-
-                    adm.modifyColumn(tableName, cf.setCompressionType(Compression.Algorithm.GZ));
-
-                    adm.enableTable(tableName);
-                } catch (IOException e) {
-                    throw new TemporaryStorageException(e);
-                }
             }
         }
     }
@@ -412,8 +401,10 @@ public class HBaseStoreManager extends DistributedStoreManager implements KeyCol
                 }
 
                 if (mutation.hasDeletions()) {
-                    if (commands.getSecond() == null)
-                        commands.setSecond(new Delete(key.as(StaticBuffer.ARRAY_FACTORY), delTimestamp, null));
+                    if (commands.getSecond() == null) {
+                        Delete d = new Delete(key.as(StaticBuffer.ARRAY_FACTORY));
+                        d.setTimestamp(delTimestamp);
+                    }
 
                     for (StaticBuffer b : mutation.getDeletions()) {
                         commands.getSecond().deleteColumns(cfName, b.as(StaticBuffer.ARRAY_FACTORY), delTimestamp);
