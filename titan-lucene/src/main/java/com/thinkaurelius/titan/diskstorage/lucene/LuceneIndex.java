@@ -294,6 +294,8 @@ public class LuceneIndex implements IndexProvider {
                 doc.add(field);
             } else if (AttributeUtil.isBoolean(e.value)) {
                 doc.add(new StringField(e.field , e.value.toString(), Field.Store.YES));
+            } else if (e.value instanceof Date) {
+                doc.add(new LongField(e.field , ((Date) e.value).getTime(), Field.Store.YES));
             } else if (AttributeUtil.isString(e.value)) {
                 String str = (String) e.value;
                 Mapping mapping = Mapping.getMapping(store, e.field, informations);
@@ -416,10 +418,12 @@ public class LuceneIndex implements IndexProvider {
             TitanPredicate titanPredicate = atom.getPredicate();
             if (value instanceof Number) {
                 Preconditions.checkArgument(titanPredicate instanceof Cmp, "Relation not supported on numeric types: " + titanPredicate);
-                Preconditions.checkArgument(value instanceof Number);
                 return numericFilter(key, (Cmp) titanPredicate, (Number) value);
             } else if (value instanceof Boolean) {
                 return new TermsFilter(new Term(key, value.toString()));
+            } else if (value instanceof Date) {
+                Preconditions.checkArgument(titanPredicate instanceof Cmp, "Relation not supported on date types: " + titanPredicate);
+                return numericFilter(key, (Cmp) titanPredicate, ((Date) value).getTime());
             } else if (value instanceof String) {
                 Mapping map = Mapping.getMapping(informations.get(key));
                 if ((map==Mapping.DEFAULT || map==Mapping.TEXT) && !titanPredicate.toString().startsWith("CONTAINS"))
@@ -514,7 +518,7 @@ public class LuceneIndex implements IndexProvider {
         Mapping mapping = Mapping.getMapping(information);
         if (mapping!=Mapping.DEFAULT && !AttributeUtil.isString(dataType)) return false;
 
-        if (Number.class.isAssignableFrom(dataType)) {
+        if (Number.class.isAssignableFrom(dataType) || Date.class.isAssignableFrom(dataType)) {
             if (titanPredicate instanceof Cmp) return true;
         } else if(AttributeUtil.isBoolean(dataType)) {
             return titanPredicate == Cmp.EQUAL;
@@ -537,7 +541,7 @@ public class LuceneIndex implements IndexProvider {
         if (information.getCardinality()!= Cardinality.SINGLE) return false;
         Class<?> dataType = information.getDataType();
         Mapping mapping = Mapping.getMapping(information);
-        if (Number.class.isAssignableFrom(dataType) || dataType == Geoshape.class || AttributeUtil.isBoolean(dataType)) {
+        if (Number.class.isAssignableFrom(dataType) || Date.class.isAssignableFrom(dataType) || dataType == Geoshape.class || AttributeUtil.isBoolean(dataType)) {
             if (mapping==Mapping.DEFAULT) return true;
         } else if (AttributeUtil.isString(dataType)) {
             if (mapping==Mapping.DEFAULT || mapping==Mapping.STRING || mapping==Mapping.TEXT) return true;
