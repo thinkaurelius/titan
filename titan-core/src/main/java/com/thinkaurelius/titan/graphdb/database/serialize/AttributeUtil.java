@@ -41,6 +41,14 @@ public class AttributeUtil {
         return clazz.equals(String.class);
     }
 
+    public static final boolean isBoolean(Object o) {
+        return isBoolean(o.getClass());
+    }
+
+    public static final boolean isBoolean(Class<?> clazz) {
+        return clazz.equals(Boolean.class);
+    }
+
     /**
      * Compares the two elements like {@link java.util.Comparator#compare(Object, Object)} but returns
      * null in case the two elements are not comparable.
