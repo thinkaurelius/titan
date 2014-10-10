@@ -184,6 +184,7 @@
                             <doctitle>Titan Graph Database ${project.version} API</doctitle>
                             <!-- Quiet mode still shows warnings and errors -->
                             <quiet>true</quiet>
+                            <additionalparam>-Xdoclint:none</additionalparam>
                         </configuration>
                     </execution>
                 </executions>
