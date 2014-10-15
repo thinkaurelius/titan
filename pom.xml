@@ -929,6 +929,9 @@
                             <execution>
                                 <id>attach-javadocs</id>
                                 <phase>none</phase>
+                                <configuration>
+                                    <additionalparam>-Xdoclint:none</additionalparam>
+                                </configuration>
                             </execution>
                         </executions>
                     </plugin>
@@ -982,6 +985,7 @@
                                 <configuration>
                                     <!-- Quiet mode still shows warnings and errors -->
                                     <quiet>true</quiet>
+                                    <additionalparam>-Xdoclint:none</additionalparam>
                                 </configuration>
                             </execution>
                         </executions>
