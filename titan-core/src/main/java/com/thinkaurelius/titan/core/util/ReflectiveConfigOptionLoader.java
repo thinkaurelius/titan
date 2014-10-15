@@ -134,7 +134,7 @@ public enum ReflectiveConfigOptionLoader {
                     Class.forName(c, true, cl);
                     loadedClasses++;
                     log.debug("Loaded class {} with selected loader {}", c, cl);
-                } catch (ClassNotFoundException e) {
+                } catch (Throwable e) {
                     log.debug("Unable to load class {} with selected loader {}", c, cl, e);
                 }
             } else {
@@ -147,7 +147,7 @@ public enum ReflectiveConfigOptionLoader {
                         log.debug("Located functioning classloader {}; using it for remaining classload attempts", cl);
                         foundLoader = true;
                         break;
-                    } catch (ClassNotFoundException e) {
+                    } catch (Throwable e) {
                         log.debug("Unable to load class {} with loader {}", c, cl, e);
                     }
                 }
