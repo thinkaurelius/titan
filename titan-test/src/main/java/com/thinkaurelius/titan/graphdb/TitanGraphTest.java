@@ -1,9 +1,7 @@
 package com.thinkaurelius.titan.graphdb;
 
 
-import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Predicate;
 import com.google.common.collect.*;
 import com.thinkaurelius.titan.core.*;
 import com.thinkaurelius.titan.core.attribute.Decimal;
@@ -63,6 +61,7 @@ import com.thinkaurelius.titan.graphdb.types.StandardEdgeLabelMaker;
 import com.thinkaurelius.titan.graphdb.types.StandardPropertyKeyMaker;
 import com.thinkaurelius.titan.graphdb.types.system.BaseVertexLabel;
 import com.thinkaurelius.titan.graphdb.types.system.ImplicitKey;
+import com.thinkaurelius.titan.testcategory.BrittleTests;
 import com.thinkaurelius.titan.testutil.TestGraphConfigs;
 import com.thinkaurelius.titan.testutil.TestUtil;
 import com.tinkerpop.blueprints.Direction;
@@ -72,10 +71,10 @@ import com.tinkerpop.blueprints.Vertex;
 
 import com.tinkerpop.blueprints.util.ElementHelper;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nullable;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
@@ -1494,6 +1493,7 @@ public abstract class TitanGraphTest extends TitanGraphBaseTest {
 
     }
 
+    @Category({ BrittleTests.class })
     @Test
     public void testIndexUpdateSyncWithMultipleInstances() throws InterruptedException {
         clopen( option(LOG_SEND_DELAY,MANAGEMENT_LOG),new StandardDuration(0,TimeUnit.MILLISECONDS),
@@ -4469,6 +4469,7 @@ public abstract class TitanGraphTest extends TitanGraphBaseTest {
         assertFalse(v1.getVertices(Direction.OUT).iterator().hasNext());
     }
 
+    @Category({ BrittleTests.class })
     @Test
     public void testEdgeTTLWithVertexCentricIndex() throws Exception {
         if (!features.hasCellTTL()) {
@@ -4537,6 +4538,7 @@ public abstract class TitanGraphTest extends TitanGraphBaseTest {
         assertFalse(v1.getEdges(Direction.OUT).iterator().hasNext());
     }
 
+    @Category({ BrittleTests.class })
     @Test
     public void testPropertyTTLTiming() throws Exception {
         if (!features.hasCellTTL()) {
@@ -4622,6 +4624,7 @@ public abstract class TitanGraphTest extends TitanGraphBaseTest {
         assertFalse(graph.getVertices("name", "some event").iterator().hasNext());
     }
 
+    @Category({ BrittleTests.class })
     @Test
     public void testEdgeTTLLimitedByVertexTTL() throws Exception {
 

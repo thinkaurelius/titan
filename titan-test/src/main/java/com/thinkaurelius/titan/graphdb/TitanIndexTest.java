@@ -1,6 +1,5 @@
 package com.thinkaurelius.titan.graphdb;
 
-import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.thinkaurelius.titan.core.*;
@@ -22,6 +21,7 @@ import com.thinkaurelius.titan.graphdb.internal.ElementCategory;
 import com.thinkaurelius.titan.graphdb.log.StandardTransactionLogProcessor;
 import com.thinkaurelius.titan.graphdb.types.ParameterType;
 import com.thinkaurelius.titan.graphdb.types.StandardEdgeLabelMaker;
+import com.thinkaurelius.titan.testcategory.BrittleTests;
 import com.thinkaurelius.titan.testutil.TestGraphConfigs;
 import com.thinkaurelius.titan.testutil.TestUtil;
 import com.tinkerpop.blueprints.Direction;
@@ -32,11 +32,11 @@ import com.tinkerpop.blueprints.util.ElementHelper;
 
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.TestName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
 import java.util.concurrent.TimeUnit;
 
 import static com.thinkaurelius.titan.graphdb.TitanGraphTest.evaluateQuery;
@@ -863,6 +863,7 @@ public abstract class TitanIndexTest extends TitanGraphBaseTest {
                 1,new boolean[]{true,true},"mixed");
     }
 
+    @Category({ BrittleTests.class })
     @Test
     public void testIndexReplay() throws Exception {
         final TimestampProvider times = graph.getConfiguration().getTimestampProvider();
