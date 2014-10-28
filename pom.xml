@@ -7,7 +7,7 @@
     </parent>
     <groupId>com.thinkaurelius.titan</groupId>
     <artifactId>titan</artifactId>
-    <version>0.5.1-SNAPSHOT</version>
+    <version>0.5.2-SNAPSHOT</version>
     <packaging>pom</packaging>
     <prerequisites>
         <maven>2.2.1</maven>
@@ -58,7 +58,7 @@
         <tag>HEAD</tag>
     </scm>
     <properties>
-        <titan.compatible.versions />
+        <titan.compatible.versions>0.5.0</titan.compatible.versions>
         <tinkerpop.version>2.5.0</tinkerpop.version>
         <junit.version>4.11</junit.version>
         <mrunit.version>1.1.0</mrunit.version>
@@ -104,6 +104,7 @@
         <compiler.source>1.6</compiler.source>
         <compiler.target>1.7</compiler.target>
         <compiler.args />
+        <test.excluded.groups>com.thinkaurelius.titan.testcategory.MemoryTests,com.thinkaurelius.titan.testcategory.PerformanceTests,com.thinkaurelius.titan.testcategory.BrittleTests</test.excluded.groups>
     </properties>
     <modules>
         <module>titan-core</module>
@@ -209,9 +210,7 @@
                             <exclude>**/*PerformanceTest.java</exclude>
                             <exclude>**/*ConcurrentTest.java</exclude>
                         </excludes>
-                        <excludedGroups>
-                            com.thinkaurelius.titan.testcategory.MemoryTests,com.thinkaurelius.titan.testcategory.PerformanceTests
-                        </excludedGroups>
+                        <excludedGroups>${test.excluded.groups}</excludedGroups>
                         <skip>${test.skip.default}</skip>
                     </configuration>
                 </plugin>
@@ -1483,6 +1482,27 @@
                         </executions>
                     </plugin>
                 </plugins>
+            </build>
+        </profile>
+
+        <profile>
+            <id>disable-javadoclint</id>
+
+            <activation>
+                <jdk>[1.8,</jdk>
+            </activation>
+
+            <build>
+                <pluginManagement>
+                    <plugins>
+                        <plugin>
+                            <artifactId>maven-javadoc-plugin</artifactId>
+                            <configuration>
+                                <additionalparam>-Xdoclint:none</additionalparam>
+                            </configuration>
+                        </plugin>
+                    </plugins>
+                </pluginManagement>
             </build>
         </profile>
 
