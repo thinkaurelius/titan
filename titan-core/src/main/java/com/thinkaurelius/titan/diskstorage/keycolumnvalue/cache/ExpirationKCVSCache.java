@@ -1,24 +1,24 @@
 package com.thinkaurelius.titan.diskstorage.keycolumnvalue.cache;
 
 import com.google.common.base.Preconditions;
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.Weigher;
-import com.thinkaurelius.titan.core.TitanException;
+import com.google.common.cache.*;
+
 import com.thinkaurelius.titan.diskstorage.*;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.*;
-import com.thinkaurelius.titan.diskstorage.util.CacheMetricsAction;
+import com.thinkaurelius.titan.diskstorage.util.StaticArrayBuffer;
+
+import com.thinkaurelius.titan.diskstorage.util.VInt;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
+
+import io.netty.buffer.PooledByteBufAllocator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 
 import static com.thinkaurelius.titan.util.datastructures.ByteSize.*;
 
@@ -26,201 +26,131 @@ import static com.thinkaurelius.titan.util.datastructures.ByteSize.*;
  * @author Matthias Broecheler (me@matthiasb.com)
  */
 public class ExpirationKCVSCache extends KCVSCache {
+    private static final Logger logger = LoggerFactory.getLogger(ExpirationKCVSCache.class);
 
-    private static final Logger log =
-            LoggerFactory.getLogger(ExpirationKCVSCache.class);
+    private static final ByteBufAllocator ALLOCATOR = new PooledByteBufAllocator();
 
     //Weight estimation
     private static final int STATICARRAYBUFFER_SIZE = STATICARRAYBUFFER_RAW_SIZE + 10; // 10 = last number is average length
     private static final int KEY_QUERY_SIZE = OBJECT_HEADER + 4 + 1 + 3 * (OBJECT_REFERENCE + STATICARRAYBUFFER_SIZE); // object_size + int + boolean + 3 static buffers
 
-    private static final int INVALIDATE_KEY_FRACTION_PENALTY = 1000;
-    private static final int PENALTY_THRESHOLD = 5;
+    private final LoadingCache<StaticBuffer, QueryContainer> cache;
 
-    private volatile CountDownLatch penaltyCountdown;
-
-    private final Cache<KeySliceQuery,EntryList> cache;
-    private final ConcurrentHashMap<StaticBuffer,Long> expiredKeys;
-
-    private final long cacheTimeMS;
-    private final long invalidationGracePeriodMS;
-    private final CleanupThread cleanupThread;
-
-
-    public ExpirationKCVSCache(final KeyColumnValueStore store, String metricsName, final long cacheTimeMS, final long invalidationGracePeriodMS, final long maximumByteSize) {
+    public ExpirationKCVSCache(final KeyColumnValueStore store, String metricsName,
+                               long cacheTimeMS, long invalidationGracePeriodMS, long maximumByteSize) {
         super(store, metricsName);
+
         Preconditions.checkArgument(cacheTimeMS > 0, "Cache expiration must be positive: %s", cacheTimeMS);
-        Preconditions.checkArgument(System.currentTimeMillis()+1000l*3600*24*365*100+cacheTimeMS>0,"Cache expiration time too large, overflow may occur: %s",cacheTimeMS);
-        this.cacheTimeMS = cacheTimeMS;
-        int concurrencyLevel = Runtime.getRuntime().availableProcessors();
-        Preconditions.checkArgument(invalidationGracePeriodMS >=0,"Invalid expiration grace peiod: %s", invalidationGracePeriodMS);
-        this.invalidationGracePeriodMS = invalidationGracePeriodMS;
-        CacheBuilder<KeySliceQuery,EntryList> cachebuilder = CacheBuilder.newBuilder()
+        Preconditions.checkArgument(cacheTimeMS < TimeUnit.DAYS.toMillis(10 * 365), "Cache expiration time too large, overflow may occur: %s",cacheTimeMS);
+        Preconditions.checkArgument(invalidationGracePeriodMS >= 0,"Invalid expiration grace period: %s", invalidationGracePeriodMS);
+
+        cache = CacheBuilder.newBuilder()
                 .maximumWeight(maximumByteSize)
-                .concurrencyLevel(concurrencyLevel)
+                .concurrencyLevel(Runtime.getRuntime().availableProcessors())
                 .initialCapacity(1000)
                 .expireAfterWrite(cacheTimeMS, TimeUnit.MILLISECONDS)
-                .weigher(new Weigher<KeySliceQuery, EntryList>() {
+                .weigher(new Weigher<StaticBuffer, QueryContainer>() {
                     @Override
-                    public int weigh(KeySliceQuery keySliceQuery, EntryList entries) {
+                    public int weigh(StaticBuffer key, QueryContainer entries) {
                         return GUAVA_CACHE_ENTRY_SIZE + KEY_QUERY_SIZE + entries.getByteSize();
                     }
+                }).build(new CacheLoader<StaticBuffer, QueryContainer>() {
+                    @Override
+                    public QueryContainer load(StaticBuffer key) throws Exception {
+                        return new QueryContainer();
+                    }
                 });
-
-        cache = cachebuilder.build();
-        expiredKeys = new ConcurrentHashMap<StaticBuffer, Long>(50,0.75f,concurrencyLevel);
-        penaltyCountdown = new CountDownLatch(PENALTY_THRESHOLD);
-
-        cleanupThread = new CleanupThread();
-        cleanupThread.start();
     }
 
     @Override
     public EntryList getSlice(final KeySliceQuery query, final StoreTransaction txh) throws BackendException {
-        incActionBy(1, CacheMetricsAction.RETRIEVAL,txh);
-        if (isExpired(query)) {
-            incActionBy(1, CacheMetricsAction.MISS,txh);
-            return store.getSlice(query, unwrapTx(txh));
-        }
-
-        try {
-            return cache.get(query,new Callable<EntryList>() {
-                @Override
-                public EntryList call() throws Exception {
-                    incActionBy(1, CacheMetricsAction.MISS,txh);
-                    return store.getSlice(query, unwrapTx(txh));
-                }
-            });
-        } catch (Exception e) {
-            if (e instanceof TitanException) throw (TitanException)e;
-            else if (e.getCause() instanceof TitanException) throw (TitanException)e.getCause();
-            else throw new TitanException(e);
-        }
+        return cache.getUnchecked(query.getKey()).get(query, txh);
     }
 
     @Override
-    public Map<StaticBuffer,EntryList> getSlice(final List<StaticBuffer> keys, final SliceQuery query, final StoreTransaction txh) throws BackendException {
-        Map<StaticBuffer,EntryList> results = new HashMap<StaticBuffer, EntryList>(keys.size());
-        List<StaticBuffer> remainingKeys = new ArrayList<StaticBuffer>(keys.size());
-        KeySliceQuery[] ksqs = new KeySliceQuery[keys.size()];
-        incActionBy(keys.size(), CacheMetricsAction.RETRIEVAL,txh);
-        //Find all cached queries
-        for (int i=0;i<keys.size();i++) {
-            StaticBuffer key = keys.get(i);
-            ksqs[i] = new KeySliceQuery(key,query);
-            EntryList result = null;
-            if (!isExpired(ksqs[i])) result = cache.getIfPresent(ksqs[i]);
-            else ksqs[i]=null;
-            if (result!=null) results.put(key,result);
-            else remainingKeys.add(key);
+    public Map<StaticBuffer, EntryList> getSlice(final List<StaticBuffer> keys, final SliceQuery query, final StoreTransaction txh) throws BackendException {
+        Map<StaticBuffer, EntryList> results = new HashMap<StaticBuffer, EntryList>();
+        for (StaticBuffer key : keys) {
+            results.put(key, getSlice(new KeySliceQuery(key, query), txh));
         }
-        //Request remaining ones from backend
-        if (!remainingKeys.isEmpty()) {
-            incActionBy(remainingKeys.size(), CacheMetricsAction.MISS,txh);
-            Map<StaticBuffer,EntryList> subresults = store.getSlice(remainingKeys, query, unwrapTx(txh));
-            for (int i=0;i<keys.size();i++) {
-                StaticBuffer key = keys.get(i);
-                EntryList subresult = subresults.get(key);
-                if (subresult!=null) {
-                    results.put(key,subresult);
-                    if (ksqs[i]!=null) cache.put(ksqs[i],subresult);
-                }
-            }
-        }
+
         return results;
+    }
+
+    @Override
+    protected void invalidate(StaticBuffer key, List<CachableStaticBuffer> entries) {
+        cache.invalidate(key);
     }
 
     @Override
     public void clearCache() {
         cache.invalidateAll();
-        expiredKeys.clear();
-        penaltyCountdown = new CountDownLatch(PENALTY_THRESHOLD);
     }
 
-    @Override
-    public void invalidate(StaticBuffer key, List<CachableStaticBuffer> entries) {
-        Preconditions.checkArgument(!hasValidateKeysOnly() || entries.isEmpty());
-        expiredKeys.put(key,getExpirationTime());
-        if (Math.random()<1.0/INVALIDATE_KEY_FRACTION_PENALTY) penaltyCountdown.countDown();
-    }
+    private class QueryContainer {
+        private final CopyOnWriteArraySet<OffHeapQuery> queries;
 
-    @Override
-    public void close() throws BackendException {
-        cleanupThread.stopThread();
-        super.close();
-    }
-
-    private boolean isExpired(final KeySliceQuery query) {
-        Long until = expiredKeys.get(query.getKey());
-        if (until==null) return false;
-        if (isBeyondExpirationTime(until)) {
-            expiredKeys.remove(query.getKey(),until);
-            return false;
+        public QueryContainer() {
+            queries = new CopyOnWriteArraySet<OffHeapQuery>();
         }
-        //We suffer a cache miss, hence decrease the count down
-        penaltyCountdown.countDown();
-        return true;
+
+        public EntryList get(KeySliceQuery query, StoreTransaction tx) throws BackendException {
+            for (OffHeapQuery q : queries) {
+                if (q.compareTo(query) == 0)
+                    return q.results;
+            }
+
+            EntryList results = store.getSlice(query, unwrapTx(tx));
+            queries.add(new OffHeapQuery(query, results));
+            return results;
+        }
+
+        public int getByteSize() {
+            int size = OBJECT_HEADER;
+            for (OffHeapQuery q : queries)
+                size += OBJECT_REFERENCE + q.getByteSize();
+
+            return size;
+        }
     }
 
-    private final long getExpirationTime() {
-        return System.currentTimeMillis()+cacheTimeMS;
-    }
+    protected static class OffHeapQuery implements Comparable<SliceQuery> {
+        private final ByteBuf query;
+        private final EntryList results;
 
-    private final boolean isBeyondExpirationTime(long until) {
-        return until<System.currentTimeMillis();
-    }
-
-    private final long getAge(long until) {
-        long age = System.currentTimeMillis() - (until-cacheTimeMS);
-        assert age>=0;
-        return age;
-    }
-
-    private class CleanupThread extends Thread {
-
-        private boolean stop = false;
-
-        public CleanupThread() {
-            this.setDaemon(true);
-            this.setName("ExpirationStoreCache-" + getId());
+        public OffHeapQuery(SliceQuery query, EntryList results) {
+            this.query = query.serialize(ALLOCATOR);
+            this.results = results;
         }
 
         @Override
-        public void run() {
-            while (true) {
-                if (stop) return;
-                try {
+        public int compareTo(SliceQuery o) {
+            if (o == null)
+                return 1;
 
-                    penaltyCountdown.await();
-                } catch (InterruptedException e) {
-                    if (stop) return;
-                    else throw new RuntimeException("Cleanup thread got interrupted",e);
-                }
-                //Do clean up work by invalidating all entries for expired keys
-                HashMap<StaticBuffer,Long> expiredKeysCopy = new HashMap<StaticBuffer,Long>(expiredKeys.size());
-                for (Map.Entry<StaticBuffer,Long> expKey : expiredKeys.entrySet()) {
-                    if (isBeyondExpirationTime(expKey.getValue()))
-                        expiredKeys.remove(expKey.getKey(), expKey.getValue());
-                    else if (getAge(expKey.getValue())>= invalidationGracePeriodMS)
-                        expiredKeysCopy.put(expKey.getKey(),expKey.getValue());
-                }
-                for (KeySliceQuery ksq : cache.asMap().keySet()) {
-                    if (expiredKeysCopy.containsKey(ksq.getKey())) cache.invalidate(ksq);
-                }
-                penaltyCountdown = new CountDownLatch(PENALTY_THRESHOLD);
-                for (Map.Entry<StaticBuffer,Long> expKey : expiredKeysCopy.entrySet()) {
-                    expiredKeys.remove(expKey.getKey(),expKey.getValue());
-                }
-            }
+            int cmp;
+            ByteBuf dup = query.duplicate();
+
+            byte[] sliceStart = new byte[(int) VInt.decode(dup)];
+            dup.readBytes(sliceStart);
+            if ((cmp = o.getSliceStart().compareTo(new StaticArrayBuffer(sliceStart))) != 0)
+                return cmp;
+
+            byte[] sliceEnd = new byte[(int) VInt.decode(dup)];
+            dup.readBytes(sliceEnd);
+            if ((cmp = o.getSliceEnd().compareTo(new StaticArrayBuffer(sliceEnd))) != 0)
+                return cmp;
+
+            return Integer.compare((int) VInt.decode(dup), o.getLimit());
         }
 
-        void stopThread() {
-            stop = true;
-            this.interrupt();
+        @Override
+        public boolean equals(Object o) {
+            return !(o == null || !(o instanceof SliceQuery)) && compareTo((SliceQuery) o) == 0;
+        }
+
+        public int getByteSize() {
+            return OBJECT_HEADER + (2 * OBJECT_REFERENCE) + query.readableBytes() + results.getByteSize();
         }
     }
-
-
-
-
 }

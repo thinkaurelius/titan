@@ -22,7 +22,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-import static org.junit.Assert.*;
 import static org.junit.Assert.assertEquals;
 
 /**
@@ -72,7 +71,8 @@ public class ExpirationCacheTest extends KCVSCacheTest {
 
         //Should still see cached results
         verifyResults(key,keys,query,6);
-        times.sleepPast(utime.add(expirationTime.multiply(0.5))); //Sleep half way through expiration time
+        // as we don't know much long did result validation take, let's be safe and sleep for short while
+        times.sleepPast(utime.add(expirationTime.multiply(0.2))); // Sleep 0.2 through expiration time
         verifyResults(key, keys, query, 6);
         times.sleepPast(utime.add(expirationTime)); //Sleep past expiration time...
         times.sleepFor(new StandardDuration(5,TimeUnit.MILLISECONDS)); //...and just a little bit longer
@@ -117,10 +117,9 @@ public class ExpirationCacheTest extends KCVSCacheTest {
         store.resetCounter();
         //...invalidation should happen and the result set is updated immediately
         verifyResults(key, keys, query, 5);
-        assertEquals(2,store.getSliceCalls());
-        //however, the key is expired and hence repeated calls need to go through to the store
-        verifyResults(key, keys, query, 5);
-        assertEquals(4,store.getSliceCalls());
+        // 1 because it's essentially a single key/slice query made by verifyResults as keys 37 and 2 never changed
+        // after previous verifyResults read.
+        assertEquals(1,store.getSliceCalls());
 
         //however, when we sleep past the grace wait time and trigger a cleanup...
         times.sleepPast(utime.add(graceWait));

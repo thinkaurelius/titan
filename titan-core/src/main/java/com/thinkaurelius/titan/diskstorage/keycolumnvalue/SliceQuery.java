@@ -6,8 +6,11 @@ import com.thinkaurelius.titan.diskstorage.EntryList;
 import com.thinkaurelius.titan.diskstorage.StaticBuffer;
 import com.thinkaurelius.titan.diskstorage.util.BufferUtil;
 import com.thinkaurelius.titan.diskstorage.util.StaticArrayEntryList;
+import com.thinkaurelius.titan.diskstorage.util.VInt;
 import com.thinkaurelius.titan.graphdb.query.BackendQuery;
 import com.thinkaurelius.titan.graphdb.query.BaseQuery;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
 import org.apache.commons.lang.builder.HashCodeBuilder;
 
 import java.util.ArrayList;
@@ -121,4 +124,23 @@ public class SliceQuery extends BaseQuery implements BackendQuery<SliceQuery> {
         return new SliceQuery(sliceStart, sliceEnd).setLimit(newLimit);
     }
 
+    public int getByteSize() {
+        return VInt.sizeof(sliceStart.length()) + sliceStart.length()
+             + VInt.sizeof(sliceEnd.length()) + sliceEnd.length()
+             + VInt.sizeof(getLimit());
+    }
+
+    public ByteBuf serialize(ByteBufAllocator allocator) {
+        ByteBuf out = allocator.directBuffer(getByteSize());
+
+        VInt.encode(out, sliceStart.length());
+        out.writeBytes(sliceStart.asByteBuffer());
+
+        VInt.encode(out, sliceEnd.length());
+        out.writeBytes(sliceEnd.asByteBuffer());
+
+        VInt.encode(out, getLimit());
+
+        return out;
+    }
 }
