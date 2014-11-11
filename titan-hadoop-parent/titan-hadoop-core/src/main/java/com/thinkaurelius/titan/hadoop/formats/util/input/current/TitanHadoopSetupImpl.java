@@ -1,5 +1,7 @@
 package com.thinkaurelius.titan.hadoop.formats.util.input.current;
 
+import com.thinkaurelius.titan.graphdb.schema.SchemaContainer;
+import com.thinkaurelius.titan.hadoop.FaunusSchemaManager;
 import com.thinkaurelius.titan.hadoop.config.ModifiableHadoopConfiguration;
 import org.apache.hadoop.conf.Configuration;
 
@@ -35,7 +37,7 @@ public class TitanHadoopSetupImpl extends TitanHadoopSetupCommon {
     public TitanHadoopSetupImpl(final Configuration config) {
         BasicConfiguration bc = ModifiableHadoopConfiguration.of(config).getInputConf();
         graph = (StandardTitanGraph)TitanFactory.open(bc);
-
+        FaunusSchemaManager.getTypeManager(null).setSchemaProvider(new SchemaContainer(graph));
         tx = (StandardTitanTx)graph.buildTransaction().readOnly().setVertexCacheSize(200).start();
    }
 

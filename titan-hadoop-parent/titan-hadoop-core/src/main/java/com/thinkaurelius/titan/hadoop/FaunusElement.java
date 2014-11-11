@@ -268,7 +268,7 @@ public abstract class FaunusElement extends LifeCycleElement implements Internal
 
     @Override
     public void setProperty(final String key, final Object value) {
-        FaunusRelationType rt = getTypeManager().getRelationType(key);
+        FaunusRelationType rt = getTypeManager().getPropertyKey(key);
         if (rt==null) rt = getTypeManager().getOrCreatePropertyKey(key);
         setProperty(rt,value);
     }
@@ -277,7 +277,7 @@ public abstract class FaunusElement extends LifeCycleElement implements Internal
 
     @Override
     public <T> T removeProperty(final String key) {
-        FaunusRelationType rt = getTypeManager().getRelationType(key);
+        FaunusRelationType rt = getTypeManager().getPropertyKey(key);
         if (rt==null) return null;
         return removeProperty(rt);
     }
@@ -326,7 +326,7 @@ public abstract class FaunusElement extends LifeCycleElement implements Internal
 
     @Override
     public <T> T getProperty(final String key) {
-        FaunusRelationType rt = getTypeManager().getRelationType(key);
+        FaunusRelationType rt = getTypeManager().getPropertyKey(key);
         if (rt==null) return null;
         if (rt.isPropertyKey()) return getProperty((FaunusPropertyKey)rt);
         else return (T)getProperty((FaunusEdgeLabel)rt);
