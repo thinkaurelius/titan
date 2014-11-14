@@ -102,7 +102,6 @@ public class Hadoop1Compiler extends HybridConfigured implements HadoopCompiler 
 
     private void addConfiguration(final Configuration configuration) {
         for (final Map.Entry<String, String> entry : configuration) {
-            this.getConf().set(entry.getKey() + "-" + this.mapSequenceClasses.size(), entry.getValue()); // TODO why does this line exist?
             this.getConf().set(entry.getKey(), entry.getValue());
         }
     }
