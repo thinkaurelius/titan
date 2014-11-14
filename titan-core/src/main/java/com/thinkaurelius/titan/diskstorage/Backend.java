@@ -548,6 +548,7 @@ public class Backend implements LockerProvider {
         b.put("hbase", "com.thinkaurelius.titan.diskstorage.hbase.HBaseStoreManager");
         b.put("embeddedcassandra", "com.thinkaurelius.titan.diskstorage.cassandra.embedded.CassandraEmbeddedStoreManager");
         b.put("inmemory", "com.thinkaurelius.titan.diskstorage.keycolumnvalue.inmemory.InMemoryStoreManager");
+        b.put("foundationdb", "com.thinkaurelius.titan.diskstorage.foundationdb.FoundationDBStoreManager");
         REGISTERED_STORAGE_MANAGERS = b.build();
     }
 
@@ -566,6 +567,7 @@ public class Backend implements LockerProvider {
         put("hbase", STORAGE_HOSTS);
         put("embeddedcassandra", STORAGE_CONF_FILE);
         put("inmemory", null);
+        put("foundationdb", STORAGE_HOSTS);
     }};
 
     public static final Map<String, String> REGISTERED_INDEX_PROVIDERS = new HashMap<String, String>() {{
