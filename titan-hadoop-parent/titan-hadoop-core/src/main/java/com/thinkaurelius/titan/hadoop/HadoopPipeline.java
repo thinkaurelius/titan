@@ -1071,8 +1071,8 @@ public class HadoopPipeline {
      *
      * @throws Exception
      */
-    public void submit() throws Exception {
-        submit(Tokens.EMPTY_STRING, false);
+    public int submit() throws Exception {
+        return submit(Tokens.EMPTY_STRING, false);
     }
 
     /**
@@ -1082,14 +1082,14 @@ public class HadoopPipeline {
      * @param showHeader the Titan/Hadoop header
      * @throws Exception
      */
-    public void submit(final String script, final Boolean showHeader) throws Exception {
+    public int submit(final String script, final Boolean showHeader) throws Exception {
         this.done();
         if (MapReduceFormat.class.isAssignableFrom(this.graph.getGraphOutputFormat())) {
             this.state.assertNotLocked();
             ((Class<? extends MapReduceFormat>) this.graph.getGraphOutputFormat()).getConstructor().newInstance().addMapReduceJobs(this.compiler);
         }
         this.compiler.completeSequence();
-        ToolRunner.run(this.compiler, new String[]{script, showHeader.toString()});
+        return ToolRunner.run(this.compiler, new String[]{script, showHeader.toString()});
     }
 
     /**
