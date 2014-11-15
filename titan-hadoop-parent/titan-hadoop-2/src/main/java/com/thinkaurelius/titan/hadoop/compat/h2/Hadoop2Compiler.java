@@ -176,6 +176,18 @@ public class Hadoop2Compiler extends AbstractHadoopCompiler implements HadoopCom
 
             if (State.MAPPER == this.state || State.NONE == this.state) {
                 ChainMapper.addMapper(job, mapper, NullWritable.class, FaunusVertex.class, mapOutputKey, mapOutputValue, mergedConf);
+                /* In case no reducer is defined later for this job, set the job
+                 * output k/v to match the mapper output k-v.  Output formats that
+                 * care about their configured k-v classes (such as
+                 * SequenceFileOutputFormat) require these to be set correctly lest
+                 * they throw an exception at runtime.
+                 *
+                 * ChainReducer.setReducer overwrites these k-v settings, so if a
+                 * reducer is added onto this job later, these settings will be
+                 * overridden by the actual reducer's output k-v.
+                 */
+                job.setOutputKeyClass(mapOutputKey);
+                job.setOutputValueClass(mapOutputValue);
                 this.state = State.MAPPER;
                 logger.info("Added mapper " + job.getJobName() + " via ChainMapper with output (" + mapOutputKey + "," + mapOutputValue + "); current state is " + state);
             } else {
