@@ -22,7 +22,7 @@ import static com.thinkaurelius.titan.hadoop.compat.HadoopCompatLoader.DEFAULT_C
 public class TitanHBaseRecordReader extends RecordReader<NullWritable, FaunusVertex> {
 
     private TableRecordReader reader;
-    private TitanHadoopSetup setup;
+    private TitanHBaseInputFormat inputFormat;
     private TitanHBaseHadoopGraph graph;
     private FaunusVertexQueryFilter vertexQuery;
     private Configuration configuration;
@@ -31,8 +31,8 @@ public class TitanHBaseRecordReader extends RecordReader<NullWritable, FaunusVer
 
     private final byte[] edgestoreFamilyBytes;
 
-    public TitanHBaseRecordReader(final TitanHadoopSetup setup, final FaunusVertexQueryFilter vertexQuery, final TableRecordReader reader, final byte[] edgestoreFamilyBytes) {
-        this.setup = setup;
+    public TitanHBaseRecordReader(final TitanHBaseInputFormat inputFormat, final FaunusVertexQueryFilter vertexQuery, final TableRecordReader reader, final byte[] edgestoreFamilyBytes) {
+        this.inputFormat = inputFormat;
         this.vertexQuery = vertexQuery;
         this.reader = reader;
         this.edgestoreFamilyBytes = edgestoreFamilyBytes;
@@ -40,7 +40,7 @@ public class TitanHBaseRecordReader extends RecordReader<NullWritable, FaunusVer
 
     @Override
     public void initialize(final InputSplit inputSplit, final TaskAttemptContext taskAttemptContext) throws IOException, InterruptedException {
-        graph = new TitanHBaseHadoopGraph(setup);
+        graph = new TitanHBaseHadoopGraph(inputFormat.getGraphSetup());
         reader.initialize(inputSplit, taskAttemptContext);
         configuration = ModifiableHadoopConfiguration.of(DEFAULT_COMPAT.getContextConfiguration(taskAttemptContext));
     }

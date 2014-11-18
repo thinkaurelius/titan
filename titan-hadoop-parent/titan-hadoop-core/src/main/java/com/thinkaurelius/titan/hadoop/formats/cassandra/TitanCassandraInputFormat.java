@@ -44,7 +44,7 @@ public class TitanCassandraInputFormat extends TitanInputFormat {
     public RecordReader<NullWritable, FaunusVertex> createRecordReader(final InputSplit inputSplit, final TaskAttemptContext taskAttemptContext)
             throws IOException, InterruptedException {
 
-        return new TitanCassandraRecordReader(getGraphSetup(), this.vertexQuery,
+        return new TitanCassandraRecordReader(this, this.vertexQuery,
                 (ColumnFamilyRecordReader) this.columnFamilyInputFormat.createRecordReader(inputSplit, taskAttemptContext));
     }
 
