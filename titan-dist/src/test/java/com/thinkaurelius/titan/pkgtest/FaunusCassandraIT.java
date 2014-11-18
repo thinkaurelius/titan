@@ -27,4 +27,10 @@ public class FaunusCassandraIT extends AbstractTitanAssemblyIT {
     public void testGraphOfTheGodsWithMurmur() throws Exception {
         unzipAndRunExpect("faunus-cassandra.expect.vm", ImmutableMap.of("cassandraPartitioner", "org.apache.cassandra.dht.Murmur3Partitioner"));
     }
+
+    @Test
+    @Category({ UnorderedKeyStoreTests.class })
+    public void testGraphOfTheGodsWithVMRestart() throws Exception {
+        unzipAndRunExpect("faunus-cassandra-vm-restart.expect.vm", ImmutableMap.of("cassandraPartitioner", "org.apache.cassandra.dht.Murmur3Partitioner"));
+    }
 }
