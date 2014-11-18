@@ -9,6 +9,8 @@ import org.apache.hadoop.mapreduce.lib.output.MultipleOutputs;
 
 import java.io.IOException;
 
+import static com.thinkaurelius.titan.hadoop.compat.HadoopCompatLoader.DEFAULT_COMPAT;
+
 /**
  * @author Marko A. Rodriguez (http://markorodriguez.com)
  */
@@ -21,7 +23,7 @@ public class SafeMapperOutputs {
     public SafeMapperOutputs(final Mapper.Context context) {
         this.context = context;
         this.outputs = new MultipleOutputs(this.context);
-        this.testing = this.context.getConfiguration().getBoolean(HadoopCompiler.TESTING, false);
+        this.testing = DEFAULT_COMPAT.getContextConfiguration(context).getBoolean(HadoopCompiler.TESTING, false);
     }
 
     public void write(final String type, final Writable key, final Writable value) throws IOException, InterruptedException {

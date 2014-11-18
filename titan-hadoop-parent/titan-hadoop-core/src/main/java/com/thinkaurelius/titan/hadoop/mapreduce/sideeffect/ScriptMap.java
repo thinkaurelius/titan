@@ -18,6 +18,8 @@ import javax.script.ScriptEngine;
 import java.io.IOException;
 import java.io.InputStreamReader;
 
+import static com.thinkaurelius.titan.hadoop.compat.HadoopCompatLoader.DEFAULT_COMPAT;
+
 /**
  * @author Marko A. Rodriguez (http://markorodriguez.com)
  */
@@ -48,10 +50,11 @@ public class ScriptMap {
 
         @Override
         public void setup(final Mapper.Context context) throws IOException, InterruptedException {
-            final FileSystem fs = FileSystem.get(context.getConfiguration());
+            Configuration cfg = DEFAULT_COMPAT.getContextConfiguration(context);
+            final FileSystem fs = FileSystem.get(cfg);
             try {
-                this.engine.eval(new InputStreamReader(fs.open(new Path(context.getConfiguration().get(SCRIPT_PATH)))));
-                this.engine.put(ARGS, context.getConfiguration().getStrings(SCRIPT_ARGS));
+                this.engine.eval(new InputStreamReader(fs.open(new Path(cfg.get(SCRIPT_PATH)))));
+                this.engine.put(ARGS, cfg.getStrings(SCRIPT_ARGS));
                 this.engine.eval(SETUP_ARGS);
             } catch (Exception e) {
                 throw new InterruptedException(e.getMessage());

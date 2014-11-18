@@ -58,7 +58,7 @@ public class EdgeListInputMapReduce {
                     vertex = new FaunusVertex(faunusConf, outId);
                     this.map.put(outId, vertex);
                 }
-                vertex.addEdge(OUT, WritableUtils.clone((StandardFaunusEdge) value, context.getConfiguration()));
+                vertex.addEdge(OUT, WritableUtils.clone((StandardFaunusEdge) value, DEFAULT_COMPAT.getContextConfiguration(context)));
                 this.counter++;
 
                 vertex = this.map.get(inId);
@@ -66,7 +66,7 @@ public class EdgeListInputMapReduce {
                     vertex = new FaunusVertex(faunusConf, inId);
                     this.map.put(inId, vertex);
                 }
-                vertex.addEdge(IN, WritableUtils.clone((StandardFaunusEdge) value, context.getConfiguration()));
+                vertex.addEdge(IN, WritableUtils.clone((StandardFaunusEdge) value, DEFAULT_COMPAT.getContextConfiguration(context)));
                 DEFAULT_COMPAT.incrementContextCounter(context, Counters.EDGES_PROCESSED, 1L);
                 this.counter++;
             } else {
@@ -77,7 +77,7 @@ public class EdgeListInputMapReduce {
                     this.map.put(id, vertex);
                 }
                 vertex.addAllProperties(value.getPropertyCollection());
-                vertex.addEdges(BOTH, WritableUtils.clone((FaunusVertex) value, context.getConfiguration()));
+                vertex.addEdges(BOTH, WritableUtils.clone((FaunusVertex) value, DEFAULT_COMPAT.getContextConfiguration(context)));
                 this.counter++;
             }
             if (this.counter > MAX_MAP_SIZE)

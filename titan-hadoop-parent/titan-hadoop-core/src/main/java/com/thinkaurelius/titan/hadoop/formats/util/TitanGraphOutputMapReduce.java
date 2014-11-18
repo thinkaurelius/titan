@@ -106,7 +106,7 @@ public class TitanGraphOutputMapReduce {
         public void setup(final Mapper.Context context) throws IOException, InterruptedException {
             faunusConf = ModifiableHadoopConfiguration.of(DEFAULT_COMPAT.getContextConfiguration(context));
             graph = TitanGraphOutputMapReduce.generateGraph(faunusConf);
-            trackState = context.getConfiguration().getBoolean(Tokens.TITAN_HADOOP_PIPELINE_TRACK_STATE, false);
+            trackState = DEFAULT_COMPAT.getContextConfiguration(context).getBoolean(Tokens.TITAN_HADOOP_PIPELINE_TRACK_STATE, false);
 
             // Check whether a script is defined in the config
             if (faunusConf.has(OUTPUT_LOADER_SCRIPT_FILE)) {
@@ -366,7 +366,7 @@ public class TitanGraphOutputMapReduce {
         public void setup(final Mapper.Context context) throws IOException, InterruptedException {
             faunusConf = ModifiableHadoopConfiguration.of(DEFAULT_COMPAT.getContextConfiguration(context));
             graph = TitanGraphOutputMapReduce.generateGraph(faunusConf);
-            trackState = context.getConfiguration().getBoolean(Tokens.TITAN_HADOOP_PIPELINE_TRACK_STATE, false);
+            trackState = DEFAULT_COMPAT.getContextConfiguration(context).getBoolean(Tokens.TITAN_HADOOP_PIPELINE_TRACK_STATE, false);
 
             // Check whether a script is defined in the config
             if (faunusConf.has(OUTPUT_LOADER_SCRIPT_FILE)) {

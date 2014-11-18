@@ -74,13 +74,13 @@ public class GroupCountMapReduce {
             ModifiableHadoopConfiguration titanConf = ModifiableHadoopConfiguration.of(hc);
             try {
                 this.mapSpillOver = titanConf.get(PIPELINE_MAP_SPILL_OVER);
-                final String keyClosureString = context.getConfiguration().get(KEY_CLOSURE, null);
+                final String keyClosureString = hc.get(KEY_CLOSURE, null);
                 if (null == keyClosureString)
                     this.keyClosure = null;
                 else
                     this.keyClosure = (Closure) engine.eval(keyClosureString);
 
-                final String valueClosureString = context.getConfiguration().get(VALUE_CLOSURE, null);
+                final String valueClosureString = hc.get(VALUE_CLOSURE, null);
                 if (null == valueClosureString)
                     this.valueClosure = null;
                 else
@@ -89,7 +89,7 @@ public class GroupCountMapReduce {
             } catch (final ScriptException e) {
                 throw new IOException(e.getMessage(), e);
             }
-            this.isVertex = context.getConfiguration().getClass(CLASS, Element.class, Element.class).equals(Vertex.class);
+            this.isVertex = hc.getClass(CLASS, Element.class, Element.class).equals(Vertex.class);
             this.map = new CounterMap<Object>();
             this.outputs = new SafeMapperOutputs(context);
         }

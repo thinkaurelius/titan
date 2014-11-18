@@ -34,7 +34,7 @@ public class RDFInputFormat extends FileInputFormat<NullWritable, FaunusElement>
 
     @Override
     protected boolean isSplitable(final JobContext context, final Path file) {
-        return null == new CompressionCodecFactory(context.getConfiguration()).getCodec(file);
+        return null == new CompressionCodecFactory(DEFAULT_COMPAT.getJobContextConfiguration(context)).getCodec(file);
     }
 
     @Override

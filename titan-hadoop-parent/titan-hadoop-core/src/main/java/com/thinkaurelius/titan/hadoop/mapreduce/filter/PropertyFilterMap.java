@@ -63,10 +63,11 @@ public class PropertyFilterMap {
 
         @Override
         public void setup(final Mapper.Context context) throws IOException, InterruptedException {
-            this.isVertex = context.getConfiguration().getClass(CLASS, Element.class, Element.class).equals(Vertex.class);
-            final String key = context.getConfiguration().get(KEY);
-            final Class valueClass = context.getConfiguration().getClass(VALUE_CLASS, String.class);
-            final String[] valueStrings = context.getConfiguration().getStrings(VALUES);
+            Configuration cfg = DEFAULT_COMPAT.getContextConfiguration(context);
+            this.isVertex = cfg.getClass(CLASS, Element.class, Element.class).equals(Vertex.class);
+            final String key = cfg.get(KEY);
+            final Class valueClass = cfg.getClass(VALUE_CLASS, String.class);
+            final String[] valueStrings = cfg.getStrings(VALUES);
             final Object[] values = new Object[valueStrings.length];
 
             if (valueClass.equals(Object.class)) {
@@ -89,7 +90,7 @@ public class PropertyFilterMap {
                 throw new IOException("Class " + valueClass + " is an unsupported value class");
             }
 
-            final Compare compare = Compare.valueOf(context.getConfiguration().get(COMPARE));
+            final Compare compare = Compare.valueOf(cfg.get(COMPARE));
             this.elementChecker = new ElementChecker(key, compare, values);
         }
 
