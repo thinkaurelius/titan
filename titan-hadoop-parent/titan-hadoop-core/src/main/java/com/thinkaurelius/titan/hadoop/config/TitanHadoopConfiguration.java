@@ -21,6 +21,14 @@ public class TitanHadoopConfiguration {
     public static final ConfigNamespace TRUNK_NS =
             new ConfigNamespace(new ConfigNamespace(ROOT_NS, "titan", "titan-hadoop namespace"), "hadoop", "Titan-Hadoop configuration parent");
 
+    public static final ConfigNamespace MAPRED_NS =
+            new ConfigNamespace(TRUNK_NS, "mr", "MapReduce configuration aspects that cut across input and output");
+
+    public static final ConfigOption<String> CLASSPATH_CONFIGURER = new ConfigOption<String>(
+            MAPRED_NS, "classpath-configurer",
+            "The full package and classname of a JobClasspathConfigurer implementation.",
+            ConfigOption.Type.LOCAL, String.class);
+
     public static final ConfigNamespace INPUT_NS =
             new ConfigNamespace(TRUNK_NS, "input", "Graph input format configuration");
 

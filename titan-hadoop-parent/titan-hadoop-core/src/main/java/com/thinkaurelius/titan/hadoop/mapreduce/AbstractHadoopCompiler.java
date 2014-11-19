@@ -65,8 +65,13 @@ public abstract class AbstractHadoopCompiler extends HybridConfigured implements
         if (getTitanConf().get(TitanHadoopConfiguration.PIPELINE_TRACK_STATE))
             getLog().warn("State tracking is enabled for this Titan/Hadoop job (full deletes not possible)");
 
+        String customConfigurer = getTitanConf().has(TitanHadoopConfiguration.CLASSPATH_CONFIGURER) ?
+                getTitanConf().get(TitanHadoopConfiguration.CLASSPATH_CONFIGURER) : null;
+
         JobClasspathConfigurer cpConf = JobClasspathConfigurers.get(
-                graph.getConf().get(getMapReduceJarConfigKey()), getDefaultMapReduceJar());
+                customConfigurer,
+                graph.getConf().get(getMapReduceJarConfigKey()),
+                getDefaultMapReduceJar());
 
         // Create temporary job data directory on the filesystem
         Path tmpPath = graph.getJobDir();
