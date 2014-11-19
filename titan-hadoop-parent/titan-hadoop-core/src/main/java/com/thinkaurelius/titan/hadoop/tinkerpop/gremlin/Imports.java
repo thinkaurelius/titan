@@ -1,9 +1,12 @@
 package com.thinkaurelius.titan.hadoop.tinkerpop.gremlin;
 
+import com.google.common.base.Function;
+import com.google.common.collect.Lists;
 import com.tinkerpop.pipes.transform.TransformPipe;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 
+import javax.annotation.Nullable;
 import javax.script.Bindings;
 import javax.script.SimpleBindings;
 import java.io.IOException;
@@ -49,13 +52,20 @@ public class Imports {
         imports.add("com.thinkaurelius.titan.hadoop.tinkerpop.gremlin.*");
         imports.add("com.tinkerpop.gremlin.Tokens.T");
         imports.add("com.tinkerpop.gremlin.groovy.*");
-        imports.add("static " + TransformPipe.Order.class.getName() + ".*");
+        imports.add("static " + TransformPipe.Order.class.getCanonicalName() + ".*");
 
         // titan
         imports.addAll(com.thinkaurelius.titan.tinkerpop.gremlin.Imports.getImports());
 
         // tinkerpop (most likely inherited from Titan, but just to be safe)
-        imports.addAll(com.tinkerpop.gremlin.Imports.getImports());
+        // convert dollar signs to dots for compatibility with Groovysh 2.3.7
+        imports.addAll(Lists.transform(com.tinkerpop.gremlin.Imports.getImports(), new Function<String, String>() {
+            @Nullable
+            @Override
+            public String apply(@Nullable String input) {
+                return input.replaceAll("\\$", ".");
+            }
+        }));
 
         evaluates.add("hdfs = FileSystem.get(new Configuration())");
         evaluates.add("local = FileSystem.getLocal(new Configuration())");

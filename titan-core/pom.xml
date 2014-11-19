@@ -24,19 +24,48 @@
         <dependency>
             <groupId>com.tinkerpop.gremlin</groupId>
             <artifactId>gremlin-groovy</artifactId>
-            <version>${tinkerpop.version}</version>
+            <version>${tinkerpop.gremlin.version}</version>
             <exclusions>
                 <exclusion>
                     <artifactId>gossip</artifactId>
                     <groupId>org.sonatype.gossip</groupId>
                 </exclusion>
+                <exclusion>
+                    <groupId>jline</groupId>
+                    <artifactId>jline</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.codehaus.groovy</groupId>
+                    <artifactId>groovy</artifactId>
+                </exclusion>
             </exclusions>
-            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>jline</groupId>
+            <artifactId>jline</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.codehaus.groovy</groupId>
+            <artifactId>groovy</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.codehaus.groovy</groupId>
+            <artifactId>groovy-groovysh</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.codehaus.groovy</groupId>
+            <artifactId>groovy-jsr223</artifactId>
         </dependency>
         <dependency>
             <groupId>com.tinkerpop</groupId>
             <artifactId>frames</artifactId>
             <version>${tinkerpop.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>com.tinkerpop.gremlin</groupId>
+                    <artifactId>gremlin-groovy</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <!-- Utility -->
         <dependency>

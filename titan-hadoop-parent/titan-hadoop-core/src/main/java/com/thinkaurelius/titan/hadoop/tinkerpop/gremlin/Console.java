@@ -4,7 +4,7 @@ import com.tinkerpop.gremlin.groovy.Gremlin;
 import com.tinkerpop.gremlin.groovy.console.ErrorHookClosure;
 import com.tinkerpop.gremlin.groovy.console.NullResultHookClosure;
 import com.tinkerpop.gremlin.groovy.console.PromptClosure;
-import jline.History;
+import jline.console.history.FileHistory;;
 import org.codehaus.groovy.tools.shell.Groovysh;
 import org.codehaus.groovy.tools.shell.IO;
 import org.codehaus.groovy.tools.shell.InteractiveShellRunner;
@@ -43,15 +43,17 @@ public class Console {
         for (final String evs : Imports.getEvaluates()) {
             groovy.execute(evs);
         }
+        // For backwards compatibility with 1.8.9
+        groovy.execute(":alias quit :quit");
 
         // Instantiate console objects: the ResultHook, History handler, ErrorHook, and InteractiveShellRunner
         groovy.setResultHook(new ResultHookClosure(groovy, io, resultPrompt));
-        groovy.setHistory(new History());
+        //groovy.setHistory(new History());
 
         final InteractiveShellRunner runner = new InteractiveShellRunner(groovy, new PromptClosure(groovy, inputPrompt));
         runner.setErrorHandler(new ErrorHookClosure(runner, io));
         try {
-            runner.setHistory(new History(new File(System.getProperty("user.home") + "/" + HISTORY_FILE)));
+            runner.setHistory(new FileHistory(new File(System.getProperty("user.home") + "/" + HISTORY_FILE)));
         } catch (IOException e) {
             io.err.println("Unable to create history file: " + HISTORY_FILE);
         }

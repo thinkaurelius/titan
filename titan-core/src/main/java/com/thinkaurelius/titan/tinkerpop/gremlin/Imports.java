@@ -26,10 +26,10 @@ public class Imports {
         imports.add("com.thinkaurelius.titan.core.util.*");
         imports.add("com.thinkaurelius.titan.example.*");
         imports.add("org.apache.commons.configuration.*");
-        imports.add("static " + Geo.class.getName() + ".*");
-        imports.add("static " + Text.class.getName() + ".*");
+        imports.add("static " + Geo.class.getCanonicalName() + ".*");
+        imports.add("static " + Text.class.getCanonicalName() + ".*");
         // todo: remove with Gremlin 2.3.1+
-        imports.add("static " + Query.Compare.class.getName() + ".*");
+        imports.add("static " + Query.Compare.class.getCanonicalName() + ".*");
     }
 
     public static List<String> getImports() {
