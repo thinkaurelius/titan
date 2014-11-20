@@ -60,8 +60,6 @@
     <properties>
         <titan.compatible.versions>0.5.0</titan.compatible.versions>
         <tinkerpop.version>2.5.0</tinkerpop.version>
-        <!-- <tinkerpop.gremlin.version>${tinkerpop.version}-groovy237</tinkerpop.gremlin.version> -->
-        <tinkerpop.gremlin.version>${tinkerpop.version}</tinkerpop.gremlin.version>
         <groovy.version>2.3.7</groovy.version>
         <junit.version>4.11</junit.version>
         <mrunit.version>1.1.0</mrunit.version>
@@ -92,8 +90,7 @@
         <concurrentlinkedhashmap.version>1.3</concurrentlinkedhashmap.version>
         <antlr2.version>2.7.7</antlr2.version>
         <antlr.version>3.2</antlr.version>
-        <asm3.version>3.1</asm3.version>
-        <asm4.version>4.0</asm4.version>
+        <asm4.version>4.1</asm4.version>
         <zookeeper.version>3.4.6</zookeeper.version>
         <jersey.version>1.18.2</jersey.version>
         <jna.version>3.2.7</jna.version>
@@ -143,6 +140,27 @@
                         <configuration>
                             <rules>
                                 <DependencyConvergence />
+                            </rules>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>enforce-asm-ban</id>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <bannedDependencies>
+                                    <excludes>
+                                        <!-- Ban ASM 3.x
+                                             N.B.: ASM 4.x and 5.x use groupId org.ow2.asm which is not banned.  -->
+                                        <exclude>asm:asm</exclude>
+                                        <exclude>asm:asm-*</exclude>
+                                    </excludes>
+                                    <message>
+                                        ASM 3.x is banned because it casues runtime conflicts with ASM 4.x+
+                                    </message>
+                                </bannedDependencies>
                             </rules>
                         </configuration>
                     </execution>
@@ -587,95 +605,35 @@
                 <version>${sesame.version}</version>
             </dependency>
 
-            <!-- Custom gremlin-groovy build against a newer Groovy runtime with shaded ASM -->
+            <!-- Gremlin -->
             <dependency>
                 <groupId>com.tinkerpop.gremlin</groupId>
                 <artifactId>gremlin</artifactId>
-                <version>${tinkerpop.gremlin.version}</version>
+                <version>${tinkerpop.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.tinkerpop.gremlin</groupId>
                 <artifactId>gremlin-groovy</artifactId>
-                <version>${tinkerpop.gremlin.version}</version>
+                <version>${tinkerpop.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.tinkerpop.gremlin</groupId>
                 <artifactId>gremlin-java</artifactId>
-                <version>${tinkerpop.gremlin.version}</version>
+                <version>${tinkerpop.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.tinkerpop.gremlin</groupId>
                 <artifactId>gremlin-test</artifactId>
-                <version>${tinkerpop.gremlin.version}</version>
+                <version>${tinkerpop.version}</version>
             </dependency>
+            <!-- JLine (used by Gremlin and Rexster, theoretically also Cassandra) -->
             <dependency>
                 <groupId>jline</groupId>
                 <artifactId>jline</artifactId>
-                <version>2.11</version>
-            </dependency>
-            <dependency>
-                <groupId>org.codehaus.groovy</groupId>
-                <artifactId>groovy</artifactId>
-                <version>${groovy.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.codehaus.groovy</groupId>
-                <artifactId>groovy-groovysh</artifactId>
-                <version>${groovy.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.codehaus.groovy</groupId>
-                <artifactId>groovy-jsr223</artifactId>
-                <version>${groovy.version}</version>
+                <version>1.0</version>
             </dependency>
 
-            <!-- asm 3.x -->
-            <dependency>
-                <groupId>asm</groupId>
-                <artifactId>asm</artifactId>
-                <version>${asm3.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>asm</groupId>
-                <artifactId>asm-all</artifactId>
-                <version>${asm3.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>asm</groupId>
-                <artifactId>asm-analysis</artifactId>
-                <version>${asm3.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>asm</groupId>
-                <artifactId>asm-commons</artifactId>
-                <version>${asm3.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>asm</groupId>
-                <artifactId>asm-debug-all</artifactId>
-                <version>${asm3.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>asm</groupId>
-                <artifactId>asm-parent</artifactId>
-                <version>${asm3.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>asm</groupId>
-                <artifactId>asm-tree</artifactId>
-                <version>${asm3.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>asm</groupId>
-                <artifactId>asm-util</artifactId>
-                <version>${asm3.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>asm</groupId>
-                <artifactId>asm-xml</artifactId>
-                <version>${asm3.version}</version>
-            </dependency>
-            <!-- asm 4.x; only used by kryo-shaded right now
+            <!-- ASM 4.x -->
             <dependency>
                 <groupId>org.ow2.asm</groupId>
                 <artifactId>asm</artifactId>
@@ -701,12 +659,15 @@
                 <artifactId>asm-util</artifactId>
                 <version>${asm4.version}</version>
             </dependency>
-            -->
+
+            <!-- Objenesis -->
             <dependency>
                 <groupId>org.objenesis</groupId>
                 <artifactId>objenesis</artifactId>
                 <version>1.2</version>
             </dependency>
+
+            <!-- Testing -->
             <dependency>
                 <groupId>junit</groupId>
                 <artifactId>junit</artifactId>
@@ -722,6 +683,7 @@
                 <artifactId>hamcrest-core</artifactId>
                 <version>1.3</version>
             </dependency>
+
             <!-- Force newer Snappy-java because 1.4.0.1 is broken on Mac OS X with JDK 7 -->
             <dependency>
                 <groupId>org.xerial.snappy</groupId>

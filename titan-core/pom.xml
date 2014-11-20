@@ -24,37 +24,31 @@
         <dependency>
             <groupId>com.tinkerpop.gremlin</groupId>
             <artifactId>gremlin-groovy</artifactId>
-            <version>${tinkerpop.gremlin.version}</version>
+            <version>${tinkerpop.version}</version>
             <exclusions>
                 <exclusion>
                     <artifactId>gossip</artifactId>
                     <groupId>org.sonatype.gossip</groupId>
                 </exclusion>
-                <exclusion>
-                    <groupId>jline</groupId>
-                    <artifactId>jline</artifactId>
-                </exclusion>
+                <!-- Exclude Groovy.  1.8.9 uses unshaded ASM 3.x, which plays badly with Solr's ASM 4.x. -->
                 <exclusion>
                     <groupId>org.codehaus.groovy</groupId>
                     <artifactId>groovy</artifactId>
                 </exclusion>
             </exclusions>
         </dependency>
-        <dependency>
-            <groupId>jline</groupId>
-            <artifactId>jline</artifactId>
-        </dependency>
+        <!-- Redeclare groovy dependency with optional=true so we can compile and shade it,
+             but also so that downstream projects don't pull it in transitively -->
         <dependency>
             <groupId>org.codehaus.groovy</groupId>
             <artifactId>groovy</artifactId>
+            <version>1.8.9</version>
+            <optional>true</optional>
         </dependency>
+        <!-- Redeclare Groovy's antlr dependency -->
         <dependency>
-            <groupId>org.codehaus.groovy</groupId>
-            <artifactId>groovy-groovysh</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.codehaus.groovy</groupId>
-            <artifactId>groovy-jsr223</artifactId>
+            <groupId>antlr</groupId>
+            <artifactId>antlr</artifactId>
         </dependency>
         <dependency>
             <groupId>com.tinkerpop</groupId>
@@ -181,6 +175,50 @@
             </testResource>
         </testResources>
         <plugins>
+            <plugin>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <!-- Suspend the ASM 3.x ban to allow for shading -->
+                        <id>enforce-asm-ban</id>
+                        <phase>none</phase>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>2.3</version>
+                <executions>
+                    <execution>
+                        <id>shade-gremlin-groovy</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <configuration>
+                            <createDependencyReducedPom>true</createDependencyReducedPom>
+                            <artifactSet>
+                                <includes>
+                                    <include>asm:*</include>
+                                    <include>org.codehaus.groovy:groovy</include>
+                                </includes>
+                            </artifactSet>
+                            <relocations>
+                                <relocation>
+                                    <pattern>org.objectweb.asm</pattern>
+                                    <shadedPattern>com.thinkaurelius.shaded.groovy.asm</shadedPattern>
+                                </relocation>
+                            </relocations>
+                            <!-- false below means the shade plugin overwrites the main project artifact (the one with no classifier).
+                                 false does *not* actually detach the main artifact, despite what the option name suggests. -->
+                            <shadedArtifactAttached>false</shadedArtifactAttached>
+                            <minimizeJar>false</minimizeJar>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
             <plugin>
                 <groupId>org.codehaus.gmaven</groupId>
                 <artifactId>gmaven-plugin</artifactId>

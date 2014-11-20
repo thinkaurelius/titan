@@ -73,6 +73,13 @@
             <groupId>com.tinkerpop.rexster</groupId>
             <artifactId>rexster-server</artifactId>
             <version>${tinkerpop.version}</version>
+            <exclusions>
+                <!-- A specially shaded pair of Groovy and ASM classfiles is provided by titan-core -->
+                <exclusion>
+                    <groupId>org.codehaus.groovy</groupId>
+                    <artifactId>groovy</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <!-- Test dependencies -->
         <dependency>
