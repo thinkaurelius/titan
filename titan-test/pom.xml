@@ -131,15 +131,6 @@
                 </exclusion>
             </exclusions>
         </dependency>
-        <!-- This dependency is declared solely to appease IDEA.  It's not really
-             necessary and Maven can build the project without it.  However, IDEA
-             will die with "no groovy library is defined for module titan-test". -->
-        <dependency>
-            <groupId>org.codehaus.groovy</groupId>
-            <artifactId>groovy-all</artifactId>
-            <version>1.8.9</version>
-            <scope>provided</scope>
-        </dependency>
     </dependencies>
 
     <build>
