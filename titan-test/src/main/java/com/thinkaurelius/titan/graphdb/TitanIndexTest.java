@@ -106,7 +106,13 @@ public abstract class TitanIndexTest extends TitanGraphBaseTest {
     public void testGraphOfTheGods() {
         GraphOfTheGodsFactory.load(graph);
         assertGraphOfTheGods(graph);
+        TitanVertex h = (TitanVertex) Iterables.getOnlyElement(graph.query().has("name", "hercules").vertices());
+        Iterable<Vertex> vertices = h.query().labels("battled").direction(Direction.OUT).orderBy("time",Order.DESC).limit(10).vertices();
+        for (Vertex v : vertices) {
+            System.out.println(v.getProperty("name"));
+        }
     }
+
 
     public static void assertGraphOfTheGods(TitanGraph gotg) {
         assertEquals(12,Iterables.size(gotg.getVertices()));
