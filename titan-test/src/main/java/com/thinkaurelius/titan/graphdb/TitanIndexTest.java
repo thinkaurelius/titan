@@ -19,6 +19,7 @@ import com.thinkaurelius.titan.diskstorage.indexing.IndexFeatures;
 import com.thinkaurelius.titan.example.GraphOfTheGodsFactory;
 import com.thinkaurelius.titan.graphdb.internal.ElementCategory;
 import com.thinkaurelius.titan.graphdb.log.StandardTransactionLogProcessor;
+import com.thinkaurelius.titan.graphdb.query.vertex.VertexLongList;
 import com.thinkaurelius.titan.graphdb.types.ParameterType;
 import com.thinkaurelius.titan.graphdb.types.StandardEdgeLabelMaker;
 import com.thinkaurelius.titan.testcategory.BrittleTests;
@@ -37,6 +38,8 @@ import org.junit.rules.TestName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Iterator;
+import java.util.NoSuchElementException;
 import java.util.concurrent.TimeUnit;
 
 import static com.thinkaurelius.titan.graphdb.TitanGraphTest.evaluateQuery;
@@ -108,6 +111,7 @@ public abstract class TitanIndexTest extends TitanGraphBaseTest {
         assertGraphOfTheGods(graph);
     }
 
+
     public static void assertGraphOfTheGods(TitanGraph gotg) {
         assertEquals(12,Iterables.size(gotg.getVertices()));
         assertEquals(3,Iterables.size(gotg.getVertices("label","god")));
@@ -115,6 +119,7 @@ public abstract class TitanIndexTest extends TitanGraphBaseTest {
         assertEquals(30,h.getProperty("age"));
         assertEquals("demigod",((TitanVertex)h).getLabel());
         assertEquals(5,Iterables.size(h.getEdges(Direction.BOTH)));
+        gotg.commit();
     }
 
     @Test

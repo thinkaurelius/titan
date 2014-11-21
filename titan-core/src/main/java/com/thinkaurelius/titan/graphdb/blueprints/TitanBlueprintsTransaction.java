@@ -119,8 +119,8 @@ public abstract class TitanBlueprintsTransaction implements TitanTransaction {
     @Override
     public TitanEdge addEdge(Object id, Vertex outVertex, Vertex inVertex, String label) {
         //Preconditions.checkArgument(id==null,"Titan does not support edge id assignment");
-        Preconditions.checkArgument(outVertex instanceof TitanVertex);
-        Preconditions.checkArgument(inVertex instanceof TitanVertex);
+        Preconditions.checkArgument(outVertex instanceof TitanVertex, "Expected a TitanVertex but got: %s", outVertex);
+        Preconditions.checkArgument(inVertex instanceof TitanVertex, "Expected a TitanVertex but got: %s", inVertex);
         return addEdge((TitanVertex) outVertex, (TitanVertex) inVertex, label);
     }
 
