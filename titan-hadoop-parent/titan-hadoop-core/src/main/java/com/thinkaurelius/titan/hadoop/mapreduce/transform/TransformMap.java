@@ -55,9 +55,10 @@ public class TransformMap {
 
         @Override
         public void setup(final Mapper.Context context) throws IOException, InterruptedException {
-            this.isVertex = context.getConfiguration().getClass(CLASS, Element.class, Element.class).equals(Vertex.class);
+            final Configuration cfg = DEFAULT_COMPAT.getContextConfiguration(context);
+            this.isVertex = cfg.getClass(CLASS, Element.class, Element.class).equals(Vertex.class);
             try {
-                this.closure = (Closure) engine.eval(context.getConfiguration().get(CLOSURE));
+                this.closure = (Closure) engine.eval(cfg.get(CLOSURE));
             } catch (final ScriptException e) {
                 throw new IOException(e.getMessage(), e);
             }

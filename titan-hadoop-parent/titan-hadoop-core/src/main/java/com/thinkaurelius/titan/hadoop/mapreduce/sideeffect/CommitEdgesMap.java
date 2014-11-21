@@ -43,7 +43,7 @@ public class CommitEdgesMap {
 
         @Override
         public void setup(final Mapper.Context context) throws IOException, InterruptedException {
-            this.drop = Tokens.Action.valueOf(context.getConfiguration().get(ACTION)).equals(Tokens.Action.DROP);
+            this.drop = Tokens.Action.valueOf(DEFAULT_COMPAT.getContextConfiguration(context).get(ACTION)).equals(Tokens.Action.DROP);
         }
 
         @Override

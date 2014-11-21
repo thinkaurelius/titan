@@ -57,11 +57,6 @@
             <artifactId>blueprints-sail-graph</artifactId>
             <version>${tinkerpop.version}</version>
         </dependency>
-        <dependency>
-            <groupId>com.tinkerpop.gremlin</groupId>
-            <artifactId>gremlin-groovy</artifactId>
-            <version>${tinkerpop.version}</version>
-        </dependency>
 
         <!-- TITAN -->
         <dependency>

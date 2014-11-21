@@ -157,7 +157,7 @@ public class LinkMapReduce {
             faunusConf = ModifiableHadoopConfiguration.of(DEFAULT_COMPAT.getContextConfiguration(context));
 
             if (!faunusConf.has(LINK_DIRECTION)) {
-                Iterator<Entry<String, String>> it = context.getConfiguration().iterator();
+                Iterator<Entry<String, String>> it = DEFAULT_COMPAT.getContextConfiguration(context).iterator();
                 log.error("Broken configuration missing {}", LINK_DIRECTION);
                 log.error("---- Start config dump ----");
                 while (it.hasNext()) {

@@ -44,7 +44,8 @@ public class CountMapReduce {
 
         @Override
         public void setup(final Mapper.Context context) throws IOException, InterruptedException {
-            this.isVertex = context.getConfiguration().getClass(CLASS, Element.class, Element.class).equals(Vertex.class);
+            this.isVertex = DEFAULT_COMPAT.getContextConfiguration(context)
+                    .getClass(CLASS, Element.class, Element.class).equals(Vertex.class);
             this.outputs = new SafeMapperOutputs(context);
         }
 

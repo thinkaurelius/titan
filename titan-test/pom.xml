@@ -131,11 +131,6 @@
                 </exclusion>
             </exclusions>
         </dependency>
-        <dependency>
-            <groupId>com.tinkerpop.gremlin</groupId>
-            <artifactId>gremlin-groovy</artifactId>
-            <version>${tinkerpop.version}</version>
-        </dependency>
     </dependencies>
 
     <build>

@@ -40,7 +40,7 @@ public class EdgesMap {
 
         @Override
         public void setup(final Mapper.Context context) throws IOException, InterruptedException {
-            this.processVertices = context.getConfiguration().getBoolean(PROCESS_VERTICES, true);
+            this.processVertices = DEFAULT_COMPAT.getContextConfiguration(context).getBoolean(PROCESS_VERTICES, true);
         }
 
         @Override

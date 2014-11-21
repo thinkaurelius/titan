@@ -51,9 +51,9 @@ public class FilterMap {
 
         @Override
         public void setup(final Mapper.Context context) throws IOException, InterruptedException {
-            this.isVertex = context.getConfiguration().getClass(CLASS, Element.class, Element.class).equals(Vertex.class);
+            this.isVertex = DEFAULT_COMPAT.getContextConfiguration(context).getClass(CLASS, Element.class, Element.class).equals(Vertex.class);
             try {
-                this.closure = (Closure<Boolean>) engine.eval(context.getConfiguration().get(CLOSURE));
+                this.closure = (Closure<Boolean>) engine.eval(DEFAULT_COMPAT.getContextConfiguration(context).get(CLOSURE));
             } catch (final ScriptException e) {
                 throw new IOException(e.getMessage(), e);
             }

@@ -65,17 +65,18 @@ public class IntervalFilterMap {
 
         @Override
         public void setup(final Mapper.Context context) throws IOException, InterruptedException {
-            this.isVertex = context.getConfiguration().getClass(CLASS, Element.class, Element.class).equals(Vertex.class);
-            final String key = context.getConfiguration().get(KEY);
-            final Class valueClass = context.getConfiguration().getClass(VALUE_CLASS, String.class);
+            Configuration cfg = DEFAULT_COMPAT.getContextConfiguration(context);
+            this.isVertex = cfg.getClass(CLASS, Element.class, Element.class).equals(Vertex.class);
+            final String key = cfg.get(KEY);
+            final Class valueClass = cfg.getClass(VALUE_CLASS, String.class);
             final Object startValue;
             final Object endValue;
             if (valueClass.equals(String.class)) {
-                startValue = context.getConfiguration().get(START_VALUE);
-                endValue = context.getConfiguration().get(END_VALUE);
+                startValue = cfg.get(START_VALUE);
+                endValue = cfg.get(END_VALUE);
             } else if (Number.class.isAssignableFrom((valueClass))) {
-                startValue = context.getConfiguration().getFloat(START_VALUE, Float.MIN_VALUE);
-                endValue = context.getConfiguration().getFloat(END_VALUE, Float.MAX_VALUE);
+                startValue = cfg.getFloat(START_VALUE, Float.MIN_VALUE);
+                endValue = cfg.getFloat(END_VALUE, Float.MAX_VALUE);
             } else {
                 throw new IOException("Class " + valueClass + " is an unsupported value class");
             }

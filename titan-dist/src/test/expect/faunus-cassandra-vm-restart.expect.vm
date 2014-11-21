@@ -9,8 +9,42 @@ expect_after {
 }
 expect gremlin>
 
-send "g = HadoopFactory.open(\"${graphConfig}\")\r"
-expect -re "${graphToString}"
+send "g = HadoopFactory.open(\"conf/hadoop/titan-cassandra-output.properties\")\r"
+expect -re "hadoop"
+expect gremlin>
+
+send "g._()\r"
+expect gremlin>
+
+send "g.shutdown()\r"
+expect gremlin>
+
+# Kill the VM
+send "quit\r"
+expect eof
+wait
+
+# Restart
+spawn bin/gremlin.sh
+expect_after {
+    timeout {
+        # Default timeout handler
+        exit 1
+    }
+}
+expect gremlin>
+
+# Load config file, then override Cassandra partitioner
+send "properties = new java.util.Properties()\r"
+send "properties.load(new java.io.FileInputStream(\"conf/hadoop/titan-cassandra-input.properties\"))\r"
+# Partitioner override on next line
+send "properties.put(\"cassandra.input.partitioner.class\", \"${cassandraPartitioner}\")\r"
+# Copy to a Hadoop Configuration object and instantiate a HadoopGraph with it
+send "configuration = new org.apache.hadoop.conf.Configuration()\r"
+send "for (Map.Entry<Object, Object> entry : properties.entrySet())\r"
+send "    configuration.set(entry.getKey().toString(), entry.getValue().toString())\r"
+send "g = new HadoopGraph(configuration)\r"
+expect -re "hadoop"
 expect gremlin>
 
 send "g._()\r"

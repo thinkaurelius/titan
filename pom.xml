@@ -60,6 +60,7 @@
     <properties>
         <titan.compatible.versions>0.5.0</titan.compatible.versions>
         <tinkerpop.version>2.5.0</tinkerpop.version>
+        <groovy.version>2.3.7</groovy.version>
         <junit.version>4.11</junit.version>
         <mrunit.version>1.1.0</mrunit.version>
         <cassandra.version>2.0.8</cassandra.version>
@@ -70,6 +71,11 @@
         <httpcomponents.version>4.2.5</httpcomponents.version>
         <hadoop1.version>1.2.1</hadoop1.version>
         <hadoop2.version>2.2.0</hadoop2.version>
+        <hbase094.version>0.94.25</hbase094.version>
+        <hbase096.core.version>0.96.2</hbase096.core.version>
+        <hbase096.version>${hbase096.core.version}-hadoop2</hbase096.version>
+        <hbase098.core.version>0.98.8</hbase098.core.version>
+        <hbase098.version>${hbase098.core.version}-hadoop2</hbase098.version>
         <jackson1.version>1.9.2</jackson1.version>
         <jackson2.version>2.2.3</jackson2.version>
         <!-- ES depends on Lucene.  This ES dependency can affect the
@@ -84,10 +90,9 @@
         <concurrentlinkedhashmap.version>1.3</concurrentlinkedhashmap.version>
         <antlr2.version>2.7.7</antlr2.version>
         <antlr.version>3.2</antlr.version>
-        <asm3.version>3.1</asm3.version>
-        <asm4.version>4.0</asm4.version>
+        <asm4.version>4.1</asm4.version>
         <zookeeper.version>3.4.6</zookeeper.version>
-        <jersey.version>1.17</jersey.version>
+        <jersey.version>1.18.2</jersey.version>
         <jna.version>3.2.7</jna.version>
         <kuali.s3.wagon.version>1.1.20</kuali.s3.wagon.version>
         <jasper.version>5.5.23</jasper.version>
@@ -135,6 +140,27 @@
                         <configuration>
                             <rules>
                                 <DependencyConvergence />
+                            </rules>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>enforce-asm-ban</id>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <bannedDependencies>
+                                    <excludes>
+                                        <!-- Ban ASM 3.x
+                                             N.B.: ASM 4.x and 5.x use groupId org.ow2.asm which is not banned.  -->
+                                        <exclude>asm:asm</exclude>
+                                        <exclude>asm:asm-*</exclude>
+                                    </excludes>
+                                    <message>
+                                        ASM 3.x is banned because it casues runtime conflicts with ASM 4.x+
+                                    </message>
+                                </bannedDependencies>
                             </rules>
                         </configuration>
                     </execution>
@@ -495,7 +521,7 @@
             <dependency>
                 <groupId>org.apache.avro</groupId>
                 <artifactId>avro</artifactId>
-                <version>1.4.1</version>
+                <version>1.7.4</version>
             </dependency>
             <dependency>
                 <artifactId>jboss-logging</artifactId>
@@ -537,12 +563,7 @@
                 <artifactId>jetty</artifactId>
                 <version>6.1.26</version>
             </dependency>
-            <dependency>
-                <groupId>com.sun.jersey</groupId>
-                <artifactId>jersey-grizzly2</artifactId>
-                <version>1.17</version>
-            </dependency>
-	    <!-- Sesame -->
+            <!-- Sesame -->
             <dependency>
                 <groupId>org.openrdf.sesame</groupId>
                 <artifactId>sesame-model</artifactId>
@@ -584,53 +605,35 @@
                 <version>${sesame.version}</version>
             </dependency>
 
-            <!-- asm 3.x -->
+            <!-- Gremlin -->
             <dependency>
-                <groupId>asm</groupId>
-                <artifactId>asm</artifactId>
-                <version>${asm3.version}</version>
+                <groupId>com.tinkerpop.gremlin</groupId>
+                <artifactId>gremlin</artifactId>
+                <version>${tinkerpop.version}</version>
             </dependency>
             <dependency>
-                <groupId>asm</groupId>
-                <artifactId>asm-all</artifactId>
-                <version>${asm3.version}</version>
+                <groupId>com.tinkerpop.gremlin</groupId>
+                <artifactId>gremlin-groovy</artifactId>
+                <version>${tinkerpop.version}</version>
             </dependency>
             <dependency>
-                <groupId>asm</groupId>
-                <artifactId>asm-analysis</artifactId>
-                <version>${asm3.version}</version>
+                <groupId>com.tinkerpop.gremlin</groupId>
+                <artifactId>gremlin-java</artifactId>
+                <version>${tinkerpop.version}</version>
             </dependency>
             <dependency>
-                <groupId>asm</groupId>
-                <artifactId>asm-commons</artifactId>
-                <version>${asm3.version}</version>
+                <groupId>com.tinkerpop.gremlin</groupId>
+                <artifactId>gremlin-test</artifactId>
+                <version>${tinkerpop.version}</version>
             </dependency>
+            <!-- JLine (used by Gremlin and Rexster, theoretically also Cassandra) -->
             <dependency>
-                <groupId>asm</groupId>
-                <artifactId>asm-debug-all</artifactId>
-                <version>${asm3.version}</version>
+                <groupId>jline</groupId>
+                <artifactId>jline</artifactId>
+                <version>1.0</version>
             </dependency>
-            <dependency>
-                <groupId>asm</groupId>
-                <artifactId>asm-parent</artifactId>
-                <version>${asm3.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>asm</groupId>
-                <artifactId>asm-tree</artifactId>
-                <version>${asm3.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>asm</groupId>
-                <artifactId>asm-util</artifactId>
-                <version>${asm3.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>asm</groupId>
-                <artifactId>asm-xml</artifactId>
-                <version>${asm3.version}</version>
-            </dependency>
-            <!-- asm 4.x; only used by kryo-shaded right now
+
+            <!-- ASM 4.x -->
             <dependency>
                 <groupId>org.ow2.asm</groupId>
                 <artifactId>asm</artifactId>
@@ -656,12 +659,15 @@
                 <artifactId>asm-util</artifactId>
                 <version>${asm4.version}</version>
             </dependency>
-            -->
+
+            <!-- Objenesis -->
             <dependency>
                 <groupId>org.objenesis</groupId>
                 <artifactId>objenesis</artifactId>
                 <version>1.2</version>
             </dependency>
+
+            <!-- Testing -->
             <dependency>
                 <groupId>junit</groupId>
                 <artifactId>junit</artifactId>
@@ -677,11 +683,7 @@
                 <artifactId>hamcrest-core</artifactId>
                 <version>1.3</version>
             </dependency>
-            <dependency>
-                <groupId>jline</groupId>
-                <artifactId>jline</artifactId>
-                <version>1.0</version>
-            </dependency>
+
             <!-- Force newer Snappy-java because 1.4.0.1 is broken on Mac OS X with JDK 7 -->
             <dependency>
                 <groupId>org.xerial.snappy</groupId>
@@ -753,7 +755,6 @@
                 <version>${httpcomponents.version}</version>
             </dependency>
 
-
             <dependency>
                 <groupId>com.googlecode.json-simple</groupId>
                 <artifactId>json-simple</artifactId>
@@ -773,6 +774,11 @@
             <dependency>
                 <groupId>com.sun.jersey</groupId>
                 <artifactId>jersey-core</artifactId>
+                <version>${jersey.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.sun.jersey</groupId>
+                <artifactId>jersey-grizzly2</artifactId>
                 <version>${jersey.version}</version>
             </dependency>
             <dependency>

@@ -65,16 +65,20 @@ public abstract class AbstractHadoopCompiler extends HybridConfigured implements
         if (getTitanConf().get(TitanHadoopConfiguration.PIPELINE_TRACK_STATE))
             getLog().warn("State tracking is enabled for this Titan/Hadoop job (full deletes not possible)");
 
+        String customConfigurer = getTitanConf().has(TitanHadoopConfiguration.CLASSPATH_CONFIGURER) ?
+                getTitanConf().get(TitanHadoopConfiguration.CLASSPATH_CONFIGURER) : null;
+
         JobClasspathConfigurer cpConf = JobClasspathConfigurers.get(
-                graph.getConf().get(getMapReduceJarConfigKey()), getDefaultMapReduceJar());
+                customConfigurer,
+                graph.getConf().get(getMapReduceJarConfigKey()),
+                getDefaultMapReduceJar());
 
         // Create temporary job data directory on the filesystem
         Path tmpPath = graph.getJobDir();
         final FileSystem fs = FileSystem.get(graph.getConf());
         fs.mkdirs(tmpPath);
         getLog().debug("Created " + tmpPath + " on filesystem " + fs);
-        final String jobTmp = tmpPath.toString() + "/" + Tokens.JOB;
-        getLog().debug("Set jobDir=" + jobTmp);
+        final String jobPathPrefix = tmpPath.toString() + "/" + Tokens.JOB;
 
         //////// CHAINING JOBS TOGETHER
 
@@ -82,11 +86,15 @@ public abstract class AbstractHadoopCompiler extends HybridConfigured implements
 
         for (int i = 0; i < jobs.size(); i++) {
             final Job job = jobs.get(i);
+
+            final Path curJobDir = new Path(jobPathPrefix + "-" + i);
+            final Path prevJobDir = new Path(jobPathPrefix + "-" + (i - 1));
+
             for (ConfigOption<Boolean> c : Arrays.asList(TitanHadoopConfiguration.PIPELINE_TRACK_PATHS, TitanHadoopConfiguration.PIPELINE_TRACK_STATE)) {
                 ModifiableHadoopConfiguration jobFaunusConf = ModifiableHadoopConfiguration.of(job.getConfiguration());
                 jobFaunusConf.set(c, getTitanConf().get(c));
             }
-            SequenceFileOutputFormat.setOutputPath(job, new Path(jobTmp + "-" + i));
+            SequenceFileOutputFormat.setOutputPath(job, curJobDir);
             cpConf.configure(job);
 
             getLog().info("Configuring [Job " + (i + 1) + "/" + jobs.size() + ": " + job.getJobName() + "]");
@@ -100,7 +108,7 @@ public abstract class AbstractHadoopCompiler extends HybridConfigured implements
                 }
             } else {
                 job.setInputFormatClass(INTERMEDIATE_INPUT_FORMAT);
-                FileInputFormat.setInputPaths(job, new Path(jobTmp + "-" + (i - 1)));
+                FileInputFormat.setInputPaths(job, prevJobDir);
                 FileInputFormat.setInputPathFilter(job, NoSideEffectFilter.class);
             }
 
@@ -153,6 +161,9 @@ public abstract class AbstractHadoopCompiler extends HybridConfigured implements
             } catch (ClassNotFoundException e) {
                 getLog().warn("Unable to check output format class on job {}", job);
             }
+
+            // Log the output path
+            getLog().debug("Output path: {}", curJobDir);
 
             // Log the job's key and value classes
             getLog().debug("Map output key class: " + job.getMapOutputKeyClass());

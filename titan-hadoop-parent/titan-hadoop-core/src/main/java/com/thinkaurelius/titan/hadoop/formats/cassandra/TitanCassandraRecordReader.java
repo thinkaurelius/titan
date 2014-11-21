@@ -7,6 +7,7 @@ import com.thinkaurelius.titan.hadoop.FaunusVertex;
 import com.thinkaurelius.titan.hadoop.FaunusVertexQueryFilter;
 
 import com.thinkaurelius.titan.hadoop.config.ModifiableHadoopConfiguration;
+import com.thinkaurelius.titan.hadoop.formats.util.input.TitanHadoopSetup;
 import org.apache.cassandra.hadoop.ColumnFamilyRecordReader;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.InputSplit;
@@ -26,19 +27,21 @@ public class TitanCassandraRecordReader extends RecordReader<NullWritable, Faunu
             LoggerFactory.getLogger(TitanCassandraRecordReader.class);
 
     private ColumnFamilyRecordReader reader;
+    private TitanCassandraInputFormat inputFormat;
     private TitanCassandraHadoopGraph graph;
     private FaunusVertexQueryFilter vertexQuery;
     private Configuration configuration;
     private FaunusVertex vertex;
 
-    public TitanCassandraRecordReader(final TitanCassandraHadoopGraph graph, final FaunusVertexQueryFilter vertexQuery, final ColumnFamilyRecordReader reader) {
-        this.graph = graph;
+    public TitanCassandraRecordReader(final TitanCassandraInputFormat inputFormat, final FaunusVertexQueryFilter vertexQuery, final ColumnFamilyRecordReader reader) {
+        this.inputFormat = inputFormat;
         this.vertexQuery = vertexQuery;
         this.reader = reader;
     }
 
     @Override
     public void initialize(final InputSplit inputSplit, final TaskAttemptContext taskAttemptContext) throws IOException, InterruptedException {
+        graph = new TitanCassandraHadoopGraph(inputFormat.getGraphSetup());
         reader.initialize(inputSplit, taskAttemptContext);
         configuration = ModifiableHadoopConfiguration.of(DEFAULT_COMPAT.getContextConfiguration(taskAttemptContext));
     }

@@ -9,8 +9,8 @@ import org.codehaus.groovy.tools.shell.Groovysh;
 import org.codehaus.groovy.tools.shell.IO;
 import org.codehaus.groovy.tools.shell.InteractiveShellRunner;
 
-import java.io.File;
-import java.io.IOException;
+import java.io.*;
+import java.nio.charset.Charset;
 
 /**
  * @author Marko A. Rodriguez (http://markorodriguez.com)
@@ -28,12 +28,13 @@ public class Console {
         }
     }*/
 
-    public Console(final IO io, final String inputPrompt, final String resultPrompt) {
+    public Console(final IO io, final String inputPrompt, final String resultPrompt, String cliArgs[]) {
         io.out.println();
         io.out.println("         \\,,,/");
         io.out.println("         (o o)");
         io.out.println("-----oOOo-(_)-oOOo-----");
 
+        // Evaluate imports
         final Groovysh groovy = new Groovysh();
         groovy.setResultHook(new NullResultHookClosure(groovy));
         for (final String imps : Imports.getImports()) {
@@ -43,6 +44,7 @@ public class Console {
             groovy.execute(evs);
         }
 
+        // Instantiate console objects: the ResultHook, History handler, ErrorHook, and InteractiveShellRunner
         groovy.setResultHook(new ResultHookClosure(groovy, io, resultPrompt));
         groovy.setHistory(new History());
 
@@ -54,9 +56,16 @@ public class Console {
             io.err.println("Unable to create history file: " + HISTORY_FILE);
         }
 
+        // Define convenience methods using metaClasses
         Gremlin.load();
         HadoopGremlin.load();
 
+        // Evaluate arguments
+        if (null != cliArgs && 0 < cliArgs.length) {
+            initializeShellWithScript(io, cliArgs[0], groovy);
+        }
+
+        // Enter the REPL
         try {
             runner.run();
         } catch (Error e) {
@@ -67,12 +76,35 @@ public class Console {
     }
 
     public Console() {
-        this(new IO(System.in, System.out, System.err), STANDARD_INPUT_PROMPT, STANDARD_RESULT_PROMPT);
+        this(new IO(System.in, System.out, System.err), STANDARD_INPUT_PROMPT, STANDARD_RESULT_PROMPT, new String[]{});
     }
 
+    public Console(String cliArgs[]) {
+        this(new IO(System.in, System.out, System.err), STANDARD_INPUT_PROMPT, STANDARD_RESULT_PROMPT, cliArgs);
+    }
 
     public static void main(final String[] args) {
-        new Console();
+        new Console(args);
     }
 
+    private void initializeShellWithScript(final IO io, final String initScriptFile, final Groovysh groovy) {
+        if (initScriptFile != null) {
+            String line = "";
+            try {
+                final BufferedReader reader = new BufferedReader(new InputStreamReader(
+                        new FileInputStream(initScriptFile), Charset.forName("UTF-8")));
+                while ((line = reader.readLine()) != null) {
+                    groovy.execute(line);
+                }
+
+                reader.close();
+            } catch (FileNotFoundException fnfe) {
+                io.err.println(String.format("Gremlin initialization file not found at [%s].", initScriptFile));
+                System.exit(1);
+            } catch (IOException ioe) {
+                io.err.println(String.format("Bad line in Gremlin initialization file at [%s].", line));
+                System.exit(1);
+            }
+        }
+    }
 }
