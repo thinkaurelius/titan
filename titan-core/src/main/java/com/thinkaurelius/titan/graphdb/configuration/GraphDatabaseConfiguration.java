@@ -191,6 +191,11 @@ public class GraphDatabaseConfiguration {
                     "expensive for vertices with many properties",
             ConfigOption.Type.MASKABLE, Boolean.class);
 
+    public static final ConfigOption<Boolean> ADJUST_LIMIT = new ConfigOption<Boolean>(QUERY_NS,"smart-limit",
+            "Whether the query optimizer should try to guess a smart limit for the query to ensure responsiveness in " +
+                    "light of possibly large result sets. Those will be loaded incrementally if this option is enabled.",
+            ConfigOption.Type.MASKABLE, true);
+
     // ################ SCHEMA #######################
     // ################################################
 
@@ -1235,6 +1240,7 @@ public class GraphDatabaseConfiguration {
     private int txDirtyVertexSize;
     private DefaultSchemaMaker defaultSchemaMaker;
     private Boolean propertyPrefetching;
+    private boolean adjustQueryLimit;
     private boolean allowVertexIdSetting;
     private boolean logTransactions;
     private String metricsPrefix;
@@ -1489,6 +1495,7 @@ public class GraphDatabaseConfiguration {
         if (configuration.has(PROPERTY_PREFETCHING))
             propertyPrefetching = configuration.get(PROPERTY_PREFETCHING);
         else propertyPrefetching = null;
+        adjustQueryLimit = configuration.get(ADJUST_LIMIT);
         allowVertexIdSetting = configuration.get(ALLOW_SETTING_VERTEX_ID);
         logTransactions = configuration.get(SYSTEM_LOG_TRANSACTIONS);
 
@@ -1640,6 +1647,10 @@ public class GraphDatabaseConfiguration {
         } else {
             return propertyPrefetching;
         }
+    }
+
+    public boolean adjustQueryLimit() {
+        return adjustQueryLimit;
     }
 
     public String getUnknownIndexKeyName() {
