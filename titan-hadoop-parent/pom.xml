@@ -257,9 +257,9 @@
                             <configuration>
                                 <excludes>
                                     <exclude>**/*PipelineTest.java</exclude>
-                                    <exclude>**/TitanCassandraOutputFormatTest.java</exclude>
+                                    <exclude>**/*Cassandra*FormatTest.java</exclude>
                                     <exclude>**/*ReindexTest.java</exclude>
-                                    <exclude>**/TitanHBaseOutputFormatTest.java</exclude>
+                                    <exclude>**/*HBase*FormatTest.java</exclude>
                                 </excludes>
                             </configuration>
                         </execution>
