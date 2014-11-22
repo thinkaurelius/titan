@@ -291,7 +291,7 @@
                             <configuration>
                                 <argLine>-Dtest.cassandra.confdir=${project.build.directory}/cassandra/conf/localhost-rp -Dtest.cassandra.datadir=${project.build.directory}/cassandra/data/localhost-rp</argLine>
                                 <includes>
-                                    <include>**/TitanCassandraOutputFormatTest.java</include>
+                                    <include>**/*Cassandra*FormatTest.java</include>
                                     <include>**/*ReindexTest.java</include>
                                 </includes>
                                 <skipTests>${skipCassandra}</skipTests>
@@ -307,7 +307,7 @@
                             <configuration>
                                 <argLine>-Dtest.hbase.parentdir=${top.level.basedir}/titan-hbase-parent/</argLine>
                                 <includes>
-                                    <include>**/TitanHBaseOutputFormatTest.java</include>
+                                    <include>**/*HBase*FormatTest.java</include>
                                 </includes>
                                 <skipTests>${skipHBase}</skipTests>
                                 <summaryFile>target/failsafe-reports/failsafe-titan-hbase.xml</summaryFile>
