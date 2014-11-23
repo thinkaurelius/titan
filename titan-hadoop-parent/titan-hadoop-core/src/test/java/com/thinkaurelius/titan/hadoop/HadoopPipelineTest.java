@@ -5,9 +5,12 @@ import com.thinkaurelius.titan.hadoop.formats.edgelist.rdf.RDFInputFormat;
 import com.thinkaurelius.titan.hadoop.formats.graphson.GraphSONInputFormat;
 import com.thinkaurelius.titan.hadoop.formats.graphson.GraphSONOutputFormat;
 import com.tinkerpop.pipes.transform.TransformPipe;
+import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
+
+import java.io.File;
 
 /**
  * @author Marko A. Rodriguez (http://markorodriguez.com)
@@ -62,6 +65,24 @@ public class HadoopPipelineTest extends BaseTest {
         c.set("titan.hadoop.pipeline.track-state", "true");
 
         assertEquals(0, new HadoopPipeline(new HadoopGraph(c))._().submit());
+    }
+
+    public void testGraphSONCustomOutputLocation() throws Exception {
+        Configuration c = new Configuration();
+
+        c.set("titan.hadoop.input.format", GraphSONInputFormat.class.getName());
+        c.set("titan.hadoop.input.location", "target/test-classes/com/thinkaurelius/titan/hadoop/formats/graphson/graph-of-the-gods.json");
+
+        File customOutputDir = new File("target/testGraphSONCustomOutputLocation");
+        FileUtils.deleteQuietly(customOutputDir);
+        assertFalse(customOutputDir.exists());
+
+        c.set("titan.hadoop.output.format", GraphSONOutputFormat.class.getName());
+        c.set("titan.hadoop.output.location", customOutputDir.getPath());
+        c.set("titan.hadoop.sideeffect.format", TextOutputFormat.class.getName());
+
+        assertEquals(0, new HadoopPipeline(new HadoopGraph(c))._().submit());
+        assertTrue(customOutputDir.exists());
     }
 
     public void testRDFToGraphSON() throws Exception {
