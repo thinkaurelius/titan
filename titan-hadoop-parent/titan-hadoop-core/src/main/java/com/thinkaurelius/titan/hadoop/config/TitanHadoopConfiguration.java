@@ -107,6 +107,16 @@ public class TitanHadoopConfiguration {
     public static final ConfigNamespace OUTPUT_CONF_NS =
             new ConfigNamespace(OUTPUT_NS, "conf", "Settings for the output format class");
 
+    public static final ConfigOption<String> FINAL_OUTPUT_LOCATION = new ConfigOption<String>(
+            OUTPUT_NS, "location",
+            "Titan-Hadoop writes the output of each Hadoop job to a subdirectory named job-<N> for N=0,1,...(N-1) in " +
+            ConfigElement.getPath(JOBDIR_LOCATION) + " by default.  However, when this option is set, the output " +
+            "of the final job (N-1) in a Titan-Hadoop pipeline will instead be written to the name directory.  " +
+            "This option works by calling SequenceFileOutputFormat.setOutputPath, so it generally only applies " +
+            "to output formats which are descendants of FileOutputFormat.  In particular, this option has no effect " +
+            "on output formats that write to a Titan graph.",
+            ConfigOption.Type.LOCAL, String.class);
+
     public static final ConfigNamespace PIPELINE_NS =
             new ConfigNamespace(TRUNK_NS, "pipeline", "MapReduce job cascading configuration");
 

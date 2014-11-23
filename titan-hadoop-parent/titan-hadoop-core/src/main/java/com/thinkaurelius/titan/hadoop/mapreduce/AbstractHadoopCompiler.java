@@ -87,14 +87,14 @@ public abstract class AbstractHadoopCompiler extends HybridConfigured implements
         for (int i = 0; i < jobs.size(); i++) {
             final Job job = jobs.get(i);
 
-            final Path curJobDir = new Path(jobPathPrefix + "-" + i);
+            final ModifiableHadoopConfiguration jobFaunusConf = ModifiableHadoopConfiguration.of(job.getConfiguration());
+
+            final Path defaultJobDir = new Path(jobPathPrefix + "-" + i);
             final Path prevJobDir = new Path(jobPathPrefix + "-" + (i - 1));
 
             for (ConfigOption<Boolean> c : Arrays.asList(TitanHadoopConfiguration.PIPELINE_TRACK_PATHS, TitanHadoopConfiguration.PIPELINE_TRACK_STATE)) {
-                ModifiableHadoopConfiguration jobFaunusConf = ModifiableHadoopConfiguration.of(job.getConfiguration());
                 jobFaunusConf.set(c, getTitanConf().get(c));
             }
-            SequenceFileOutputFormat.setOutputPath(job, curJobDir);
             cpConf.configure(job);
 
             getLog().info("Configuring [Job " + (i + 1) + "/" + jobs.size() + ": " + job.getJobName() + "]");
@@ -122,6 +122,8 @@ public abstract class AbstractHadoopCompiler extends HybridConfigured implements
                 getLog().debug("Set input path: {}", p);
             }
 
+            final Path curJobDir;
+
             // Configure job outputs
             if (i == jobs.size() - 1) {
                 LazyOutputFormat.setOutputFormatClass(job, graph.getGraphOutputFormat());
@@ -147,13 +149,18 @@ public abstract class AbstractHadoopCompiler extends HybridConfigured implements
                 addNamedOutput(job, Tokens.SIDEEFFECT, graph.getSideEffectOutputFormat(), job.getOutputKeyClass(), job.getOutputKeyClass());
                 //addNamedOutput(job, Tokens.SIDEEFFECT, graph.getSideEffectOutputFormat(), job.getOutputKeyClass(), job.getOutputValueClass());
                 addNamedOutput(job, Tokens.GRAPH, graph.getGraphOutputFormat(), NullWritable.class, FaunusVertex.class);
+                curJobDir = jobFaunusConf.has(TitanHadoopConfiguration.FINAL_OUTPUT_LOCATION) ?
+                        new Path(jobFaunusConf.get(TitanHadoopConfiguration.FINAL_OUTPUT_LOCATION)) : defaultJobDir;
 
             } else {
                 LazyOutputFormat.setOutputFormatClass(job, INTERMEDIATE_OUTPUT_FORMAT);
                 addNamedOutput(job, Tokens.SIDEEFFECT, graph.getSideEffectOutputFormat(), job.getOutputKeyClass(), job.getOutputKeyClass());
                 //addNamedOutput(job, Tokens.SIDEEFFECT, graph.getSideEffectOutputFormat(), job.getOutputKeyClass(), job.getOutputValueClass());
                 addNamedOutput(job, Tokens.GRAPH, INTERMEDIATE_OUTPUT_FORMAT, NullWritable.class, FaunusVertex.class);
+                curJobDir = defaultJobDir;
             }
+            // Apply the output path to the job's config
+            SequenceFileOutputFormat.setOutputPath(job, curJobDir);
 
             // Log the output format
             try {
