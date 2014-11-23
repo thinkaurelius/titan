@@ -3749,6 +3749,8 @@ public abstract class TitanGraphTest extends TitanGraphBaseTest {
         //########## QUERIES ################
         evaluateQuery(tx.query().has(time,Cmp.EQUAL,10).has(weight,Cmp.EQUAL,0),
                 ElementCategory.EDGE,1,new boolean[]{true,sorted},edge1.getName());
+        evaluateQuery(tx.query().has(time,Contain.IN,ImmutableList.of(10,20,30)).has(weight,Cmp.EQUAL,0),
+                ElementCategory.EDGE,3,new boolean[]{true,sorted},edge1.getName());
         evaluateQuery(tx.query().has(time,Cmp.EQUAL,10).has(weight,Cmp.EQUAL,0).has(text,Cmp.EQUAL,strs[10%strs.length]),
                 ElementCategory.EDGE,1,new boolean[]{false,sorted},edge1.getName());
         evaluateQuery(tx.query().has(time,Cmp.EQUAL,10).has(weight,Cmp.EQUAL,1),
@@ -3787,6 +3789,8 @@ public abstract class TitanGraphTest extends TitanGraphBaseTest {
                 ElementCategory.VERTEX,1,new boolean[]{true,sorted},vertex2.getName());
         evaluateQuery(tx.query().has(time,Cmp.EQUAL,51).has(name,Cmp.EQUAL,"u1").has("label",org.getName()),
                 ElementCategory.VERTEX,1,new boolean[]{true,sorted},vertex2.getName());
+        evaluateQuery(tx.query().has(time,Contain.IN,ImmutableList.of(51,61,71,31,41)).has(name,Cmp.EQUAL,"u1").has("label",org.getName()),
+                ElementCategory.VERTEX,5,new boolean[]{true,sorted},vertex2.getName());
         evaluateQuery(tx.query().has(time,Cmp.EQUAL,51).has("label",org.getName()),
                 ElementCategory.VERTEX,1,new boolean[]{false,sorted});
         evaluateQuery(tx.query().has(name,Cmp.EQUAL,"u1"),
@@ -3810,6 +3814,8 @@ public abstract class TitanGraphTest extends TitanGraphBaseTest {
         //########## QUERIES (copied from above) ################
         evaluateQuery(tx.query().has(time,Cmp.EQUAL,10).has(weight,Cmp.EQUAL,0),
                 ElementCategory.EDGE,1,new boolean[]{true,sorted},edge1.getName());
+        evaluateQuery(tx.query().has(time,Contain.IN,ImmutableList.of(10,20,30)).has(weight,Cmp.EQUAL,0),
+                ElementCategory.EDGE,3,new boolean[]{true,sorted},edge1.getName());
         evaluateQuery(tx.query().has(time,Cmp.EQUAL,10).has(weight,Cmp.EQUAL,0).has(text,Cmp.EQUAL,strs[10%strs.length]),
                 ElementCategory.EDGE,1,new boolean[]{false,sorted},edge1.getName());
         evaluateQuery(tx.query().has(time,Cmp.EQUAL,10).has(weight,Cmp.EQUAL,1),
@@ -3848,6 +3854,8 @@ public abstract class TitanGraphTest extends TitanGraphBaseTest {
                 ElementCategory.VERTEX,1,new boolean[]{true,sorted},vertex2.getName());
         evaluateQuery(tx.query().has(time,Cmp.EQUAL,51).has(name,Cmp.EQUAL,"u1").has("label",org.getName()),
                 ElementCategory.VERTEX,1,new boolean[]{true,sorted},vertex2.getName());
+        evaluateQuery(tx.query().has(time,Contain.IN,ImmutableList.of(51,61,71,31,41)).has(name,Cmp.EQUAL,"u1").has("label",org.getName()),
+                ElementCategory.VERTEX,5,new boolean[]{true,sorted},vertex2.getName());
         evaluateQuery(tx.query().has(time,Cmp.EQUAL,51).has("label",org.getName()),
                 ElementCategory.VERTEX,1,new boolean[]{false,sorted});
         evaluateQuery(tx.query().has(name,Cmp.EQUAL,"u1"),
