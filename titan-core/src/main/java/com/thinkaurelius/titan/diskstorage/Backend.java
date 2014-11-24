@@ -539,8 +539,8 @@ public class Backend implements LockerProvider {
     private static final ImmutableMap<StandardStoreManager, ConfigOption<?>> STORE_SHORTHAND_OPTIONS;
 
     static {
-        EnumMap<StandardStoreManager, ConfigOption<?>> m =
-                new EnumMap<StandardStoreManager, ConfigOption<?>>(StandardStoreManager.class);
+        Map<StandardStoreManager, ConfigOption<?>> m =
+                new HashMap<StandardStoreManager, ConfigOption<?>>();
 
         m.put(StandardStoreManager.BDB_JE, STORAGE_DIRECTORY);
         m.put(StandardStoreManager.CASSANDRA_ASTYANAX, STORAGE_HOSTS);
@@ -549,7 +549,8 @@ public class Backend implements LockerProvider {
         m.put(StandardStoreManager.HBASE, STORAGE_HOSTS);
         //m.put(StandardStorageBackend.IN_MEMORY, null);
 
-        STORE_SHORTHAND_OPTIONS = Maps.immutableEnumMap(m);
+        //STORE_SHORTHAND_OPTIONS = Maps.immutableEnumMap(m);
+        STORE_SHORTHAND_OPTIONS = ImmutableMap.copyOf(m);
     }
 
     public static ConfigOption<?> getOptionForShorthand(String shorthand) {
