@@ -19,7 +19,6 @@ import com.thinkaurelius.titan.diskstorage.indexing.IndexFeatures;
 import com.thinkaurelius.titan.example.GraphOfTheGodsFactory;
 import com.thinkaurelius.titan.graphdb.internal.ElementCategory;
 import com.thinkaurelius.titan.graphdb.log.StandardTransactionLogProcessor;
-import com.thinkaurelius.titan.graphdb.query.vertex.VertexLongList;
 import com.thinkaurelius.titan.graphdb.types.ParameterType;
 import com.thinkaurelius.titan.graphdb.types.StandardEdgeLabelMaker;
 import com.thinkaurelius.titan.testcategory.BrittleTests;
@@ -31,6 +30,7 @@ import com.tinkerpop.blueprints.Element;
 import com.tinkerpop.blueprints.Vertex;
 import com.tinkerpop.blueprints.util.ElementHelper;
 
+import junit.framework.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -38,8 +38,7 @@ import org.junit.rules.TestName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Iterator;
-import java.util.NoSuchElementException;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 import static com.thinkaurelius.titan.graphdb.TitanGraphTest.evaluateQuery;
@@ -1263,6 +1262,30 @@ public abstract class TitanIndexTest extends TitanGraphBaseTest {
     @Test
     public void testDeleteVertexThenModifyProperty() throws BackendException {
         testNestedWrites("x", "y");
+    }
+
+    @Test
+    public void testIndexQueryWithScore() {
+        PropertyKey textKey = mgmt.makePropertyKey("text").dataType(String.class).make();
+        mgmt.buildIndex("store1", Vertex.class).addKey(textKey).buildMixedIndex(INDEX);
+        mgmt.commit();
+
+        Vertex v1 = tx.addVertex();
+        Vertex v2 = tx.addVertex();
+        Vertex v3 = tx.addVertex();
+
+        v1.setProperty("text", "Hello Hello Hello Hello Hello Hello Hello Hello");
+        v2.setProperty("text", "Hello abab abab fsdfsd sfdfsd sdffs fsdsdf fdf fsdfsd aera fsad abab abab fsdfsd sfdf");
+        v3.setProperty("text", "Hello");
+
+        tx.commit();
+
+        Set<Double> scores = new HashSet<Double>();
+        for (TitanIndexQuery.Result<Vertex> r : graph.indexQuery("store1", "v.text:(Hello)").vertices()) {
+            scores.add(r.getScore());
+        }
+
+        Assert.assertEquals(3, scores.size());
     }
 
     private void testNestedWrites(String initialValue, String updatedValue) throws BackendException {
