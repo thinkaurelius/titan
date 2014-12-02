@@ -3,7 +3,7 @@
     <parent>
         <groupId>com.thinkaurelius.titan</groupId>
         <artifactId>titan</artifactId>
-        <version>0.5.2-SNAPSHOT</version>
+        <version>0.5.3-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
     <packaging>pom</packaging>
@@ -73,6 +73,13 @@
             <groupId>com.tinkerpop.rexster</groupId>
             <artifactId>rexster-server</artifactId>
             <version>${tinkerpop.version}</version>
+            <exclusions>
+                <!-- A specially shaded pair of Groovy and ASM classfiles is provided by titan-core -->
+                <exclusion>
+                    <groupId>org.codehaus.groovy</groupId>
+                    <artifactId>groovy</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <!-- Test dependencies -->
         <dependency>
@@ -855,7 +862,7 @@
                                                 <filtering>true</filtering>
                                             </resource>
                                         </resources>
-                                        <outputDirectory>${project.build.outputDirectory}</outputDirectory>
+                                        <outputDirectory>${project.build.testOutputDirectory}</outputDirectory>
                                     </configuration>
                                 </execution>
                                 <execution>

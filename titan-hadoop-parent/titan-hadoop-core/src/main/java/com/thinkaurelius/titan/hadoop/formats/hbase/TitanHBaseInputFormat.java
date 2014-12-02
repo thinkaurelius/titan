@@ -7,6 +7,7 @@ import com.thinkaurelius.titan.hadoop.FaunusVertex;
 import com.thinkaurelius.titan.hadoop.formats.util.TitanInputFormat;
 import com.thinkaurelius.titan.diskstorage.hbase.HBaseStoreManager;
 
+import com.thinkaurelius.titan.hadoop.formats.util.input.TitanHadoopSetupCommon;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HConstants;
 import org.apache.hadoop.hbase.client.Scan;
@@ -36,7 +37,6 @@ public class TitanHBaseInputFormat extends TitanInputFormat {
             LoggerFactory.getLogger(TitanHBaseInputFormat.class);
 
     private final TableInputFormat tableInputFormat = new TableInputFormat();
-    private TitanHBaseHadoopGraph graph;
     private byte[] edgestoreFamily;
 
     @Override
@@ -46,13 +46,12 @@ public class TitanHBaseInputFormat extends TitanInputFormat {
 
     @Override
     public RecordReader<NullWritable, FaunusVertex> createRecordReader(final InputSplit inputSplit, final TaskAttemptContext taskAttemptContext) throws IOException, InterruptedException {
-        return new TitanHBaseRecordReader(this.graph, this.vertexQuery, (TableRecordReader) this.tableInputFormat.createRecordReader(inputSplit, taskAttemptContext), edgestoreFamily);
+        return new TitanHBaseRecordReader(this, this.vertexQuery, (TableRecordReader) this.tableInputFormat.createRecordReader(inputSplit, taskAttemptContext), edgestoreFamily);
     }
 
     @Override
     public void setConf(final Configuration config) {
         super.setConf(config);
-        this.graph = new TitanHBaseHadoopGraph(titanSetup);
 
         //config.set(TableInputFormat.SCAN_COLUMN_FAMILY, Backend.EDGESTORE_NAME);
         config.set(TableInputFormat.INPUT_TABLE, inputConf.get(HBaseStoreManager.HBASE_TABLE));
@@ -72,7 +71,8 @@ public class TitanHBaseInputFormat extends TitanInputFormat {
             scanner.addFamily(Backend.EDGESTORE_NAME.getBytes());
             edgestoreFamily = Bytes.toBytes(Backend.EDGESTORE_NAME);
         }
-        scanner.setFilter(getColumnFilter(titanSetup.inputSlice(this.vertexQuery)));
+        //scanner.setFilter(getColumnFilter(titanSetup.inputSlice(this.vertexQuery)));
+        scanner.setFilter(getColumnFilter(TitanHadoopSetupCommon.getDefaultSliceQuery()));
         //TODO (minor): should we set other options in http://hbase.apache.org/apidocs/org/apache/hadoop/hbase/client/Scan.html for optimization?
         Method converter;
         try {

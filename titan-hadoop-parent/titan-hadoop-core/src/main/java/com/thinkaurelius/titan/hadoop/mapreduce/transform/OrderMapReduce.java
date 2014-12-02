@@ -84,10 +84,11 @@ public class OrderMapReduce {
 
         @Override
         public void setup(final Mapper.Context context) throws IOException, InterruptedException {
-            this.isVertex = context.getConfiguration().getClass(CLASS, Element.class, Element.class).equals(Vertex.class);
-            this.key = context.getConfiguration().get(KEY);
-            this.handler = new WritableHandler(context.getConfiguration().getClass(TYPE, Text.class, WritableComparable.class));
-            this.elementKey = context.getConfiguration().get(ELEMENT_KEY);
+            final Configuration cfg = DEFAULT_COMPAT.getContextConfiguration(context);
+            this.isVertex = cfg.getClass(CLASS, Element.class, Element.class).equals(Vertex.class);
+            this.key = cfg.get(KEY);
+            this.handler = new WritableHandler(cfg.getClass(TYPE, Text.class, WritableComparable.class));
+            this.elementKey = cfg.get(ELEMENT_KEY);
             this.outputs = new SafeMapperOutputs(context);
         }
 

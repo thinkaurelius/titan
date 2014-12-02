@@ -41,7 +41,7 @@ public class EdgesVerticesMap {
 
         @Override
         public void setup(final Mapper.Context context) throws IOException, InterruptedException {
-            this.direction = Direction.valueOf(context.getConfiguration().get(DIRECTION));
+            this.direction = Direction.valueOf(DEFAULT_COMPAT.getContextConfiguration(context).get(DIRECTION));
         }
 
         @Override

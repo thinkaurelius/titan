@@ -1,59 +1,33 @@
 package com.thinkaurelius.titan.hadoop.compat.h2;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map.Entry;
-
-import com.thinkaurelius.titan.diskstorage.configuration.ConfigOption;
+import com.thinkaurelius.titan.graphdb.configuration.TitanConstants;
+import com.thinkaurelius.titan.hadoop.FaunusVertex;
+import com.thinkaurelius.titan.hadoop.HadoopGraph;
+import com.thinkaurelius.titan.hadoop.compat.HadoopCompiler;
 import com.thinkaurelius.titan.hadoop.config.HBaseAuthHelper;
-import com.thinkaurelius.titan.hadoop.config.ModifiableHadoopConfiguration;
+import com.thinkaurelius.titan.hadoop.mapreduce.AbstractHadoopCompiler;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileStatus;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.WritableComparable;
 import org.apache.hadoop.io.WritableComparator;
 import org.apache.hadoop.io.compress.CompressionCodec;
 import org.apache.hadoop.io.compress.DefaultCodec;
-import org.apache.hadoop.mapreduce.InputFormat;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
-import org.apache.hadoop.mapreduce.OutputFormat;
 import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.mapreduce.lib.chain.ChainMapper;
 import org.apache.hadoop.mapreduce.lib.chain.ChainReducer;
-import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
-import org.apache.hadoop.mapreduce.lib.input.SequenceFileInputFormat;
-import org.apache.hadoop.mapreduce.lib.output.LazyOutputFormat;
-import org.apache.hadoop.mapreduce.lib.output.MultipleOutputs;
-import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import com.google.common.base.Preconditions;
-import com.thinkaurelius.titan.graphdb.configuration.TitanConstants;
-import com.thinkaurelius.titan.hadoop.FaunusVertex;
-import com.thinkaurelius.titan.hadoop.HadoopGraph;
-import com.thinkaurelius.titan.hadoop.Tokens;
-import com.thinkaurelius.titan.hadoop.compat.HadoopCompiler;
-import com.thinkaurelius.titan.hadoop.config.HybridConfigured;
-import com.thinkaurelius.titan.hadoop.config.TitanHadoopConfiguration;
-import com.thinkaurelius.titan.hadoop.config.job.JobClasspathConfigurer;
-import com.thinkaurelius.titan.hadoop.config.job.JobClasspathConfigurers;
-import com.thinkaurelius.titan.hadoop.formats.FormatTools;
-import com.thinkaurelius.titan.hadoop.formats.JobConfigurationFormat;
-import com.thinkaurelius.titan.hadoop.hdfs.NoSideEffectFilter;
+import java.io.IOException;
+import java.util.Iterator;
+import java.util.Map.Entry;
 
 /**
  * @author Marko A. Rodriguez (http://markorodriguez.com)
  */
-public class Hadoop2Compiler extends HybridConfigured implements HadoopCompiler {
-
-    private static final String MAPRED_COMPRESS_MAP_OUTPUT = "mapred.compress.map.output";
-    private static final String MAPRED_MAP_OUTPUT_COMPRESSION_CODEC = "mapred.map.output.compression.codec";
+public class Hadoop2Compiler extends AbstractHadoopCompiler implements HadoopCompiler {
 
     enum State {MAPPER, REDUCER, NONE}
 
@@ -61,24 +35,31 @@ public class Hadoop2Compiler extends HybridConfigured implements HadoopCompiler 
     private static final String MAPREDUCE_MAP_OUTPUT_COMPRESS = "mapreduce.map.output.compress";
     private static final String MAPREDUCE_MAP_OUTPUT_COMPRESS_CODEC = "mapreduce.map.output.compress.codec";
 
-    public static final Logger logger = Logger.getLogger(Hadoop2Compiler.class);
-
-    private HadoopGraph graph;
-
-    protected final List<Job> jobs = new ArrayList<Job>();
+    public static final Logger logger = LoggerFactory.getLogger(Hadoop2Compiler.class);
 
     private State state = State.NONE;
-
-    private static final Class<? extends InputFormat> INTERMEDIATE_INPUT_FORMAT = SequenceFileInputFormat.class;
-    private static final Class<? extends OutputFormat> INTERMEDIATE_OUTPUT_FORMAT = SequenceFileOutputFormat.class;
 
     static final String JOB_JAR = "titan-hadoop-2-" + TitanConstants.VERSION + "-job.jar";
 
     private static final String MAPRED_JAR = "mapred.jar";
 
+    @Override
+    protected Logger getLog() {
+        return logger;
+    }
+
     public Hadoop2Compiler(final HadoopGraph graph) {
-        this.graph = graph;
-        this.setConf(new Configuration(this.graph.getConf()));
+        super(graph);
+    }
+
+    @Override
+    protected String getMapReduceJarConfigKey() {
+        return MAPRED_JAR;
+    }
+
+    @Override
+    protected String getDefaultMapReduceJar() {
+        return JOB_JAR;
     }
 
     private String makeClassName(final Class klass) {
@@ -167,10 +148,24 @@ public class Hadoop2Compiler extends HybridConfigured implements HadoopCompiler 
 
             if (State.MAPPER == this.state || State.NONE == this.state) {
                 ChainMapper.addMapper(job, mapper, NullWritable.class, FaunusVertex.class, mapOutputKey, mapOutputValue, mergedConf);
+                /* In case no reducer is defined later for this job, set the job
+                 * output k/v to match the mapper output k-v.  Output formats that
+                 * care about their configured k-v classes (such as
+                 * SequenceFileOutputFormat) require these to be set correctly lest
+                 * they throw an exception at runtime.
+                 *
+                 * ChainReducer.setReducer overwrites these k-v settings, so if a
+                 * reducer is added onto this job later, these settings will be
+                 * overridden by the actual reducer's output k-v.
+                 */
+                job.setOutputKeyClass(mapOutputKey);
+                job.setOutputValueClass(mapOutputValue);
                 this.state = State.MAPPER;
+                logger.info("Added mapper " + job.getJobName() + " via ChainMapper with output (" + mapOutputKey + "," + mapOutputValue + "); current state is " + state);
             } else {
                 ChainReducer.addMapper(job, mapper, NullWritable.class, FaunusVertex.class, mapOutputKey, mapOutputValue, mergedConf);
                 this.state = State.REDUCER;
+                logger.info("Added mapper " + job.getJobName() + " via ChainReducer with output (" + mapOutputKey + "," + mapOutputValue + "); current state is " + state);
             }
         } catch (IOException e) {
             throw new RuntimeException(e.getMessage(), e);
@@ -180,135 +175,6 @@ public class Hadoop2Compiler extends HybridConfigured implements HadoopCompiler 
     @Override
     public void completeSequence() {
         // noop
-    }
-
-    @Override
-    public void composeJobs() throws IOException {
-
-        if (this.jobs.size() == 0) {
-            return;
-        }
-
-        if (getTitanConf().get(TitanHadoopConfiguration.PIPELINE_TRACK_PATHS))
-            logger.warn("Path tracking is enabled for this Titan/Hadoop job (space and time expensive)");
-        if (getTitanConf().get(TitanHadoopConfiguration.PIPELINE_TRACK_STATE))
-            logger.warn("State tracking is enabled for this Titan/Hadoop job (full deletes not possible)");
-
-        JobClasspathConfigurer cpConf = JobClasspathConfigurers.get(graph.getConf().get(MAPRED_JAR), JOB_JAR);
-
-        // Create temporary job data directory on the filesystem
-        Path tmpPath = graph.getJobDir();
-        final FileSystem fs = FileSystem.get(graph.getConf());
-        fs.mkdirs(tmpPath);
-        logger.debug("Created " + tmpPath + " on filesystem " + fs);
-        final String jobTmp = tmpPath.toString() + "/" + Tokens.JOB;
-        logger.debug("Set jobDir=" + jobTmp);
-
-        //////// CHAINING JOBS TOGETHER
-
-        for (int i = 0; i < this.jobs.size(); i++) {
-            final Job job = this.jobs.get(i);
-            for (ConfigOption<Boolean> c : Arrays.asList(TitanHadoopConfiguration.PIPELINE_TRACK_PATHS, TitanHadoopConfiguration.PIPELINE_TRACK_STATE)) {
-                ModifiableHadoopConfiguration jobFaunusConf = ModifiableHadoopConfiguration.of(job.getConfiguration());
-                jobFaunusConf.set(c, getTitanConf().get(c));
-            }
-            SequenceFileOutputFormat.setOutputPath(job, new Path(jobTmp + "-" + i));
-            cpConf.configure(job);
-
-            // configure job inputs
-            if (i == 0) {
-                job.setInputFormatClass(this.graph.getGraphInputFormat());
-                if (FileInputFormat.class.isAssignableFrom(this.graph.getGraphInputFormat())) {
-                    FileInputFormat.setInputPaths(job, this.graph.getInputLocation());
-                    FileInputFormat.setInputPathFilter(job, NoSideEffectFilter.class);
-                }
-            } else {
-                job.setInputFormatClass(INTERMEDIATE_INPUT_FORMAT);
-                FileInputFormat.setInputPaths(job, new Path(jobTmp + "-" + (i - 1)));
-                FileInputFormat.setInputPathFilter(job, NoSideEffectFilter.class);
-            }
-
-            // configure job outputs
-            if (i == this.jobs.size() - 1) {
-                LazyOutputFormat.setOutputFormatClass(job, this.graph.getGraphOutputFormat());
-                MultipleOutputs.addNamedOutput(job, Tokens.SIDEEFFECT, this.graph.getSideEffectOutputFormat(), job.getOutputKeyClass(), job.getOutputKeyClass());
-                MultipleOutputs.addNamedOutput(job, Tokens.GRAPH, this.graph.getGraphOutputFormat(), NullWritable.class, FaunusVertex.class);
-            } else {
-                LazyOutputFormat.setOutputFormatClass(job, INTERMEDIATE_OUTPUT_FORMAT);
-                MultipleOutputs.addNamedOutput(job, Tokens.SIDEEFFECT, this.graph.getSideEffectOutputFormat(), job.getOutputKeyClass(), job.getOutputKeyClass());
-                MultipleOutputs.addNamedOutput(job, Tokens.GRAPH, INTERMEDIATE_OUTPUT_FORMAT, NullWritable.class, FaunusVertex.class);
-            }
-        }
-    }
-
-    @Override
-    public int run(final String[] args) throws Exception {
-        String script = null;
-        boolean showHeader = true;
-
-        if (args.length == 2) {
-            script = args[0];
-            showHeader = Boolean.valueOf(args[1]);
-        }
-
-        final FileSystem hdfs = FileSystem.get(this.getConf());
-        if (null != graph.getJobDir() &&
-            graph.getJobDirOverwrite() &&
-            hdfs.exists(graph.getJobDir())) {
-            hdfs.delete(graph.getJobDir(), true);
-        }
-
-        if (showHeader) {
-            logger.info("Titan/Hadoop: Distributed Graph Processing with Hadoop");
-            logger.info("        ,");
-            logger.info("    ,   |\\ ,__");
-            logger.info("    |\\   \\/   `\\");
-            logger.info("    \\ `-.:.     `\\");
-            logger.info("     `-.__ `\\/\\/\\|");
-            logger.info("        / `'/ () \\");
-            logger.info("      .'   /\\     )");
-            logger.info("   .-'  .'| \\  \\__");
-            logger.info(" .'  __(  \\  '`(()");
-            logger.info("/_.'`  `.  |    )(");
-            logger.info("         \\ |");
-            logger.info("          |/");
-        }
-
-        if (null != script && !script.isEmpty())
-            logger.info("Generating job chain: " + script);
-
-        this.composeJobs();
-        logger.info("Compiled to " + this.jobs.size() + " MapReduce job(s)");
-
-        final String jobTmp = graph.getJobDir().toString() + "/" + Tokens.JOB;
-
-        for (int i = 0; i < this.jobs.size(); i++) {
-            final Job job = this.jobs.get(i);
-            try {
-                ((JobConfigurationFormat) (FormatTools.getBaseOutputFormatClass(job).newInstance())).updateJob(job);
-            } catch (final Exception e) {
-            }
-            logger.info("Executing job " + (i + 1) + " out of " + this.jobs.size() + ": " + job.getJobName());
-            boolean success = job.waitForCompletion(true);
-            if (i > 0) {
-                Preconditions.checkNotNull(jobTmp);
-                logger.debug("Cleaninng job data location: " + jobTmp + "-" + i);
-                final Path path = new Path(jobTmp + "-" + (i - 1));
-                // delete previous intermediate graph data
-                for (final FileStatus temp : hdfs.globStatus(new Path(path.toString() + "/" + Tokens.GRAPH + "*"))) {
-                    hdfs.delete(temp.getPath(), true);
-                }
-                // delete previous intermediate graph data
-                for (final FileStatus temp : hdfs.globStatus(new Path(path.toString() + "/" + Tokens.PART + "*"))) {
-                    hdfs.delete(temp.getPath(), true);
-                }
-            }
-            if (!success) {
-                logger.error("Titan/Hadoop job error -- remaining MapReduce jobs have been canceled");
-                return -1;
-            }
-        }
-        return 0;
     }
 
     private static Configuration overlayConfiguration(Configuration base, Configuration overrides) {

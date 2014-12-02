@@ -1,6 +1,5 @@
 package com.thinkaurelius.titan.hadoop.formats.edgelist.rdf;
 
-import com.thinkaurelius.titan.hadoop.formats.edgelist.rdf.RDFInputFormat;
 import com.thinkaurelius.titan.hadoop.tinkerpop.gremlin.Imports;
 
 import junit.framework.TestCase;

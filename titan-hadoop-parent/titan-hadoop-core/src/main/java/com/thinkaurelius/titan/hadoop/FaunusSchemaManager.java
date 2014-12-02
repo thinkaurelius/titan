@@ -8,6 +8,8 @@ import com.thinkaurelius.titan.graphdb.schema.EdgeLabelDefinition;
 import com.thinkaurelius.titan.graphdb.schema.PropertyKeyDefinition;
 import com.thinkaurelius.titan.graphdb.schema.RelationTypeDefinition;
 import com.thinkaurelius.titan.graphdb.schema.SchemaProvider;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.ConcurrentMap;
 
@@ -15,6 +17,8 @@ import java.util.concurrent.ConcurrentMap;
  * @author Matthias Broecheler (me@matthiasb.com)
  */
 public class FaunusSchemaManager implements SchemaInspector {
+
+    private static final Logger log = LoggerFactory.getLogger(FaunusSchemaManager.class);
 
     private static final FaunusSchemaManager DEFAULT_MANAGER = new FaunusSchemaManager();
 
@@ -47,6 +51,7 @@ public class FaunusSchemaManager implements SchemaInspector {
         if (provider!=DefaultSchemaProvider.INSTANCE) {
             provider = DefaultSchemaProvider.asBackupProvider(provider);
         }
+        log.debug("Set schema provider: {}", provider);
         this.schemaProvider=provider;
     }
 
@@ -82,13 +87,22 @@ public class FaunusSchemaManager implements SchemaInspector {
         FaunusRelationType rt = relationTypes.get(name);
         if (rt==null) {
             RelationTypeDefinition def = schemaProvider.getRelationType(name);
-            if (def==null) return null;
-            if (def instanceof PropertyKeyDefinition) rt = new FaunusPropertyKey((PropertyKeyDefinition)def,false);
-            else rt = new FaunusEdgeLabel((EdgeLabelDefinition)def,false);
+            if (def==null) {
+                log.debug("Relation type name \"{}\" does not map to a type (returning null)", name);
+                return null;
+            }
+            if (def instanceof PropertyKeyDefinition) {
+                rt = new FaunusPropertyKey((PropertyKeyDefinition)def,false);
+                log.debug("Relation type name \"{}\" mapped to property key {}", name, rt);
+            } else {
+                rt = new FaunusEdgeLabel((EdgeLabelDefinition)def,false);
+                log.debug("Relation type name \"{}\" mapped to edge label {}", name, rt);
+            }
             relationTypes.putIfAbsent(name,rt);
             rt = relationTypes.get(name);
         }
         assert rt!=null;
+        log.debug("Relation type name \"{}\" mapped to instance {}", name, rt);
         return rt;
     }
 

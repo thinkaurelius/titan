@@ -3,13 +3,13 @@
     <parent>
         <groupId>com.thinkaurelius.titan</groupId>
         <artifactId>titan</artifactId>
-        <version>0.5.2-SNAPSHOT</version>
+        <version>0.5.3-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
     <artifactId>titan-core</artifactId>
     <name>Titan-Core: Core Library for Titan</name>
     <url>http://thinkaurelius.github.com/titan/</url>
-    
+   
     <properties>
         <top.level.basedir>${basedir}/..</top.level.basedir>
     </properties>
@@ -30,13 +30,29 @@
                     <artifactId>gossip</artifactId>
                     <groupId>org.sonatype.gossip</groupId>
                 </exclusion>
+                <!-- Exclude Groovy.  1.8.9 uses unshaded ASM 3.x, which plays badly with Solr's ASM 4.x. -->
+                <exclusion>
+                    <groupId>org.codehaus.groovy</groupId>
+                    <artifactId>groovy</artifactId>
+                </exclusion>
             </exclusions>
-            <scope>provided</scope>
+        </dependency>
+        <!-- Depend on a shaded copy of Groovy + ASM with ASM relocated to a hidden package -->
+        <dependency>
+            <groupId>com.thinkaurelius.groovy-shaded-asm</groupId>
+            <artifactId>groovy-shaded-asm</artifactId>
+            <version>1.8.9</version>
         </dependency>
         <dependency>
             <groupId>com.tinkerpop</groupId>
             <artifactId>frames</artifactId>
             <version>${tinkerpop.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>com.tinkerpop.gremlin</groupId>
+                    <artifactId>gremlin-groovy</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <!-- Utility -->
         <dependency>
@@ -152,6 +168,16 @@
             </testResource>
         </testResources>
         <plugins>
+            <plugin>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <!-- Suspend the ASM 3.x ban to allow for shading -->
+                        <id>enforce-asm-ban</id>
+                        <phase>none</phase>
+                    </execution>
+                </executions>
+            </plugin>
             <plugin>
                 <groupId>org.codehaus.gmaven</groupId>
                 <artifactId>gmaven-plugin</artifactId>

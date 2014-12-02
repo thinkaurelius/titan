@@ -31,9 +31,24 @@ public class JobClasspathConfigurers {
         POSSIBLE_MAPRED_JAR_DIRS = b.build();
     }
 
-    public static JobClasspathConfigurer get(String configuredMapredJar, String defaultMapredJar) {
+    public static JobClasspathConfigurer get(String customConfigurer, String configuredMapredJar, String defaultMapredJar) {
 
-        // Check for Hadoop's mapred.jar config key; this takes highest precedence
+        // Check for a user-provided configurer in the configuration; this takes highest precedence
+        if (null != customConfigurer) {
+            log.info("Using configuration's custom {} implementation: {}",
+                    JobClasspathConfigurer.class.getSimpleName(), customConfigurer);
+            try {
+                return (JobClasspathConfigurer)(Class.forName(customConfigurer).newInstance());
+            } catch (InstantiationException e) {
+                throw new RuntimeException(e);
+            } catch (IllegalAccessException e) {
+                throw new RuntimeException(e);
+            } catch (ClassNotFoundException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        // Check for Hadoop's mapred.jar config key; this takes next highest precedence
         if (null != configuredMapredJar) {
             log.info("Using configuration's mapred job jar: {}", configuredMapredJar);
             return DEFAULT_COMPAT.newMapredJarConfigurer(configuredMapredJar);

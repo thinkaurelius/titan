@@ -42,7 +42,7 @@ public class VertexMap {
         @Override
         public void setup(final Mapper.Context context) throws IOException, InterruptedException {
             //todo: make as list and double up repeats
-            this.ids = VertexMap.Map.getLongCollection(context.getConfiguration(), IDS, new HashSet<Long>());
+            this.ids = VertexMap.Map.getLongCollection(DEFAULT_COMPAT.getContextConfiguration(context), IDS, new HashSet<Long>());
         }
 
         @Override

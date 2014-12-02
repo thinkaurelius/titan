@@ -1,9 +1,12 @@
 package com.thinkaurelius.titan.hadoop.tinkerpop.gremlin;
 
+import com.google.common.base.Function;
+import com.google.common.collect.Lists;
 import com.tinkerpop.pipes.transform.TransformPipe;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 
+import javax.annotation.Nullable;
 import javax.script.Bindings;
 import javax.script.SimpleBindings;
 import java.io.IOException;

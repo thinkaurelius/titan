@@ -161,7 +161,7 @@ public class CommitVerticesMapReduce {
 
         @Override
         public void setup(final Reducer.Context context) {
-            this.trackState = context.getConfiguration().getBoolean(Tokens.TITAN_HADOOP_PIPELINE_TRACK_STATE, false);
+            this.trackState = DEFAULT_COMPAT.getContextConfiguration(context).getBoolean(Tokens.TITAN_HADOOP_PIPELINE_TRACK_STATE, false);
         }
 
         @Override

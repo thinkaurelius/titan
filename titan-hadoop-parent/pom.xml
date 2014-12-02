@@ -3,7 +3,7 @@
     <parent>
         <groupId>com.thinkaurelius.titan</groupId>
         <artifactId>titan</artifactId>
-        <version>0.5.2-SNAPSHOT</version>
+        <version>0.5.3-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
     <artifactId>titan-hadoop-parent</artifactId>
@@ -55,11 +55,6 @@
         <dependency>
             <groupId>com.tinkerpop.blueprints</groupId>
             <artifactId>blueprints-sail-graph</artifactId>
-            <version>${tinkerpop.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.tinkerpop.gremlin</groupId>
-            <artifactId>gremlin-groovy</artifactId>
             <version>${tinkerpop.version}</version>
         </dependency>
 
@@ -262,9 +257,9 @@
                             <configuration>
                                 <excludes>
                                     <exclude>**/*PipelineTest.java</exclude>
-                                    <exclude>**/TitanCassandraOutputFormatTest.java</exclude>
+                                    <exclude>**/*Cassandra*FormatTest.java</exclude>
                                     <exclude>**/*ReindexTest.java</exclude>
-                                    <exclude>**/TitanHBaseOutputFormatTest.java</exclude>
+                                    <exclude>**/*HBase*FormatTest.java</exclude>
                                 </excludes>
                             </configuration>
                         </execution>
@@ -296,7 +291,7 @@
                             <configuration>
                                 <argLine>-Dtest.cassandra.confdir=${project.build.directory}/cassandra/conf/localhost-rp -Dtest.cassandra.datadir=${project.build.directory}/cassandra/data/localhost-rp</argLine>
                                 <includes>
-                                    <include>**/TitanCassandraOutputFormatTest.java</include>
+                                    <include>**/*Cassandra*FormatTest.java</include>
                                     <include>**/*ReindexTest.java</include>
                                 </includes>
                                 <skipTests>${skipCassandra}</skipTests>
@@ -312,7 +307,7 @@
                             <configuration>
                                 <argLine>-Dtest.hbase.parentdir=${top.level.basedir}/titan-hbase-parent/</argLine>
                                 <includes>
-                                    <include>**/TitanHBaseOutputFormatTest.java</include>
+                                    <include>**/*HBase*FormatTest.java</include>
                                 </includes>
                                 <skipTests>${skipHBase}</skipTests>
                                 <summaryFile>target/failsafe-reports/failsafe-titan-hbase.xml</summaryFile>

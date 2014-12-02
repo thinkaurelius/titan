@@ -25,4 +25,8 @@ public abstract class TitanHadoopSetupCommon implements TitanHadoopSetup {
         //Do nothing
     }
 
+    public static SliceQuery getDefaultSliceQuery() {
+        return DEFAULT_SLICE_QUERY;
+    }
+
 }

@@ -7,6 +7,7 @@ import com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfiguration;
 import com.thinkaurelius.titan.hadoop.FaunusVertex;
 import com.thinkaurelius.titan.hadoop.formats.util.TitanInputFormat;
 
+import com.thinkaurelius.titan.hadoop.formats.util.input.TitanHadoopSetupCommon;
 import org.apache.cassandra.hadoop.ColumnFamilyInputFormat;
 import org.apache.cassandra.hadoop.ColumnFamilyRecordReader;
 import org.apache.cassandra.hadoop.ConfigHelper;
@@ -32,7 +33,6 @@ public class TitanCassandraInputFormat extends TitanInputFormat {
     private static final String RANGE_BATCH_SIZE_CONFIG = "cassandra.range.batch.size";
 
     private final ColumnFamilyInputFormat columnFamilyInputFormat = new ColumnFamilyInputFormat();
-    private TitanCassandraHadoopGraph graph;
     private Configuration config;
 
     @Override
@@ -44,15 +44,13 @@ public class TitanCassandraInputFormat extends TitanInputFormat {
     public RecordReader<NullWritable, FaunusVertex> createRecordReader(final InputSplit inputSplit, final TaskAttemptContext taskAttemptContext)
             throws IOException, InterruptedException {
 
-        return new TitanCassandraRecordReader(this.graph, this.vertexQuery,
+        return new TitanCassandraRecordReader(this, this.vertexQuery,
                 (ColumnFamilyRecordReader) this.columnFamilyInputFormat.createRecordReader(inputSplit, taskAttemptContext));
     }
 
     @Override
     public void setConf(final Configuration config) {
         super.setConf(config);
-
-        this.graph = new TitanCassandraHadoopGraph(titanSetup);
 
         // Copy some Titan configuration keys to the Hadoop Configuration keys used by Cassandra's ColumnFamilyInputFormat
         ConfigHelper.setInputInitialAddress(config, inputConf.get(GraphDatabaseConfiguration.STORAGE_HOSTS)[0]);
@@ -71,7 +69,7 @@ public class TitanCassandraInputFormat extends TitanInputFormat {
         // Set the column slice bounds via Faunus's vertex query filter
         final SlicePredicate predicate = new SlicePredicate();
         final int rangeBatchSize = config.getInt(RANGE_BATCH_SIZE_CONFIG, Integer.MAX_VALUE);
-        predicate.setSlice_range(getSliceRange(titanSetup.inputSlice(vertexQuery), rangeBatchSize));
+        predicate.setSlice_range(getSliceRange(TitanHadoopSetupCommon.getDefaultSliceQuery(), rangeBatchSize));
         ConfigHelper.setInputSlicePredicate(config, predicate);
 
         this.config = config;

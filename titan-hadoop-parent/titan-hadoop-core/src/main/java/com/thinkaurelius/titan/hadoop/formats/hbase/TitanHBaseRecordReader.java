@@ -5,6 +5,7 @@ import com.thinkaurelius.titan.hadoop.FaunusVertex;
 import com.thinkaurelius.titan.hadoop.FaunusVertexQueryFilter;
 
 import com.thinkaurelius.titan.hadoop.config.ModifiableHadoopConfiguration;
+import com.thinkaurelius.titan.hadoop.formats.util.input.TitanHadoopSetup;
 import org.apache.hadoop.hbase.mapreduce.TableRecordReader;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.InputSplit;
@@ -21,6 +22,7 @@ import static com.thinkaurelius.titan.hadoop.compat.HadoopCompatLoader.DEFAULT_C
 public class TitanHBaseRecordReader extends RecordReader<NullWritable, FaunusVertex> {
 
     private TableRecordReader reader;
+    private TitanHBaseInputFormat inputFormat;
     private TitanHBaseHadoopGraph graph;
     private FaunusVertexQueryFilter vertexQuery;
     private Configuration configuration;
@@ -29,8 +31,8 @@ public class TitanHBaseRecordReader extends RecordReader<NullWritable, FaunusVer
 
     private final byte[] edgestoreFamilyBytes;
 
-    public TitanHBaseRecordReader(final TitanHBaseHadoopGraph graph, final FaunusVertexQueryFilter vertexQuery, final TableRecordReader reader, final byte[] edgestoreFamilyBytes) {
-        this.graph = graph;
+    public TitanHBaseRecordReader(final TitanHBaseInputFormat inputFormat, final FaunusVertexQueryFilter vertexQuery, final TableRecordReader reader, final byte[] edgestoreFamilyBytes) {
+        this.inputFormat = inputFormat;
         this.vertexQuery = vertexQuery;
         this.reader = reader;
         this.edgestoreFamilyBytes = edgestoreFamilyBytes;
@@ -38,6 +40,7 @@ public class TitanHBaseRecordReader extends RecordReader<NullWritable, FaunusVer
 
     @Override
     public void initialize(final InputSplit inputSplit, final TaskAttemptContext taskAttemptContext) throws IOException, InterruptedException {
+        graph = new TitanHBaseHadoopGraph(inputFormat.getGraphSetup());
         reader.initialize(inputSplit, taskAttemptContext);
         configuration = ModifiableHadoopConfiguration.of(DEFAULT_COMPAT.getContextConfiguration(taskAttemptContext));
     }

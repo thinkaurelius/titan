@@ -7,6 +7,8 @@ import com.thinkaurelius.titan.core.*;
 import com.thinkaurelius.titan.core.attribute.AttributeHandler;
 import com.thinkaurelius.titan.core.attribute.Duration;
 import com.thinkaurelius.titan.core.schema.DefaultSchemaMaker;
+import com.thinkaurelius.titan.diskstorage.StandardIndexProvider;
+import com.thinkaurelius.titan.diskstorage.StandardStoreManager;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.ttl.TTLKVCSManager;
 import com.thinkaurelius.titan.graphdb.blueprints.BlueprintsDefaultSchemaMaker;
 import com.thinkaurelius.titan.graphdb.database.management.ManagementSystem;
@@ -189,6 +191,11 @@ public class GraphDatabaseConfiguration {
                     "expensive for vertices with many properties",
             ConfigOption.Type.MASKABLE, Boolean.class);
 
+    public static final ConfigOption<Boolean> ADJUST_LIMIT = new ConfigOption<Boolean>(QUERY_NS,"smart-limit",
+            "Whether the query optimizer should try to guess a smart limit for the query to ensure responsiveness in " +
+                    "light of possibly large result sets. Those will be loaded incrementally if this option is enabled.",
+            ConfigOption.Type.MASKABLE, true);
+
     // ################ SCHEMA #######################
     // ################################################
 
@@ -340,7 +347,7 @@ public class GraphDatabaseConfiguration {
     public static final ConfigOption<String> STORAGE_BACKEND = new ConfigOption<String>(STORAGE_NS,"backend",
             "The primary persistence provider used by Titan.  This is required.  It should be set one of " +
             "Titan's built-in shorthand names for its standard storage backends " +
-            "(shorthands: " + Joiner.on(", ").join(Backend.getRegisteredStoreManagers().keySet()) + ") " +
+            "(shorthands: " + Joiner.on(", ").join(StandardStoreManager.getAllShorthands()) + ") " +
             "or to the full package and classname of a custom/third-party StoreManager implementation.",
             ConfigOption.Type.LOCAL, String.class);
 //    public static final String STORAGE_BACKEND_KEY = "backend";
@@ -770,7 +777,7 @@ public class GraphDatabaseConfiguration {
             "\"" + INDEX_NS.getName() + "\" and \"backend\" is unique among appearances." +
             "Similar to the storage backend, this should be set to one of " +
             "Titan's built-in shorthand names for its standard index backends " +
-            "(shorthands: " + Joiner.on(", ").join(Backend.REGISTERED_INDEX_PROVIDERS.keySet()) + ") " +
+            "(shorthands: " + Joiner.on(", ").join(StandardIndexProvider.getAllShorthands()) + ") " +
             "or to the full package and classname of a custom/third-party IndexProvider implementation.",
             ConfigOption.Type.GLOBAL_OFFLINE, "elasticsearch");
 //    public static final String INDEX_BACKEND_KEY = "backend";
@@ -778,7 +785,7 @@ public class GraphDatabaseConfiguration {
 
     public static final ConfigOption<String> INDEX_DIRECTORY = new ConfigOption<String>(INDEX_NS,"directory",
             "Directory to store index data locally",
-            ConfigOption.Type.GLOBAL_OFFLINE, String.class);
+            ConfigOption.Type.MASKABLE, String.class);
 
     public static final ConfigOption<String> INDEX_NAME = new ConfigOption<String>(INDEX_NS,"index-name",
             "Name of the index if required by the indexing backend",
@@ -1233,6 +1240,7 @@ public class GraphDatabaseConfiguration {
     private int txDirtyVertexSize;
     private DefaultSchemaMaker defaultSchemaMaker;
     private Boolean propertyPrefetching;
+    private boolean adjustQueryLimit;
     private boolean allowVertexIdSetting;
     private boolean logTransactions;
     private String metricsPrefix;
@@ -1487,6 +1495,7 @@ public class GraphDatabaseConfiguration {
         if (configuration.has(PROPERTY_PREFETCHING))
             propertyPrefetching = configuration.get(PROPERTY_PREFETCHING);
         else propertyPrefetching = null;
+        adjustQueryLimit = configuration.get(ADJUST_LIMIT);
         allowVertexIdSetting = configuration.get(ALLOW_SETTING_VERTEX_ID);
         logTransactions = configuration.get(SYSTEM_LOG_TRANSACTIONS);
 
@@ -1638,6 +1647,10 @@ public class GraphDatabaseConfiguration {
         } else {
             return propertyPrefetching;
         }
+    }
+
+    public boolean adjustQueryLimit() {
+        return adjustQueryLimit;
     }
 
     public String getUnknownIndexKeyName() {

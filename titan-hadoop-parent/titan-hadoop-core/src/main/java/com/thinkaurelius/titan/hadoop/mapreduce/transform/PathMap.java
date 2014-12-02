@@ -48,9 +48,10 @@ public class PathMap {
 
         @Override
         public void setup(final Mapper.Context context) throws IOException, InterruptedException {
-            this.isVertex = context.getConfiguration().getClass(CLASS, Element.class, Element.class).equals(Vertex.class);
+            final Configuration cfg = DEFAULT_COMPAT.getContextConfiguration(context);
+            this.isVertex = cfg.getClass(CLASS, Element.class, Element.class).equals(Vertex.class);
             this.outputs = new SafeMapperOutputs(context);
-            if (!context.getConfiguration().getBoolean(Tokens.TITAN_HADOOP_PIPELINE_TRACK_PATHS, false))
+            if (!cfg.getBoolean(Tokens.TITAN_HADOOP_PIPELINE_TRACK_PATHS, false))
                 throw new IllegalStateException(PathMap.class.getSimpleName() + " requires that paths be enabled");
         }
 
