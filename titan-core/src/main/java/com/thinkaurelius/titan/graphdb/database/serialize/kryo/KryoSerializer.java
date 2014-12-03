@@ -62,6 +62,7 @@ public class KryoSerializer {
         kryos = new ThreadLocal<Kryo>() {
             public Kryo initialValue() {
                 Kryo k = new Kryo();
+                k.setClassLoader(KryoSerializer.class.getClassLoader());
                 k.setRegistrationRequired(registerRequired);
                 k.register(Class.class,new DefaultSerializers.ClassSerializer());
                 for (int i=0;i<defaultRegistrations.size();i++) {
