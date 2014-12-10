@@ -73,21 +73,27 @@
 
         <!-- numeric field types that store and index the text
              value verbatim (and hence don't support range queries, since the
-             lexicographic ordering isn't equal to the numeric ordering) -->
+             lexicographic ordering isn't equal to the numeric ordering) 
         <fieldType name="integer" class="solr.IntField" omitNorms="true"/>
         <fieldType name="long" class="solr.LongField" omitNorms="true"/>
         <fieldType name="float" class="solr.FloatField" omitNorms="true"/>
-        <fieldType name="double" class="solr.DoubleField" omitNorms="true"/>
+        <fieldType name="double" class="solr.DoubleField" omitNorms="true"/> -->
+
+        <fieldType name="integer" class="solr.TrieIntField" precisionStep="0" positionIncrementGap="0"    omitNorms="true"/>
+        <fieldType name="float"   class="solr.TrieFloatField" precisionStep="0" positionIncrementGap="0"  omitNorms="true"/>
+        <fieldType name="long"    class="solr.TrieLongField" precisionStep="0" positionIncrementGap="0"   omitNorms="true"/>
+        <fieldType name="double"  class="solr.TrieDoubleField" precisionStep="0" positionIncrementGap="0" omitNorms="true"/>
 
 
-        <!-- Numeric field types that manipulate the value into
-             a string value that isn't human-readable in its internal form,
-             but with a lexicographic ordering the same as the numeric ordering,
-             so that range queries work correctly. -->
-        <fieldType name="sint" class="solr.SortableIntField" sortMissingLast="true" omitNorms="true"/>
-        <fieldType name="slong" class="solr.SortableLongField" sortMissingLast="true" omitNorms="true"/>
-        <fieldType name="sfloat" class="solr.SortableFloatField" sortMissingLast="true" omitNorms="true"/>
-        <fieldType name="sdouble" class="solr.SortableDoubleField" sortMissingLast="true" omitNorms="true"/>
+        <!--
+             Numeric field types that index each value at various levels of precision
+             to accelerate range queries when the number of values between the range
+             endpoints is large. See the javadoc for NumericRangeQuery for internal
+             implementation details.  -->
+        <fieldType name="tint" class="solr.TrieIntField" precisionStep="8" positionIncrementGap="0"/>
+        <fieldType name="tfloat" class="solr.TrieFloatField" precisionStep="8" positionIncrementGap="0"/>
+        <fieldType name="tlong" class="solr.TrieLongField" precisionStep="8" positionIncrementGap="0"/>
+        <fieldType name="tdouble" class="solr.TrieDoubleField" precisionStep="8" positionIncrementGap="0"/>
 
 
         <!-- The format for this date field is of the form 1995-12-31T23:59:59Z, and
@@ -110,7 +116,8 @@
 
              Consult the DateField javadocs for more information.
           -->
-        <fieldType name="date" class="solr.DateField" sortMissingLast="true" omitNorms="true"/>
+        <!-- <fieldType name="date" class="solr.DateField" sortMissingLast="true" omitNorms="true"/> -->
+        <fieldType name="date" class="solr.TrieDateField" precisionStep="0" positionIncrementGap="0" sortMissingLast="true" omitNorms="true"/>
 
 
         <!-- The "RandomSortField" is not used to store or search any
@@ -217,13 +224,6 @@
         <field name="timestamp" type="date" indexed="true" stored="true" />
         <!-- IndexProviderTest -->
         <field name="text" type="text" indexed="true" stored="true" multiValued="false" />
-<!--
-        <field name="time" type="slong" indexed="true" stored="true" multiValued="false" />
-        <field name="weight" type="sfloat" indexed="true" stored="true" multiValued="false" />
-        <field name="location" type="geo" indexed="true" stored="true" multiValued="false" />
-        <field name="name" type="string" indexed="true" stored="true"/>
-        <field name="blah" type="string" indexed="true" stored="true"/>
--->
         <!-- TitanIndexTest -->
 <!--
         <field name="xtext" type="text" indexed="true" stored="true" multiValued="false" />
@@ -237,13 +237,13 @@
              EXAMPLE:  name="*_i" will match any field ending in _i (like myid_i, z_i)
              Longer patterns will be matched first.  if equal size patterns
              both match, the first appearing in the schema will be used.  -->
-        <dynamicField name="*_i"    type="sint"     indexed="true"  stored="true"/>
+        <dynamicField name="*_i"    type="tint"     indexed="true"  stored="true"/>
         <dynamicField name="*_s"    type="string"   indexed="true"  stored="true"/>
-        <dynamicField name="*_l"    type="slong"    indexed="true"  stored="true"/>
+        <dynamicField name="*_l"    type="tlong"    indexed="true"  stored="true"/>
         <dynamicField name="*_t"    type="text"     indexed="true"  stored="true"/>
         <dynamicField name="*_b"    type="boolean"  indexed="true"  stored="true"/>
-        <dynamicField name="*_f"    type="sfloat"   indexed="true"  stored="true"/>
-        <dynamicField name="*_d"    type="sdouble"  indexed="true"  stored="true"/>
+        <dynamicField name="*_f"    type="tfloat"   indexed="true"  stored="true"/>
+        <dynamicField name="*_d"    type="tdouble"  indexed="true"  stored="true"/>
         <dynamicField name="*_dt"   type="date"     indexed="true"  stored="true"/>
         <dynamicField name="*_g"    type="geo"      indexed="true"  stored="true"/>
 
