@@ -26,7 +26,7 @@ public class DefaultSchemaProvider implements SchemaProvider {
     @Override
     public PropertyKeyDefinition getPropertyKey(String name) {
         log.debug("Creating default property key definition for {}", name);
-        return new PropertyKeyDefinition(name, FaunusElement.NO_ID, Cardinality.SINGLE,Object.class);
+        return new PropertyKeyDefinition(name, FaunusElement.NO_ID, Cardinality.LIST, Object.class);
     }
 
     @Override
