@@ -1,10 +1,10 @@
 package com.thinkaurelius.titan.graphdb.database.serialize.kryo;
 
-import com.esotericsoftware.kryo.Kryo;
-import com.esotericsoftware.kryo.io.Input;
-import com.esotericsoftware.kryo.io.Output;
-import com.esotericsoftware.kryo.serializers.DefaultSerializers;
-import com.esotericsoftware.kryo.serializers.FieldSerializer;
+import com.esotericsoftware.shaded.kryo.Kryo;
+import com.esotericsoftware.shaded.kryo.io.Input;
+import com.esotericsoftware.shaded.kryo.io.Output;
+import com.esotericsoftware.shaded.kryo.serializers.DefaultSerializers;
+import com.esotericsoftware.shaded.kryo.serializers.FieldSerializer;
 import com.google.common.base.Preconditions;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
@@ -177,9 +177,9 @@ public class KryoSerializer {
     private static class TypeRegistration {
 
         final Class type;
-        final com.esotericsoftware.kryo.Serializer serializer;
+        final com.esotericsoftware.shaded.kryo.Serializer serializer;
 
-        TypeRegistration(Class type, com.esotericsoftware.kryo.Serializer serializer) {
+        TypeRegistration(Class type, com.esotericsoftware.shaded.kryo.Serializer serializer) {
             this.type=type;
             this.serializer=serializer;
         }

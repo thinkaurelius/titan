@@ -1,9 +1,9 @@
 package com.thinkaurelius.titan.graphdb.serializer;
 
 
-import com.esotericsoftware.kryo.Kryo;
-import com.esotericsoftware.kryo.io.Input;
-import com.esotericsoftware.kryo.io.Output;
+import com.esotericsoftware.shaded.kryo.Kryo;
+import com.esotericsoftware.shaded.kryo.io.Input;
+import com.esotericsoftware.shaded.kryo.io.Output;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
