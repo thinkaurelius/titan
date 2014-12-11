@@ -20,13 +20,13 @@ public class DefaultSchemaProvider implements SchemaProvider {
     @Override
     public EdgeLabelDefinition getEdgeLabel(String name) {
         log.debug("Creating default edge label definition for {}", name);
-        return new EdgeLabelDefinition(name, FaunusElement.NO_ID, Multiplicity.MULTI,false);
+        return new EdgeLabelDefinition(name, FaunusElement.NO_ID, Multiplicity.MULTI, false);
     }
 
     @Override
     public PropertyKeyDefinition getPropertyKey(String name) {
         log.debug("Creating default property key definition for {}", name);
-        return new PropertyKeyDefinition(name, FaunusElement.NO_ID, Cardinality.SINGLE,Object.class);
+        return new PropertyKeyDefinition(name, FaunusElement.NO_ID, Cardinality.SINGLE, Object.class);
     }
 
     @Override

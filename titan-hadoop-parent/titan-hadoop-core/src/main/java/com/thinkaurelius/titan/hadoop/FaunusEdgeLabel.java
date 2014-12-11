@@ -15,7 +15,11 @@ public class FaunusEdgeLabel extends FaunusRelationType implements EdgeLabel {
             new EdgeLabelDefinition(Tokens._LINK, FaunusElement.NO_ID,Multiplicity.MULTI,false),false);
 
     protected FaunusEdgeLabel(EdgeLabelDefinition def, boolean hidden) {
-        super(def, hidden);
+        this(def, hidden, false);
+    }
+
+    protected FaunusEdgeLabel(EdgeLabelDefinition def, boolean hidden, boolean isUnchecked) {
+        super(def, hidden, isUnchecked);
         this.definition = def;
     }
 

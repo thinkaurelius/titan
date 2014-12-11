@@ -25,6 +25,7 @@ public class FaunusSchemaManager implements SchemaInspector {
     private final ConcurrentMap<String,FaunusVertexLabel> vertexLabels;
     private final ConcurrentMap<String,FaunusRelationType> relationTypes;
     private SchemaProvider schemaProvider;
+    private boolean isSchemaProviderDefault;
 
     private FaunusSchemaManager() {
         this(DefaultSchemaProvider.INSTANCE);
@@ -48,7 +49,8 @@ public class FaunusSchemaManager implements SchemaInspector {
     }
 
     public void setSchemaProvider(SchemaProvider provider) {
-        if (provider!=DefaultSchemaProvider.INSTANCE) {
+        isSchemaProviderDefault = provider == DefaultSchemaProvider.INSTANCE;
+        if (!isSchemaProviderDefault) {
             provider = DefaultSchemaProvider.asBackupProvider(provider);
         }
         log.debug("Set schema provider: {}", provider);
@@ -92,10 +94,10 @@ public class FaunusSchemaManager implements SchemaInspector {
                 return null;
             }
             if (def instanceof PropertyKeyDefinition) {
-                rt = new FaunusPropertyKey((PropertyKeyDefinition)def,false);
+                rt = new FaunusPropertyKey((PropertyKeyDefinition)def,false,isSchemaProviderDefault);
                 log.debug("Relation type name \"{}\" mapped to property key {}", name, rt);
             } else {
-                rt = new FaunusEdgeLabel((EdgeLabelDefinition)def,false);
+                rt = new FaunusEdgeLabel((EdgeLabelDefinition)def,false,isSchemaProviderDefault);
                 log.debug("Relation type name \"{}\" mapped to edge label {}", name, rt);
             }
             relationTypes.putIfAbsent(name,rt);
@@ -122,7 +124,7 @@ public class FaunusSchemaManager implements SchemaInspector {
     public FaunusPropertyKey getOrCreatePropertyKey(String name) {
         FaunusRelationType rt = getRelationType(name);
         if (rt==null) {
-            relationTypes.putIfAbsent(name,new FaunusPropertyKey(schemaProvider.getPropertyKey(name),false));
+            relationTypes.putIfAbsent(name, new FaunusPropertyKey(schemaProvider.getPropertyKey(name), false, isSchemaProviderDefault));
             rt = relationTypes.get(name);
         }
         assert rt!=null;
@@ -141,7 +143,7 @@ public class FaunusSchemaManager implements SchemaInspector {
     public FaunusEdgeLabel getOrCreateEdgeLabel(String name) {
         FaunusRelationType rt = getRelationType(name);
         if (rt==null) {
-            relationTypes.putIfAbsent(name,new FaunusEdgeLabel(schemaProvider.getEdgeLabel(name),false));
+            relationTypes.putIfAbsent(name, new FaunusEdgeLabel(schemaProvider.getEdgeLabel(name), false, isSchemaProviderDefault));
             rt = relationTypes.get(name);
         }
         assert rt!=null;

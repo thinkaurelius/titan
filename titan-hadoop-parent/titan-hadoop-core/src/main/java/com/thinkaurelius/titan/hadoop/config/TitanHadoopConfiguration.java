@@ -85,6 +85,16 @@ public class TitanHadoopConfiguration {
             "Whether to attempt to automatically create Titan property keys and labels before writing data",
             ConfigOption.Type.LOCAL, true);
 
+    public static final ConfigOption<Boolean> OUTPUT_TITAN_TYPE_CHECKING = new ConfigOption<Boolean>(
+            OUTPUT_NS, "titan-type-checking",
+            "Attempt to load and enforce Titan schema information as early as possible in the job pipeline, " +
+            "typically in the first mapper that executes as part of a Titan-Hadoop pipeline.  This option is only " +
+            "useful when reading ungroomed data from an input source that does not provide intrinsic integrity " +
+            "guarantees, such as RDF or GraphSON files, and writing those same data out to Titan.  This option is " +
+            "meaningless and must be false or unspecified when either the output format is not a Titan output " +
+            "format or when the input format is a Titan input format (or both).",
+            ConfigOption.Type.LOCAL, false);
+
     public static final ConfigOption<String> OUTPUT_LOADER_SCRIPT_FILE = new ConfigOption<String>(
             OUTPUT_NS, "loader-script-file",
             "The path to a Titan vertex/edge/property loader script.  This option only has an effect when " +

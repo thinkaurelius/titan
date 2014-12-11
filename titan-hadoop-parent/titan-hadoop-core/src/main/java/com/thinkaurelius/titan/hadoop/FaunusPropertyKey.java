@@ -70,7 +70,11 @@ public class FaunusPropertyKey<T> extends FaunusRelationType implements Property
     private final Function<FaunusElement,T> implicitFunction;
 
     public FaunusPropertyKey(PropertyKeyDefinition definition, boolean isHidden) {
-        super(definition,isHidden);
+        this(definition, isHidden, false);
+    }
+
+    public FaunusPropertyKey(PropertyKeyDefinition definition, boolean isHidden, boolean isUnchecked) {
+        super(definition,isHidden,isUnchecked);
         this.definition = definition;
         this.implicitFunction = null;
     }

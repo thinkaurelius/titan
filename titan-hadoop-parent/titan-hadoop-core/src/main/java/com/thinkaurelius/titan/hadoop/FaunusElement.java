@@ -199,40 +199,45 @@ public abstract class FaunusElement extends LifeCycleElement implements Internal
                 }
             } else {
                 //Verify multiplicity constraint
-                switch(relation.getType().getMultiplicity()) {
-                    case MANY2ONE:
-                        if (dir==Direction.OUT)
-                            ensureUniqueness(relation.getType(),adjacency);
-                        break;
-                    case ONE2MANY:
-                        if (dir==Direction.IN)
-                            ensureUniqueness(relation.getType(),adjacency);
-                        break;
-                    case ONE2ONE:
-                        ensureUniqueness(relation.getType(),adjacency);
-                        break;
-                    case SIMPLE:
-                        for (FaunusRelation rel : adjacency.get(relation.getType())) {
-                            if (rel.isRemoved()) continue;
-                            if (relation.isEdge()) {
-                                FaunusEdge e1 = (FaunusEdge)relation, e2 = (FaunusEdge)rel;
-                                if (e1.getVertex(Direction.OUT).equals(e2.getVertex(Direction.OUT)) &&
-                                        e1.getVertex(Direction.IN).equals(e2.getVertex(Direction.IN))) {
-                                    throw new IllegalArgumentException("A relation already exists which" +
-                                            "violates the multiplicity constraint: " + relation.getType().getMultiplicity());
-                                }
-                            } else {
-                                FaunusProperty p1 = (FaunusProperty)relation, p2 = (FaunusProperty)rel;
-                                if (p1.getValue().equals(p2.getValue())) {
-                                    throw new IllegalArgumentException("A relation already exists which" +
-                                            "violates the multiplicity constraint: " + relation.getType().getMultiplicity());
+                if (!relation.getType().isUnchecked()) {
+                    switch (relation.getType().getMultiplicity()) {
+                        case MANY2ONE:
+                            if (dir == Direction.OUT)
+                                ensureUniqueness(relation.getType(), adjacency);
+                            break;
+                        case ONE2MANY:
+                            if (dir == Direction.IN)
+                                ensureUniqueness(relation.getType(), adjacency);
+                            break;
+                        case ONE2ONE:
+                            ensureUniqueness(relation.getType(), adjacency);
+                            break;
+                        case SIMPLE:
+                            for (FaunusRelation rel : adjacency.get(relation.getType())) {
+                                if (rel.isRemoved()) continue;
+                                if (relation.isEdge()) {
+                                    FaunusEdge e1 = (FaunusEdge) relation, e2 = (FaunusEdge) rel;
+                                    if (e1.getVertex(Direction.OUT).equals(e2.getVertex(Direction.OUT)) &&
+                                            e1.getVertex(Direction.IN).equals(e2.getVertex(Direction.IN))) {
+                                        throw new IllegalArgumentException("A relation already exists which" +
+                                                "violates the multiplicity constraint: " + relation.getType().getMultiplicity());
+
+                                    }
+                                } else {
+                                    FaunusProperty p1 = (FaunusProperty) relation, p2 = (FaunusProperty) rel;
+                                    if (p1.getValue().equals(p2.getValue())) {
+                                        throw new IllegalArgumentException("A relation already exists which" +
+                                                "violates the multiplicity constraint: " + relation.getType()
+                                                .getMultiplicity());
+                                    }
                                 }
                             }
-                        }
-                        break;
-                    case MULTI: //Nothing to check
-                        break;
-                    default: throw new AssertionError();
+                            break;
+                        case MULTI: //Nothing to check
+                            break;
+                        default:
+                            throw new AssertionError();
+                    }
                 }
                 adjacency.put(relation.getType(), relation);
                 updateLifeCycle(ElementLifeCycle.Event.ADDED_RELATION);

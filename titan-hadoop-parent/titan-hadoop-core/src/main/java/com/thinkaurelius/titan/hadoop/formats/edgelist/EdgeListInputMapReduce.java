@@ -8,6 +8,7 @@ import com.thinkaurelius.titan.hadoop.FaunusVertex;
 import com.thinkaurelius.titan.hadoop.StandardFaunusEdge;
 import com.thinkaurelius.titan.hadoop.FaunusElement;
 import com.thinkaurelius.titan.hadoop.config.ModifiableHadoopConfiguration;
+import com.thinkaurelius.titan.hadoop.formats.util.TitanSchemaAwareMapper;
 import com.thinkaurelius.titan.hadoop.mapreduce.util.EmptyConfiguration;
 
 import org.apache.hadoop.io.LongWritable;
@@ -35,7 +36,7 @@ public class EdgeListInputMapReduce {
         VERTEX_PROPERTIES_CREATED
     }
 
-    public static class Map extends Mapper<NullWritable, FaunusElement, LongWritable, FaunusVertex> {
+    public static class Map extends TitanSchemaAwareMapper<NullWritable, FaunusElement, LongWritable, FaunusVertex> {
 
         private final HashMap<Long, FaunusVertex> map = new HashMap<Long, FaunusVertex>();
         private static final int MAX_MAP_SIZE = 5000;
@@ -44,7 +45,8 @@ public class EdgeListInputMapReduce {
         private Configuration faunusConf;
 
         @Override
-        public void setup(Context context) {
+        public void setup(Context context) throws IOException, InterruptedException {
+            super.setup(context);
             faunusConf = ModifiableHadoopConfiguration.of(DEFAULT_COMPAT.getContextConfiguration(context));
         }
 

@@ -1,17 +1,12 @@
 package com.thinkaurelius.titan.hadoop;
 
-import com.google.common.base.Function;
-import com.google.common.base.Preconditions;
 import com.thinkaurelius.titan.core.Multiplicity;
 import com.thinkaurelius.titan.core.RelationType;
 import com.thinkaurelius.titan.core.schema.ConsistencyModifier;
 import com.thinkaurelius.titan.graphdb.internal.InternalRelationType;
-import com.thinkaurelius.titan.graphdb.internal.TitanSchemaCategory;
 import com.thinkaurelius.titan.graphdb.schema.RelationTypeDefinition;
 import com.thinkaurelius.titan.graphdb.types.system.EmptyRelationType;
-import com.thinkaurelius.titan.graphdb.types.system.SystemTypeManager;
 import com.tinkerpop.blueprints.Direction;
-import org.apache.commons.lang.StringUtils;
 
 /**
  * @author Matthias Broecheler (me@matthiasb.com)
@@ -20,10 +15,20 @@ public abstract class FaunusRelationType extends EmptyRelationType implements In
 
     private final RelationTypeDefinition definition;
     private final boolean isHidden;
+    private final boolean isUnchecked;
 
     protected FaunusRelationType(RelationTypeDefinition def, boolean hidden) {
+        this(def, hidden, false);
+    }
+
+    protected FaunusRelationType(RelationTypeDefinition def, boolean hidden, boolean isUnchecked) {
         this.definition = def;
         this.isHidden = hidden;
+        this.isUnchecked = isUnchecked;
+    }
+
+    public boolean isUnchecked() {
+        return isUnchecked;
     }
 
     @Override

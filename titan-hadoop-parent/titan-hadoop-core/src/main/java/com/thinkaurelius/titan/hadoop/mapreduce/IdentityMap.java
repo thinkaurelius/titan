@@ -4,6 +4,7 @@ import static com.thinkaurelius.titan.hadoop.compat.HadoopCompatLoader.DEFAULT_C
 
 import com.thinkaurelius.titan.hadoop.FaunusVertex;
 import com.thinkaurelius.titan.hadoop.StandardFaunusEdge;
+import com.thinkaurelius.titan.hadoop.formats.util.TitanSchemaAwareMapper;
 import com.thinkaurelius.titan.hadoop.mapreduce.util.EmptyConfiguration;
 import com.tinkerpop.blueprints.Direction;
 import com.tinkerpop.blueprints.Edge;
@@ -33,7 +34,7 @@ public class IdentityMap {
         return new EmptyConfiguration();
     }
 
-    public static class Map extends Mapper<NullWritable, FaunusVertex, NullWritable, FaunusVertex> {
+    public static class Map extends TitanSchemaAwareMapper<NullWritable, FaunusVertex, NullWritable, FaunusVertex> {
 
         @Override
         public void map(final NullWritable key, final FaunusVertex value, final Mapper<NullWritable, FaunusVertex, NullWritable, FaunusVertex>.Context context) throws IOException, InterruptedException {
