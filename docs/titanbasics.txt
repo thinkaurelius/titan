@@ -240,8 +240,8 @@ The default multiplicity is MULTI. The definition of an edge label is completed 
 
 [source,gremlin]
 mgmt = g.getManagementSystem()
-follow = mgmt.makeEdgeLabel('follow').multiplicity(MULTI).make()
-mother = mgmt.makeEdgeLabel('mother').multiplicity(MANY2ONE).make()
+follow = mgmt.makeEdgeLabel('follow').multiplicity(Multiplicity.MULTI).make()
+mother = mgmt.makeEdgeLabel('mother').multiplicity(Multiplicity.MANY2ONE).make()
 mgmt.commit()
 
 Defining Property Keys
