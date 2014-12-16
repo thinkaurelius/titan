@@ -153,6 +153,7 @@ public class FaunusSerializer {
 
 
     private void serializeObject(final DataOutput out, Object value) throws IOException {
+        // TODO close StandardSerializer
         final com.thinkaurelius.titan.graphdb.database.serialize.DataOutput o = getStandardSerializer().getDataOutput(40);
         o.writeClassAndObject(value);
         final StaticBuffer buffer = o.getStaticBuffer();
@@ -165,6 +166,7 @@ public class FaunusSerializer {
         byte[] bytes = new byte[byteLength];
         in.readFully(bytes);
         final ReadBuffer buffer = new ReadArrayBuffer(bytes);
+        // TODO close StandardSerializer
         return getStandardSerializer().readClassAndObject(buffer);
     }
 
