@@ -412,7 +412,11 @@ public class ElasticSearchIndex implements IndexProvider {
             } else if (dataType == Boolean.class) {
                 log.debug("Registering boolean type for {}", key);
                 mapping.field("type", "boolean");
-            } else if (dataType == Geoshape.class) {
+            } else if (dataType == Date.class) {
+                log.debug("Registering date type for {}", key);
+                mapping.field("type", "date");
+            }
+            else if (dataType == Geoshape.class) {
                 log.debug("Registering geo_point type for {}", key);
                 mapping.field("type", "geo_point");
             }
@@ -462,6 +466,10 @@ public class ElasticSearchIndex implements IndexProvider {
                     } else { //double or float
                         builder.field(add.field, ((Number) add.value).doubleValue());
                     }
+                } else if (add.value instanceof Date) {
+                    builder.field(add.field, ((Date) add.value));
+                } else if (AttributeUtil.isBoolean(add.value)) {
+                    builder.field(add.field, ((Boolean) add.value).booleanValue());
                 } else if (AttributeUtil.isString(add.value)) {
                     builder.field(add.field, (String) add.value);
                     if (hasDualStringMapping(informations.get(add.field))) {
@@ -607,12 +615,11 @@ public class ElasticSearchIndex implements IndexProvider {
             Object value = atom.getValue();
             String key = atom.getKey();
             TitanPredicate titanPredicate = atom.getPredicate();
-            if (value instanceof Number) {
-                Preconditions.checkArgument(titanPredicate instanceof Cmp, "Relation not supported on numeric types: " + titanPredicate);
-                Cmp numRel = (Cmp) titanPredicate;
-                Preconditions.checkArgument(value instanceof Number);
+            if (value instanceof Number || value instanceof Date) {
+                Preconditions.checkArgument(titanPredicate instanceof Cmp, "Relation not supported on numeric or date types: " + titanPredicate);
+                Cmp cmp = (Cmp) titanPredicate;
 
-                switch (numRel) {
+                switch (cmp) {
                     case EQUAL:
                         return FilterBuilders.inFilter(key, value);
                     case NOT_EQUAL:
@@ -626,8 +633,11 @@ public class ElasticSearchIndex implements IndexProvider {
                     case GREATER_THAN_EQUAL:
                         return FilterBuilders.rangeFilter(key).gte(value);
                     default:
-                        throw new IllegalArgumentException("Unexpected relation: " + numRel);
+                        throw new IllegalArgumentException("Unexpected relation: " + cmp);
                 }
+            } else if (AttributeUtil.isBoolean(value)) {
+                Preconditions.checkArgument(titanPredicate == Cmp.EQUAL, "Relation not supported on boolean types: " + titanPredicate);
+                return FilterBuilders.termFilter(key,value);
             } else if (value instanceof String) {
                 Mapping map = getStringMapping(informations.get(key));
                 String fieldName = key;
@@ -753,8 +763,10 @@ public class ElasticSearchIndex implements IndexProvider {
         Mapping mapping = Mapping.getMapping(information);
         if (mapping!=Mapping.DEFAULT && !AttributeUtil.isString(dataType)) return false;
 
-        if (Number.class.isAssignableFrom(dataType)) {
+        if (Number.class.isAssignableFrom(dataType) || Date.class.isAssignableFrom(dataType)) {
             if (titanPredicate instanceof Cmp) return true;
+        } else if(AttributeUtil.isBoolean(dataType)) {
+            return titanPredicate == Cmp.EQUAL;
         } else if (dataType == Geoshape.class) {
             return titanPredicate == Geo.WITHIN;
         } else if (AttributeUtil.isString(dataType)) {
@@ -776,7 +788,7 @@ public class ElasticSearchIndex implements IndexProvider {
     public boolean supports(KeyInformation information) {
         Class<?> dataType = information.getDataType();
         Mapping mapping = Mapping.getMapping(information);
-        if (Number.class.isAssignableFrom(dataType) || dataType == Geoshape.class) {
+        if (Number.class.isAssignableFrom(dataType) || Date.class.isAssignableFrom(dataType) || dataType == Geoshape.class || AttributeUtil.isBoolean(dataType)) {
             if (mapping==Mapping.DEFAULT) return true;
         } else if (AttributeUtil.isString(dataType)) {
             if (mapping==Mapping.DEFAULT || mapping==Mapping.STRING
