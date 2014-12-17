@@ -21,9 +21,11 @@ import com.thinkaurelius.titan.diskstorage.util.BackendOperation;
 import com.thinkaurelius.titan.diskstorage.util.BufferUtil;
 import com.thinkaurelius.titan.diskstorage.util.StaticArrayBuffer;
 import com.thinkaurelius.titan.diskstorage.util.StaticArrayEntry;
+import com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfiguration;
 import com.thinkaurelius.titan.graphdb.database.serialize.DataOutput;
 import com.thinkaurelius.titan.graphdb.database.serialize.StandardSerializer;
 
+import com.thinkaurelius.titan.graphdb.database.serialize.kryo.KryoInstanceCacheImpl;
 import com.thinkaurelius.titan.util.system.IOUtils;
 import org.apache.commons.lang.StringUtils;
 
@@ -50,9 +52,13 @@ public class KCVSConfiguration implements ConcurrentWriteConfiguration {
 
     private Duration maxOperationWaitTime = new StandardDuration(10000L, TimeUnit.MILLISECONDS);
 
-
     public KCVSConfiguration(BackendOperation.TransactionalProvider txProvider, TimestampProvider times,
                              KeyColumnValueStore store, String identifier) throws BackendException {
+        this(txProvider, times, store, identifier, GraphDatabaseConfiguration.KRYO_INSTANCE_CACHE.getDefaultValue());
+    }
+
+    public KCVSConfiguration(BackendOperation.TransactionalProvider txProvider, TimestampProvider times,
+                             KeyColumnValueStore store, String identifier, KryoInstanceCacheImpl kcache) throws BackendException {
         Preconditions.checkArgument(txProvider!=null && store!=null && times!=null);
         Preconditions.checkArgument(StringUtils.isNotBlank(identifier));
         this.txProvider = txProvider;
@@ -60,7 +66,7 @@ public class KCVSConfiguration implements ConcurrentWriteConfiguration {
         this.store = store;
         this.identifier = identifier;
         this.rowKey = string2StaticBuffer(this.identifier);
-        this.serializer = new StandardSerializer();
+        this.serializer = new StandardSerializer(true, kcache);
     }
 
     public void setMaxOperationWaitTime(Duration waitTime) {

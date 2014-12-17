@@ -30,6 +30,7 @@ import com.thinkaurelius.titan.diskstorage.util.BackendOperation;
 import com.thinkaurelius.titan.diskstorage.util.MetricInstrumentedStore;
 import com.thinkaurelius.titan.diskstorage.configuration.backend.KCVSConfiguration;
 import com.thinkaurelius.titan.diskstorage.util.StandardBaseTransactionConfig;
+import com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfiguration;
 import com.thinkaurelius.titan.graphdb.configuration.TitanConstants;
 import com.thinkaurelius.titan.graphdb.transaction.TransactionConfiguration;
 import com.thinkaurelius.titan.util.system.ConfigurationUtil;
@@ -376,7 +377,8 @@ public class Backend implements LockerProvider {
                                                                      final KeyColumnValueStore store,
                                                                      final Configuration config) {
         try {
-            KCVSConfiguration kcvsConfig = new KCVSConfiguration(txProvider,config.get(TIMESTAMP_PROVIDER),store,SYSTEM_CONFIGURATION_IDENTIFIER);
+            KCVSConfiguration kcvsConfig = new KCVSConfiguration(txProvider,config.get(TIMESTAMP_PROVIDER),
+                    store,SYSTEM_CONFIGURATION_IDENTIFIER, config.get(GraphDatabaseConfiguration.KRYO_INSTANCE_CACHE));
             kcvsConfig.setMaxOperationWaitTime(config.get(SETUP_WAITTIME));
             return kcvsConfig;
         } catch (BackendException e) {

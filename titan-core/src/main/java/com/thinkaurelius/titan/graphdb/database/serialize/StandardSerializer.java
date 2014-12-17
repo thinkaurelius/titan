@@ -7,6 +7,8 @@ import com.thinkaurelius.titan.diskstorage.ReadBuffer;
 import com.thinkaurelius.titan.diskstorage.StaticBuffer;
 import com.thinkaurelius.titan.diskstorage.WriteBuffer;
 import com.thinkaurelius.titan.diskstorage.util.WriteByteBuffer;
+import com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfiguration;
+import com.thinkaurelius.titan.graphdb.database.serialize.kryo.KryoInstanceCacheImpl;
 import com.thinkaurelius.titan.graphdb.database.serialize.kryo.KryoSerializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,12 +25,20 @@ public class StandardSerializer extends StandardAttributeHandling implements Ser
 
     private final KryoSerializer backupSerializer;
 
+    public StandardSerializer(boolean allowCustomSerialization, int maxOutputSize, KryoInstanceCacheImpl kcache) {
+        backupSerializer = new KryoSerializer(getDefaultRegistrations(), !allowCustomSerialization, maxOutputSize, kcache);
+    }
+
     public StandardSerializer(boolean allowCustomSerialization, int maxOutputSize) {
-        backupSerializer = new KryoSerializer(getDefaultRegistrations(), !allowCustomSerialization, maxOutputSize);
+        this(allowCustomSerialization, maxOutputSize, GraphDatabaseConfiguration.KRYO_INSTANCE_CACHE.getDefaultValue());
     }
 
     public StandardSerializer(boolean allowCustomSerialization) {
-        backupSerializer = new KryoSerializer(getDefaultRegistrations(), !allowCustomSerialization);
+        this(allowCustomSerialization, KryoSerializer.DEFAULT_MAX_OUTPUT_SIZE);
+    }
+
+    public StandardSerializer(boolean allowCustomSerialization, KryoInstanceCacheImpl kcache) {
+        this(allowCustomSerialization, KryoSerializer.DEFAULT_MAX_OUTPUT_SIZE, kcache);
     }
 
     public StandardSerializer() {
