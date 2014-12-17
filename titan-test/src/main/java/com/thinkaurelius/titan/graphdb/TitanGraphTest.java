@@ -1608,6 +1608,44 @@ public abstract class TitanGraphTest extends TitanGraphBaseTest {
         //Test edge retrieval
     }
 
+    @Test
+    public void testArrayEqualityUsingImplicitKey() {
+        TitanVertex v = graph.addVertex(null);
+
+        byte singleDimension[]       = new byte[] { 127, 0, 0, 1 };
+        byte singleDimensionCopy[] = new byte[] { 127, 0, 0, 1 };
+        final String singlePropName = "single";
+
+        v.setProperty(singlePropName, singleDimension);
+
+        assertEquals(1, Iterables.size(graph.query().has(singlePropName, singleDimension).vertices()));
+        assertEquals(1, Iterables.size(graph.query().has(singlePropName, singleDimensionCopy).vertices()));
+
+        graph.commit();
+
+        assertEquals(1, Iterables.size(graph.query().has(singlePropName, singleDimension).vertices()));
+        assertEquals(1, Iterables.size(graph.query().has(singlePropName, singleDimensionCopy).vertices()));
+
+        byte multiDimension[][]     = new byte[1][1];
+        multiDimension[0][0]        = (byte)42;
+        byte multiDimensionCopy[][] = new byte[1][1];
+        multiDimensionCopy[0][0]    = (byte)42;
+        final String multiPropName  = "multi";
+
+        v = graph.addVertex(null);
+
+        v.setProperty(multiPropName, multiDimension);
+
+        assertEquals(1, Iterables.size(graph.query().has(multiPropName, multiDimension).vertices()));
+        assertEquals(1, Iterables.size(graph.query().has(multiPropName, multiDimensionCopy).vertices()));
+
+        graph.commit();
+
+        assertEquals(1, Iterables.size(graph.query().has(multiPropName, multiDimension).vertices()));
+        assertEquals(1, Iterables.size(graph.query().has(multiPropName, multiDimensionCopy).vertices()));
+
+    }
+
     /**
      * Tests that self-loop edges are handled and counted correctly
      */
