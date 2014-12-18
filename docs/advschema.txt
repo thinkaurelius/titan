@@ -47,7 +47,7 @@ Property TTL is very similar to edge TTL and defined on a per-property key basis
 
 [source,gremlin]
 mgmt = g.getManagementSystem()
-sensor = mgmt.makePropertyKey('sensor').cardinality(LIST).dataType(Double.class).make()
+sensor = mgmt.makePropertyKey('sensor').cardinality(Cardinality.LIST).dataType(Double.class).make()
 mgmt.setTTL(sensor,21,TimeUnit.DAYS)
 mgmt.commit()
 
