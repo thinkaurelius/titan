@@ -290,10 +290,9 @@ public class StandardTitanGraph extends TitanBlueprintsGraph {
     private final SchemaCache.StoreRetrieval typeCacheRetrieval = new SchemaCache.StoreRetrieval() {
 
         @Override
-        public Long retrieveSchemaByName(String typeName, StandardTitanTx tx) {
+        public Long retrieveSchemaByName(String typeName) {
             // Get a consistent tx
-            Configuration customTxOptions = new MergedConfiguration(backend.getStoreFeatures().getKeyConsistentTxConfig(),
-                    tx.getConfiguration().getCustomOptions());
+            Configuration customTxOptions = backend.getStoreFeatures().getKeyConsistentTxConfig();
             StandardTitanTx consistentTx = null;
             try {
                 consistentTx = StandardTitanGraph.this.newTransaction(new StandardTransactionBuilder(getConfiguration(), StandardTitanGraph.this, customTxOptions));
@@ -306,10 +305,9 @@ public class StandardTitanGraph extends TitanBlueprintsGraph {
         }
 
         @Override
-        public EntryList retrieveSchemaRelations(final long schemaId, final BaseRelationType type, final Direction dir, final StandardTitanTx tx) {
+        public EntryList retrieveSchemaRelations(final long schemaId, final BaseRelationType type, final Direction dir) {
             SliceQuery query = queryCache.getQuery(type,dir);
-            Configuration customTxOptions = new MergedConfiguration(backend.getStoreFeatures().getKeyConsistentTxConfig(),
-                    tx.getConfiguration().getCustomOptions());
+            Configuration customTxOptions = backend.getStoreFeatures().getKeyConsistentTxConfig();
             StandardTitanTx consistentTx = null;
             try {
                 consistentTx = StandardTitanGraph.this.newTransaction(new StandardTransactionBuilder(getConfiguration(), StandardTitanGraph.this, customTxOptions));
