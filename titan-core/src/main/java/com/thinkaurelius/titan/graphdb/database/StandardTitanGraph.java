@@ -294,12 +294,11 @@ public class StandardTitanGraph extends TitanBlueprintsGraph {
             // Get a consistent tx
             Configuration customTxOptions = new MergedConfiguration(backend.getStoreFeatures().getKeyConsistentTxConfig(),
                     tx.getConfiguration().getCustomOptions());
-            TitanTransaction consistentTx = null;
+            StandardTitanTx consistentTx = null;
             try {
                 consistentTx = StandardTitanGraph.this.newTransaction(new StandardTransactionBuilder(getConfiguration(), StandardTitanGraph.this, customTxOptions));
-                tx.getTxHandle().disableCache(); //Disable cache to make sure that schema is only cached once and cache eviction works!
+                consistentTx.getTxHandle().disableCache();
                 TitanVertex v = Iterables.getOnlyElement(consistentTx.getVertices(BaseKey.SchemaName, typeName), null);
-                tx.getTxHandle().enableCache();
                 return v!=null?v.getLongId():null;
             } finally {
                 consistentTx.rollback();
@@ -314,9 +313,8 @@ public class StandardTitanGraph extends TitanBlueprintsGraph {
             StandardTitanTx consistentTx = null;
             try {
                 consistentTx = StandardTitanGraph.this.newTransaction(new StandardTransactionBuilder(getConfiguration(), StandardTitanGraph.this, customTxOptions));
-                tx.getTxHandle().disableCache(); //Disable cache to make sure that schema is only cached once!
+                consistentTx.getTxHandle().disableCache();
                 EntryList result = edgeQuery(schemaId, query, consistentTx.getTxHandle());
-                tx.getTxHandle().enableCache();
                 return result;
             } finally {
                 consistentTx.rollback();
