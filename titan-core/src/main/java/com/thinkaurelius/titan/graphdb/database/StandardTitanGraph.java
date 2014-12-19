@@ -296,7 +296,8 @@ public class StandardTitanGraph extends TitanBlueprintsGraph {
             Configuration customTxOptions = backend.getStoreFeatures().getKeyConsistentTxConfig();
             StandardTitanTx consistentTx = null;
             try {
-                consistentTx = StandardTitanGraph.this.newTransaction(new StandardTransactionBuilder(getConfiguration(), StandardTitanGraph.this, customTxOptions));
+                consistentTx = StandardTitanGraph.this.newTransaction(new StandardTransactionBuilder(getConfiguration(),
+                        StandardTitanGraph.this, customTxOptions).setGroupName(GraphDatabaseConfiguration.METRICS_SCHEMA_PREFIX_DEFAULT));
                 consistentTx.getTxHandle().disableCache();
                 TitanVertex v = Iterables.getOnlyElement(consistentTx.getVertices(BaseKey.SchemaName, typeName), null);
                 return v!=null?v.getLongId():null;
@@ -311,7 +312,8 @@ public class StandardTitanGraph extends TitanBlueprintsGraph {
             Configuration customTxOptions = backend.getStoreFeatures().getKeyConsistentTxConfig();
             StandardTitanTx consistentTx = null;
             try {
-                consistentTx = StandardTitanGraph.this.newTransaction(new StandardTransactionBuilder(getConfiguration(), StandardTitanGraph.this, customTxOptions));
+                consistentTx = StandardTitanGraph.this.newTransaction(new StandardTransactionBuilder(getConfiguration(),
+                        StandardTitanGraph.this, customTxOptions).setGroupName(GraphDatabaseConfiguration.METRICS_SCHEMA_PREFIX_DEFAULT));
                 consistentTx.getTxHandle().disableCache();
                 EntryList result = edgeQuery(schemaId, query, consistentTx.getTxHandle());
                 return result;
