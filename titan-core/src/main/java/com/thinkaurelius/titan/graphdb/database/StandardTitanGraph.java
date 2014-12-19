@@ -54,6 +54,7 @@ import com.thinkaurelius.titan.graphdb.types.system.BaseRelationType;
 import com.thinkaurelius.titan.graphdb.types.vertices.TitanSchemaVertex;
 import com.thinkaurelius.titan.graphdb.util.ExceptionFactory;
 import com.thinkaurelius.titan.util.system.IOUtils;
+import com.thinkaurelius.titan.util.system.TXUtils;
 import com.tinkerpop.blueprints.Direction;
 import com.tinkerpop.blueprints.Features;
 
@@ -300,7 +301,7 @@ public class StandardTitanGraph extends TitanBlueprintsGraph {
                 TitanVertex v = Iterables.getOnlyElement(consistentTx.getVertices(BaseKey.SchemaName, typeName), null);
                 return v!=null?v.getLongId():null;
             } finally {
-                consistentTx.rollback();
+                TXUtils.rollbackQuietly(consistentTx);
             }
         }
 
@@ -315,7 +316,7 @@ public class StandardTitanGraph extends TitanBlueprintsGraph {
                 EntryList result = edgeQuery(schemaId, query, consistentTx.getTxHandle());
                 return result;
             } finally {
-                consistentTx.rollback();
+                TXUtils.rollbackQuietly(consistentTx);
             }
         }
 
