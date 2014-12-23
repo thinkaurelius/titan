@@ -4289,6 +4289,34 @@ public abstract class TitanGraphTest extends TitanGraphBaseTest {
 
 
     @Test
+    public void testIndexQueryWithLabelsAndContainsIN() {
+        // This test is based on the steps to reproduce #882
+
+        String labelName = "labelName";
+
+        VertexLabel label = mgmt.makeVertexLabel(labelName).make();
+        PropertyKey uid = mgmt.makePropertyKey("uid").dataType(String.class).make();
+        TitanGraphIndex uidCompositeIndex = mgmt.buildIndex("uidIndex", Vertex.class).indexOnly(label).addKey(uid).unique().buildCompositeIndex();
+        mgmt.setConsistency(uidCompositeIndex, ConsistencyModifier.LOCK);
+        finishSchema();
+
+        Vertex foo = graph.addVertexWithLabel(labelName);
+        Vertex bar = graph.addVertexWithLabel(labelName);
+        foo.setProperty("uid", "foo");
+        bar.setProperty("uid", "bar");
+        graph.commit();
+
+        Iterable<Vertex> vertexes = graph.query()
+                .has("uid", Contain.IN, ImmutableList.of("foo", "bar"))
+                .has("label", labelName)
+                .vertices();
+        assertEquals(2, Iterables.size(vertexes));
+        for (Vertex v : vertexes) {
+            assertEquals(labelName, ((TitanVertex)v).getLabel());
+        }
+    }
+
+    @Test
     public void testLimitWithMixedIndexCoverage() {
         final String vt = "vt";
         final String fn = "firstname";
