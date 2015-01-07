@@ -25,6 +25,7 @@ public class ScriptExecutor {
         final FaunusGremlinScriptEngine engine = new FaunusGremlinScriptEngine();
 
         final Bindings bindings = engine.getBindings(ScriptContext.GLOBAL_SCOPE);
+        bindings.put("args", arguments.toArray());
         if (arguments.size() > 0) {
             for (int i = 0; i < arguments.size(); i++) {
                 bindings.put("a" + (i + 1), arguments.get(i));
