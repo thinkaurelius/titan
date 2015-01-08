@@ -79,7 +79,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.tinkerpop.blueprints.Direction.*;
 import static org.junit.Assert.*;
-import static org.junit.Assert.assertEquals;
 
 /**
  * @author Matthias Broecheler (me@matthiasb.com)

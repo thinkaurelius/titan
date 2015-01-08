@@ -3,6 +3,7 @@ package com.thinkaurelius.titan.graphdb;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
 import com.thinkaurelius.titan.core.*;
+import com.thinkaurelius.titan.core.attribute.Cmp;
 import com.thinkaurelius.titan.core.attribute.Decimal;
 import com.thinkaurelius.titan.core.attribute.Duration;
 import com.thinkaurelius.titan.core.attribute.Timestamp;
@@ -109,6 +110,8 @@ public abstract class TitanEventualGraphTest extends TitanGraphBaseTest {
                 assertTrue(d.isZeroLength());
             }
         }
+        assertEquals(1,v1.query().has("$timestamp",new Timestamp(100,unit)).propertyCount());
+        assertEquals(1,v1.query().has("$timestamp", Cmp.GREATER_THAN,new Timestamp(10, unit)).propertyCount());
         v1.removeProperty(name);
         v1.setProperty(address, "xyz");
         Edge edge = tx2.addEdge(1, v2, v1, "parent");
