@@ -4415,6 +4415,48 @@ public abstract class TitanGraphTest extends TitanGraphBaseTest {
     }
 
 
+    @Test
+    public void testVertexCentricIndexWithNull() {
+        EdgeLabel bought = makeLabel("bought");
+        PropertyKey time = makeKey("time",Long.class);
+        mgmt.buildEdgeIndex(bought,"byTimeDesc",BOTH,Order.DESC,time);
+        mgmt.buildEdgeIndex(bought,"byTimeIncr",BOTH,Order.ASC,time);
+        finishSchema();
+
+        Vertex v1 = tx.addVertex(), v2 = tx.addVertex();
+        v1.addEdge("bought",v2).setProperty("time",1);
+        v1.addEdge("bought",v2).setProperty("time",2);
+        v1.addEdge("bought",v2).setProperty("time",3);
+        v1.addEdge("bought",v2);
+        v1.addEdge("bought",v2);
+
+        assertEquals(5,v1.query().direction(OUT).labels("bought").count());
+        assertEquals(1,v1.query().direction(OUT).labels("bought").has("time",1).count());
+        assertEquals(1,v1.query().direction(OUT).labels("bought").has("time",Cmp.LESS_THAN,3).has("time",Cmp.GREATER_THAN,1).count());
+        assertEquals(3,v1.query().direction(OUT).labels("bought").has("time",Cmp.LESS_THAN,5).count());
+        assertEquals(3,v1.query().direction(OUT).labels("bought").has("time",Cmp.GREATER_THAN,0).count());
+        assertEquals(2,v1.query().direction(OUT).labels("bought").has("time",Cmp.LESS_THAN,3).count());
+        assertEquals(1,v1.query().direction(OUT).labels("bought").has("time",Cmp.GREATER_THAN,2).count());
+        assertEquals(2,v1.query().direction(OUT).labels("bought").hasNot("time").count());
+        assertEquals(5,v1.query().direction(OUT).labels("bought").count());
+
+
+        newTx();
+        v1 = tx.getVertex(v1);
+        //Queries copied from above
+
+        assertEquals(5,v1.query().direction(OUT).labels("bought").count());
+        assertEquals(1,v1.query().direction(OUT).labels("bought").has("time",1).count());
+        assertEquals(1,v1.query().direction(OUT).labels("bought").has("time",Cmp.LESS_THAN,3).has("time",Cmp.GREATER_THAN,1).count());
+        assertEquals(3,v1.query().direction(OUT).labels("bought").has("time",Cmp.LESS_THAN,5).count());
+        assertEquals(3,v1.query().direction(OUT).labels("bought").has("time",Cmp.GREATER_THAN,0).count());
+        assertEquals(2,v1.query().direction(OUT).labels("bought").has("time",Cmp.LESS_THAN,3).count());
+        assertEquals(1,v1.query().direction(OUT).labels("bought").has("time",Cmp.GREATER_THAN,2).count());
+        assertEquals(2,v1.query().direction(OUT).labels("bought").hasNot("time").count());
+        assertEquals(5,v1.query().direction(OUT).labels("bought").count());
+    }
+
+
     //Add more removal operations, different transaction contexts
     @Test
     public void testCreateDelete() {
