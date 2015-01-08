@@ -140,8 +140,10 @@ while getopts "eilv" opt; do
        ;;
     v) MAIN_CLASS=com.tinkerpop.gremlin.Version
     esac
-    shift $(( $OPTIND - 1 ))
 done
+
+# Discard shell script options
+shift $(( $OPTIND - 1 ))
 
 if [ -z "${JAVA_OPTIONS:-}" ]; then
     JAVA_OPTIONS="-Dlog4j.configuration=log4j-gremlin.properties"
