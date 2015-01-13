@@ -24,10 +24,7 @@ import com.thinkaurelius.titan.graphdb.types.StandardEdgeLabelMaker;
 import com.thinkaurelius.titan.testcategory.BrittleTests;
 import com.thinkaurelius.titan.testutil.TestGraphConfigs;
 import com.thinkaurelius.titan.testutil.TestUtil;
-import com.tinkerpop.blueprints.Direction;
-import com.tinkerpop.blueprints.Edge;
-import com.tinkerpop.blueprints.Element;
-import com.tinkerpop.blueprints.Vertex;
+import com.tinkerpop.blueprints.*;
 import com.tinkerpop.blueprints.util.ElementHelper;
 
 import junit.framework.Assert;
@@ -1288,6 +1285,27 @@ public abstract class TitanIndexTest extends TitanGraphBaseTest {
         }
 
         Assert.assertEquals(3, scores.size());
+    }
+
+    @Test
+    // this tests a case when there as AND with a single CONTAINS condition inside AND(name:(was here))
+    // which (in case of Solr) spans multiple conditions such as AND(AND(name:was, name:here))
+    // so we need to make sure that we don't apply AND twice.
+    public void testContainsWithMultipleValues() throws Exception {
+        PropertyKey name = makeKey("name", String.class);
+
+        mgmt.buildIndex("store1", Vertex.class).addKey(name).buildMixedIndex(INDEX);
+        mgmt.commit();
+
+        Vertex v1 = tx.addVertex();
+        v1.setProperty("name", "hercules was here");
+
+        tx.commit();
+
+        Thread.sleep(2000);
+
+        Vertex r = Iterables.get((Iterable<Vertex>) graph.query().has("name", Text.CONTAINS, "was here").vertices(), 0);
+        Assert.assertEquals(r.getProperty("name"), "hercules was here");
     }
 
     private void testNestedWrites(String initialValue, String updatedValue) throws BackendException {
