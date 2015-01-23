@@ -9,8 +9,10 @@ import com.thinkaurelius.titan.core.RelationType;
 import com.thinkaurelius.titan.diskstorage.Entry;
 import com.thinkaurelius.titan.graphdb.internal.ElementLifeCycle;
 import com.thinkaurelius.titan.graphdb.internal.InternalRelation;
+import com.thinkaurelius.titan.graphdb.internal.InternalRelationType;
 import com.thinkaurelius.titan.graphdb.internal.InternalVertex;
 import com.thinkaurelius.titan.graphdb.transaction.RelationConstructor;
+import com.thinkaurelius.titan.graphdb.types.system.ImplicitKey;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
@@ -52,7 +54,9 @@ public class CacheProperty extends AbstractProperty {
 
     private void copyProperties(InternalRelation to) {
         for (LongObjectCursor<Object> entry : getPropertyMap()) {
-            to.setPropertyDirect(tx().getExistingRelationType(entry.key), entry.value);
+            RelationType type = tx().getExistingRelationType(entry.key);
+            if (!(type instanceof ImplicitKey))
+                to.setPropertyDirect(type, entry.value);
         }
     }
 

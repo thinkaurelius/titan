@@ -169,6 +169,50 @@ public abstract class TitanEventualGraphTest extends TitanGraphBaseTest {
     }
 
     /**
+     * Tests that timestamped edges and properties can be updated
+     */
+    @Test
+    public void testTimestampedUpdates() {
+        clopen(option(GraphDatabaseConfiguration.STORE_META_TIMESTAMPS, "edgestore"), true,
+                option(GraphDatabaseConfiguration.STORE_META_TTL, "edgestore"), true);
+        final TimeUnit unit = TimeUnit.SECONDS;
+
+        // Transaction 1: Init graph with two vertices, having set "name" and "age" properties
+        TitanTransaction tx = graph.buildTransaction().setCommitTime(100, unit).start();
+        TitanVertex v1 = tx.addVertex();
+        TitanVertex v2 = tx.addVertex();
+        TitanProperty p = v1.addProperty("name","xyz");
+        p.setProperty("time",15);
+        Edge e = v1.addEdge("related",v2);
+        e.setProperty("time",25);
+        tx.commit();
+
+
+        tx = graph.buildTransaction().setCommitTime(200, unit).start();
+        v1 = (TitanVertex)tx.getVertex(v1);
+        assertNotNull(v1);
+        p = Iterables.getOnlyElement(v1.getProperties("name"));
+        e = Iterables.getOnlyElement(v1.getEdges(Direction.OUT, "related"));
+        assertEquals(3, p.getPropertyKeys().size());
+        assertEquals(3, p.getPropertyKeys().size());
+        p.setProperty("time", 115);
+        e.setProperty("time",125);
+        tx.commit();
+
+        tx = graph.buildTransaction().setCommitTime(300, unit).start();
+        v1 = (TitanVertex)tx.getVertex(v1);
+        assertNotNull(v1);
+        p = Iterables.getOnlyElement(v1.getProperties("name"));
+        e = Iterables.getOnlyElement(v1.getEdges(Direction.OUT, "related"));
+        assertEquals(115,p.getProperty("time"));
+        assertEquals(125, e.getProperty("time"));
+        p.remove();
+        e.remove();
+        tx.commit();
+
+    }
+
+    /**
      * Tests that batch-loading will ignore locks
      */
     @Test

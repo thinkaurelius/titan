@@ -11,6 +11,7 @@ import com.thinkaurelius.titan.graphdb.internal.ElementLifeCycle;
 import com.thinkaurelius.titan.graphdb.internal.InternalRelation;
 import com.thinkaurelius.titan.graphdb.internal.InternalVertex;
 import com.thinkaurelius.titan.graphdb.transaction.RelationConstructor;
+import com.thinkaurelius.titan.graphdb.types.system.ImplicitKey;
 import com.tinkerpop.blueprints.Direction;
 
 import javax.annotation.Nullable;
@@ -64,7 +65,9 @@ public class CacheEdge extends AbstractEdge {
 
     private void copyProperties(InternalRelation to) {
         for (LongObjectCursor<Object> entry : getPropertyMap()) {
-            to.setPropertyDirect(tx().getExistingRelationType(entry.key), entry.value);
+            RelationType type = tx().getExistingRelationType(entry.key);
+            if (!(type instanceof ImplicitKey))
+                to.setPropertyDirect(type, entry.value);
         }
     }
 
