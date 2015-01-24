@@ -179,7 +179,7 @@ public abstract class TitanOperationCountingTest extends TitanGraphBaseTest {
         verifyStoreMetrics(EDGESTORE_NAME);
         verifyStoreMetrics(INDEXSTORE_NAME, ImmutableMap.of(M_GET_SLICE, 1l, M_ACQUIRE_LOCK, 1l));
 
-        for (int i = 1; i <= 20; i++) {
+        for (int i = 1; i <= 30; i++) {
             metricsPrefix = "op"+i+cache;
             tx = graph.buildTransaction().setGroupName(metricsPrefix).start();
             v = (TitanVertex)Iterables.getOnlyElement(tx.query().has("uid",1).vertices());
@@ -192,7 +192,7 @@ public abstract class TitanOperationCountingTest extends TitanGraphBaseTest {
             if (!cache || i==0) {
                 verifyStoreMetrics(EDGESTORE_NAME, ImmutableMap.of(M_GET_SLICE, 4l));
                 verifyStoreMetrics(INDEXSTORE_NAME, ImmutableMap.of(M_GET_SLICE, 1l));
-            } else if (cache && i>10) { //Needs a couple of iterations for cache to be cleaned
+            } else if (cache && i>20) { //Needs a couple of iterations for cache to be cleaned
                 verifyStoreMetrics(EDGESTORE_NAME);
                 verifyStoreMetrics(INDEXSTORE_NAME);
             }
@@ -221,7 +221,6 @@ public abstract class TitanOperationCountingTest extends TitanGraphBaseTest {
         v = tx.getVertex(v.getLongId());
         v.setProperty("foo", "bus");
         tx.commit();
-        printAllMetrics();
         verifyStoreMetrics(STORE_NAMES.get(0));
         verifyStoreMetrics(STORE_NAMES.get(1));
         verifyStoreMetrics(STORE_NAMES.get(2));
@@ -234,7 +233,6 @@ public abstract class TitanOperationCountingTest extends TitanGraphBaseTest {
         assertEquals(1,Iterables.size(v.getProperties("foo")));
         assertEquals(1, Iterables.size(v.getProperties()));
         tx.commit();
-        printAllMetrics();
         verifyStoreMetrics(STORE_NAMES.get(0), ImmutableMap.of(M_GET_SLICE, 2l));
         verifyStoreMetrics(STORE_NAMES.get(1));
         verifyStoreMetrics(STORE_NAMES.get(2));
