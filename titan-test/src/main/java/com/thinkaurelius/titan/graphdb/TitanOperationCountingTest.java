@@ -217,9 +217,9 @@ public abstract class TitanOperationCountingTest extends TitanGraphBaseTest {
         tx.commit();
 
 
-        TitanTransaction tx = graph.buildTransaction().checkExternalVertexExistence(false).consistencyChecks(false).setGroupName(metricsPrefix).start();
+        TitanTransaction tx = graph.buildTransaction().checkExternalVertexExistence(false).setGroupName(metricsPrefix).start();
         v = tx.getVertex(v.getLongId());
-        v.setProperty("foo","bus");
+        v.setProperty("foo", "bus");
         tx.commit();
         printAllMetrics();
         verifyStoreMetrics(STORE_NAMES.get(0));
@@ -227,9 +227,12 @@ public abstract class TitanOperationCountingTest extends TitanGraphBaseTest {
         verifyStoreMetrics(STORE_NAMES.get(2));
         verifyStoreMetrics(STORE_NAMES.get(3), ImmutableMap.of(M_MUTATE, 1l));
 
-        tx = graph.buildTransaction().setGroupName(metricsPrefix).start();
+        tx = graph.buildTransaction().checkExternalVertexExistence(false).setGroupName(metricsPrefix).start();
         v = tx.getVertex(v.getLongId());
-        v.setProperty("foo","bus");
+        v.setProperty("foo","band");
+        assertEquals("band", v.getProperty("foo"));
+        assertEquals(1,Iterables.size(v.getProperties("foo")));
+        assertEquals(1, Iterables.size(v.getProperties()));
         tx.commit();
         printAllMetrics();
         verifyStoreMetrics(STORE_NAMES.get(0), ImmutableMap.of(M_GET_SLICE, 2l));
