@@ -718,19 +718,21 @@ public class StandardTitanTx extends TitanBlueprintsTransaction implements TypeI
         uniqueLock.lock(LOCK_TIMEOUT);
         try {
             //Check uniqueness
-            if (config.hasVerifyUniqueness() && verifyCardinalityConstraint) {
-                if (cardinality==Cardinality.SINGLE) {
-                    if (!Iterables.isEmpty(query(vertex).type(key).properties()))
+            if (config.hasVerifyUniqueness()) {
+                if (verifyCardinalityConstraint) {
+                    if (cardinality == Cardinality.SINGLE) {
+                        if (!Iterables.isEmpty(query(vertex).type(key).properties()))
                             throw new SchemaViolationException("A property with the given key [%s] already exists on the vertex [%s] and the property key is defined as single-valued", key.getName(), vertex);
-                }
-                if (cardinality==Cardinality.SET) {
-                    if (!Iterables.isEmpty(Iterables.filter(query(vertex).type(key).properties(),new Predicate<TitanProperty>() {
-                        @Override
-                        public boolean apply(@Nullable TitanProperty titanProperty) {
-                            return normalizedValue.equals(titanProperty.getValue());
-                        }
-                    })))
+                    }
+                    if (cardinality == Cardinality.SET) {
+                        if (!Iterables.isEmpty(Iterables.filter(query(vertex).type(key).properties(), new Predicate<TitanProperty>() {
+                            @Override
+                            public boolean apply(@Nullable TitanProperty titanProperty) {
+                                return normalizedValue.equals(titanProperty.getValue());
+                            }
+                        })))
                             throw new SchemaViolationException("A property with the given key [%s] and value [%s] already exists on the vertex and the property key is defined as set-valued", key.getName(), normalizedValue);
+                    }
                 }
                 //Check all unique indexes
                 for (IndexLockTuple lockTuple : uniqueIndexTuples) {
@@ -1070,7 +1072,7 @@ public class StandardTitanTx extends TitanBlueprintsTransaction implements TypeI
                 if (!Iterables.isEmpty(vertex.getAddedRelations(new Predicate<InternalRelation>() {
                     @Override
                     public boolean apply(@Nullable InternalRelation internalRelation) {
-                        return comparator.compare((InternalRelation)result,internalRelation)==0;
+                        return comparator.compare((InternalRelation) result, internalRelation) == 0;
                     }
                 }))) return true;
             }
