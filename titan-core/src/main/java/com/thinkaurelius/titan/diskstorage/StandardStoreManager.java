@@ -10,6 +10,7 @@ import java.util.*;
  * It is subject to backwards-incompatible change.
  */
 public enum StandardStoreManager {
+    MAPDB("com.thinkaurelius.titan.diskstorage.berkeleyje.MapDBStoreManager", "mapdb"),
     BDB_JE("com.thinkaurelius.titan.diskstorage.berkeleyje.BerkeleyJEStoreManager", "berkeleyje"),
     CASSANDRA_THRIFT("com.thinkaurelius.titan.diskstorage.cassandra.thrift.CassandraThriftStoreManager", "cassandrathrift"),
     CASSANDRA_ASTYANAX("com.thinkaurelius.titan.diskstorage.cassandra.astyanax.AstyanaxStoreManager", ImmutableList.of("cassandra", "astyanax")),
