@@ -39,7 +39,7 @@ public class ResultHookClosure extends Closure {
                 pipeline.submit();
                 final FileSystem hdfs = FileSystem.get(pipeline.getGraph().getConf());
                 final Path output = HDFSTools.getOutputsFinalJob(hdfs, pipeline.getGraph().getJobDir().toString());
-                itty = new TextFileLineIterator(hdfs, hdfs.globStatus(new Path(output.toString() + "/" + Tokens.SIDEEFFECT + "*")), LINES);
+                itty = new TextFileLineIterator(hdfs, hdfs.globStatus(new Path(output.toString() + "/" + Tokens.SIDEEFFECT + "*")), LINES + 1);
             } catch (Exception e) {
                 throw new RuntimeException(e.getMessage(), e);
             }
@@ -48,12 +48,12 @@ public class ResultHookClosure extends Closure {
             ((Pipe) itty).setStarts(new SingleIterator<Object>(result));
         }
 
-        int counter = 0;
-        while (itty.hasNext()) {
-            counter++;
+        int linesPrinted = 0;
+        while (itty.hasNext() && linesPrinted < LINES) {
             this.io.out.println(this.resultPrompt + itty.next());
+            linesPrinted++;
         }
-        if (counter == LINES)
+        if (linesPrinted == LINES && itty.hasNext())
             this.io.out.println(this.resultPrompt + "...");
 
         return null;
