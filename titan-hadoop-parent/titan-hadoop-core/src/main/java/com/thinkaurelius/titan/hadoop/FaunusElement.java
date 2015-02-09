@@ -351,7 +351,7 @@ public abstract class FaunusElement extends LifeCycleElement implements Internal
     protected Iterable<RelationType> getPropertyKeysDirect() {
         final Set<RelationType> result = Sets.newHashSet();
         for (final TitanRelation r : query().relations()) {
-            if (r.isEdge() && (this instanceof FaunusVertex)) continue;
+            if (r.isEdge()) continue;
             result.add(r.getType());
         }
         return result;
