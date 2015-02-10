@@ -30,6 +30,7 @@ public class TitanCassandraInputFormat extends TitanInputFormat {
 
     // Copied these private constants from Cassandra's ConfigHelper circa 2.0.9
     private static final String INPUT_WIDEROWS_CONFIG = "cassandra.input.widerows";
+    private static final boolean INPUT_WIDEROWS_DEFAULT = false;
     private static final String RANGE_BATCH_SIZE_CONFIG = "cassandra.range.batch.size";
 
     private final ColumnFamilyInputFormat columnFamilyInputFormat = new ColumnFamilyInputFormat();
@@ -44,8 +45,14 @@ public class TitanCassandraInputFormat extends TitanInputFormat {
     public RecordReader<NullWritable, FaunusVertex> createRecordReader(final InputSplit inputSplit, final TaskAttemptContext taskAttemptContext)
             throws IOException, InterruptedException {
 
-        return new TitanCassandraRecordReader(this, this.vertexQuery,
-                (ColumnFamilyRecordReader) this.columnFamilyInputFormat.createRecordReader(inputSplit, taskAttemptContext));
+        final boolean wideRows = config.getBoolean(INPUT_WIDEROWS_CONFIG, INPUT_WIDEROWS_DEFAULT);
+
+        ColumnFamilyRecordReader cfrr =
+                (ColumnFamilyRecordReader)columnFamilyInputFormat.createRecordReader(inputSplit, taskAttemptContext);
+
+        return wideRows ?
+                new TitanCassandraWideRecordReader(this, vertexQuery, cfrr) :
+                new TitanCassandraRecordReader(this, vertexQuery, cfrr);
     }
 
     @Override
@@ -62,8 +69,9 @@ public class TitanCassandraInputFormat extends TitanInputFormat {
             ConfigHelper.setInputKeyspacePassword(config, inputConf.get(GraphDatabaseConfiguration.AUTH_PASSWORD));
 
         // Copy keyspace, force the CF setting to edgestore, honor widerows when set
-        final boolean wideRows = config.getBoolean(INPUT_WIDEROWS_CONFIG, false);
-        // Use the setInputColumnFamily overload that includes a widerows argument; using the overload without this argument forces it false
+        final boolean wideRows = config.getBoolean(INPUT_WIDEROWS_CONFIG, INPUT_WIDEROWS_DEFAULT);
+        // Use the setInputColumnFamily overload that includes a widerows argument; using the overload without this
+        // argument forces it false
         ConfigHelper.setInputColumnFamily(config, inputConf.get(AbstractCassandraStoreManager.CASSANDRA_KEYSPACE), Backend.EDGESTORE_NAME, wideRows);
 
         // Set the column slice bounds via Faunus's vertex query filter

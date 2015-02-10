@@ -26,12 +26,12 @@ public class TitanCassandraRecordReader extends RecordReader<NullWritable, Faunu
     private static final Logger log =
             LoggerFactory.getLogger(TitanCassandraRecordReader.class);
 
-    private ColumnFamilyRecordReader reader;
-    private TitanCassandraInputFormat inputFormat;
-    private TitanCassandraHadoopGraph graph;
-    private FaunusVertexQueryFilter vertexQuery;
-    private Configuration configuration;
-    private FaunusVertex vertex;
+    protected ColumnFamilyRecordReader reader;
+    protected TitanCassandraInputFormat inputFormat;
+    protected TitanCassandraHadoopGraph graph;
+    protected FaunusVertexQueryFilter vertexQuery;
+    protected Configuration configuration;
+    protected FaunusVertex vertex;
 
     public TitanCassandraRecordReader(final TitanCassandraInputFormat inputFormat, final FaunusVertexQueryFilter vertexQuery, final ColumnFamilyRecordReader reader) {
         this.inputFormat = inputFormat;
@@ -49,8 +49,9 @@ public class TitanCassandraRecordReader extends RecordReader<NullWritable, Faunu
     @Override
     public boolean nextKeyValue() throws IOException, InterruptedException {
         while (reader.nextKeyValue()) {
-            // TODO titan05 integration -- the duplicate() call may be unnecessary
+            // TODO the duplicate() call may be unnecessary
             final FaunusVertex temp = graph.readHadoopVertex(configuration, reader.getCurrentKey().duplicate(), reader.getCurrentValue());
+
             if (null != temp) {
                 vertex = temp;
                 vertexQuery.filterRelationsOf(vertex);
