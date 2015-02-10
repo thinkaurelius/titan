@@ -64,7 +64,7 @@ public abstract class TitanOutputFormatTest extends BaseTestNG {
 
     private TitanGraph g;
 
-    private HadoopGraph f1, f2;
+    protected HadoopGraph f1, f2;
 
     @After
     public void cleanUp() {
@@ -434,7 +434,7 @@ public abstract class TitanOutputFormatTest extends BaseTestNG {
         open();
     }
 
-    private void bulkLoadGraphOfTheGods(final HadoopGraph f) throws Exception {
+    protected void bulkLoadGraphOfTheGods(final HadoopGraph f) throws Exception {
         new HadoopPipeline(f)._().submit();
     }
 
