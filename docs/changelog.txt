@@ -3,6 +3,21 @@
 Release Notes
 -------------
 
+Version 0.5.4 (in development)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+*Features:*
+
+* Optimized away an unnecessary property read in certain property overwrite cases
+* Added gremlin.sh option `w <number>`: sets the number of initial elements in a result collection shown in the shell
+
+*Bugfixes:*
+
+* Interacting with Edge properties of type Long no longer fails when `storage.meta.edgestore.timestamps=true`
+* Fixed a titan-hadoop bug triggered when reading unidirectional edges from Titan
+* Fixed a Solr query string composer bug
+* Fixed titan-hadoop fragmenting vertices when cassandra.input.widerows=true
+
 Version 0.5.3 (January 12, 2015)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
