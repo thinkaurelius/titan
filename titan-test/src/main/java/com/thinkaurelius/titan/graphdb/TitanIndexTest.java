@@ -1125,9 +1125,10 @@ public abstract class TitanIndexTest extends TitanGraphBaseTest {
         assertNotNull(v1);
         assertNotNull(v2);
 
-        Thread.sleep(TimeUnit.MILLISECONDS.convert((long)Math.ceil(eventTTLSeconds * 1.25), TimeUnit.SECONDS));
+        Thread.sleep(TimeUnit.MILLISECONDS.convert((long)Math.ceil(eventTTLSeconds * 2.5), TimeUnit.SECONDS));
 
         clopen();
+
         time = tx.getPropertyKey("time");
 
         evaluateQuery(tx.query().has("text",Text.CONTAINS,"help").has("label","event"),
