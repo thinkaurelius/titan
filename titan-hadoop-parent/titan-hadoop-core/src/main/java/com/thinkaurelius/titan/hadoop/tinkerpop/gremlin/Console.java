@@ -8,9 +8,12 @@ import jline.History;
 import org.codehaus.groovy.tools.shell.Groovysh;
 import org.codehaus.groovy.tools.shell.IO;
 import org.codehaus.groovy.tools.shell.InteractiveShellRunner;
+import org.codehaus.groovy.tools.shell.util.Preferences;
 
 import java.io.*;
 import java.nio.charset.Charset;
+import java.util.prefs.PreferenceChangeEvent;
+import java.util.prefs.PreferenceChangeListener;
 
 /**
  * @author Marko A. Rodriguez (http://markorodriguez.com)
@@ -44,8 +47,13 @@ public class Console {
             groovy.execute(evs);
         }
 
-        // Instantiate console objects: the ResultHook, History handler, ErrorHook, and InteractiveShellRunner
-        groovy.setResultHook(new ResultHookClosure(groovy, io, resultPrompt));
+        // Instantiate console objects: the ResultHook, History handler, ErrorHook, ConsolePreferenceChangeListener and InteractiveShellRunner
+        ConsolePreferenceChangeListener prefListener = new ConsolePreferenceChangeListener();
+        Preferences.addChangeListener(prefListener);
+
+        ResultHookClosure resultHook = new ResultHookClosure(groovy, io, resultPrompt);
+        resultHook.setConsolePreferenceConsumers(prefListener);
+        groovy.setResultHook(resultHook);
         groovy.setHistory(new History());
 
         final InteractiveShellRunner runner = new InteractiveShellRunner(groovy, new PromptClosure(groovy, inputPrompt));
