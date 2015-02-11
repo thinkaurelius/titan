@@ -1288,8 +1288,8 @@ public abstract class TitanIndexTest extends TitanGraphBaseTest {
     }
 
     @Test
-    // this tests a case when there as AND with a single CONTAINS condition inside AND(name:(was here))
-    // which (in case of Solr) spans multiple conditions such as AND(AND(name:was, name:here))
+    // this tests a case when there is AND with a single CONTAINS condition inside AND(name:(hercules here))
+    // which (in case of Solr) spans multiple conditions such as AND(AND(name:hercules, name:here))
     // so we need to make sure that we don't apply AND twice.
     public void testContainsWithMultipleValues() throws Exception {
         PropertyKey name = makeKey("name", String.class);
@@ -1304,7 +1304,7 @@ public abstract class TitanIndexTest extends TitanGraphBaseTest {
 
         Thread.sleep(2000);
 
-        Vertex r = Iterables.get((Iterable<Vertex>) graph.query().has("name", Text.CONTAINS, "was here").vertices(), 0);
+        Vertex r = Iterables.get((Iterable<Vertex>) graph.query().has("name", Text.CONTAINS, "here hercules").vertices(), 0);
         Assert.assertEquals(r.getProperty("name"), "hercules was here");
     }
 
