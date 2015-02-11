@@ -114,18 +114,10 @@ if [ -z "${SCRIPT_DEBUG:-}" ]; then
     SCRIPT_DEBUG=
 fi
 
-# The maximum number of elements of a collection enumerated by the
-# shell before printing ellipses ("...") and omitting the remaining
-# elements.  Zero or less prints collections in full and never omits
-# collection elements.
-if [ -z "${TITAN_RESULT_WINDOW_SIZE:-}" ]; then
-    TITAN_RESULT_WINDOW_SIZE=15
-fi
-
 # Process options
 MAIN_CLASS=com.thinkaurelius.titan.hadoop.tinkerpop.gremlin.Console
 
-while getopts "eilvw" opt; do
+while getopts "eilv" opt; do
     case "$opt" in
     e) MAIN_CLASS=com.thinkaurelius.titan.hadoop.tinkerpop.gremlin.ScriptExecutor
        # For compatibility with behavior pre-Titan-0.5.0, stop
@@ -146,9 +138,7 @@ while getopts "eilvw" opt; do
 	   SCRIPT_DEBUG=y
        fi
        ;;
-    v) MAIN_CLASS=com.tinkerpop.gremlin.Version ;;
-    w) eval TITAN_RESULT_WINDOW_SIZE=\$$OPTIND
-       OPTIND="$(( $OPTIND + 1 ))" ;;
+    v) MAIN_CLASS=com.tinkerpop.gremlin.Version
     esac
 done
 
@@ -164,8 +154,6 @@ fi
 if [ -n "${TITAN_JAVA_OPTS:-}" ]; then
     JAVA_OPTIONS="$JAVA_OPTIONS $TITAN_JAVA_OPTS"
 fi
-
-export TITAN_RESULT_WINDOW_SIZE
 
 if [ -n "$SCRIPT_DEBUG" ]; then
     echo "CLASSPATH: $CLASSPATH"
