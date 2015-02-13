@@ -17,7 +17,7 @@ import static com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfigu
 /**
  * @author Matthias Broecheler (me@matthiasb.com)
  */
-public class MetricInstrumentedStoreManager implements KeyColumnValueStoreManager {
+public class MetricInstrumentedStoreManager implements CustomizeStoreKCVSManager {
 
     public static final String M_OPEN_DATABASE = "openDatabase";
     public static final String M_START_TX = "startTransaction";
@@ -48,6 +48,13 @@ public class MetricInstrumentedStoreManager implements KeyColumnValueStoreManage
     public KeyColumnValueStore openDatabase(String name) throws BackendException {
         MetricManager.INSTANCE.getCounter(GLOBAL_PREFIX, managerMetricsName, M_OPEN_DATABASE, M_CALLS).inc();
         return new MetricInstrumentedStore(backend.openDatabase(name),getMetricsStoreName(name));
+    }
+
+    @Override
+    public KeyColumnValueStore openDatabase(String name, int ttlInSeconds) throws BackendException {
+        Preconditions.checkArgument(backend instanceof CustomizeStoreKCVSManager,
+                "StoreManager %s does not support store-level TTL (not instanceof CustomizeKCVSManager)", backend);
+        return ((CustomizeStoreKCVSManager)backend).openDatabase(name, ttlInSeconds);
     }
 
     @Override
