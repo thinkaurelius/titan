@@ -58,7 +58,7 @@
         <tag>HEAD</tag>
     </scm>
     <properties>
-        <titan.compatible.versions>0.5.0,0.5.1,0.5.2</titan.compatible.versions>
+        <titan.compatible.versions>0.5.0,0.5.1,0.5.2,0.5.3</titan.compatible.versions>
         <tinkerpop.version>2.5.0</tinkerpop.version>
         <groovy.version>2.3.7</groovy.version>
         <junit.version>4.11</junit.version>
