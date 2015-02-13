@@ -20,6 +20,11 @@ public class HBaseOperationCountingTest extends TitanOperationCountingTest {
         return HBaseStorageSetup.getHBaseGraphConfiguration();
     }
 
+    @Override
+    public boolean storeUsesConsistentKeyLocker() {
+        return true;
+    }
+
     @AfterClass
     public static void stopHBase() {
         // Workaround for https://issues.apache.org/jira/browse/HBASE-10312

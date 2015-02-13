@@ -57,6 +57,8 @@ public abstract class TitanOperationCountingTest extends TitanGraphBaseTest {
 
     public abstract WriteConfiguration getBaseConfiguration();
 
+    public abstract boolean storeUsesConsistentKeyLocker();
+
     @Override
     public WriteConfiguration getConfiguration() {
         WriteConfiguration config = getBaseConfiguration();
@@ -113,7 +115,10 @@ public abstract class TitanOperationCountingTest extends TitanGraphBaseTest {
         tx.makeVertexLabel("person").make();
         tx.commit();
         verifyStoreMetrics(EDGESTORE_NAME);
-        verifyStoreMetrics(INDEXSTORE_NAME, ImmutableMap.of(M_GET_SLICE, 3l, M_ACQUIRE_LOCK, 3l));
+        if (storeUsesConsistentKeyLocker())
+            verifyStoreMetrics(INDEXSTORE_NAME, ImmutableMap.of(M_GET_SLICE, 6l, M_ACQUIRE_LOCK, 0l));
+        else
+            verifyStoreMetrics(INDEXSTORE_NAME, ImmutableMap.of(M_GET_SLICE, 3l, M_ACQUIRE_LOCK, 3l));
 
         resetMetrics();
 
@@ -177,7 +182,10 @@ public abstract class TitanOperationCountingTest extends TitanGraphBaseTest {
         e.setProperty("name","edge");
         tx.commit();
         verifyStoreMetrics(EDGESTORE_NAME);
-        verifyStoreMetrics(INDEXSTORE_NAME, ImmutableMap.of(M_GET_SLICE, 1l, M_ACQUIRE_LOCK, 1l));
+        if (storeUsesConsistentKeyLocker())
+            verifyStoreMetrics(INDEXSTORE_NAME, ImmutableMap.of(M_GET_SLICE, 2L, M_ACQUIRE_LOCK, 0L));
+        else
+            verifyStoreMetrics(INDEXSTORE_NAME, ImmutableMap.of(M_GET_SLICE, 1l, M_ACQUIRE_LOCK, 1l));
 
         for (int i = 1; i <= 30; i++) {
             metricsPrefix = "op"+i+cache;
@@ -221,7 +229,10 @@ public abstract class TitanOperationCountingTest extends TitanGraphBaseTest {
         v = tx.getVertex(v.getLongId());
         v.setProperty("foo", "bus");
         tx.commit();
-        verifyStoreMetrics(STORE_NAMES.get(0));
+        if (storeUsesConsistentKeyLocker())
+            verifyStoreMetrics(STORE_NAMES.get(1));
+        else
+            verifyStoreMetrics(STORE_NAMES.get(0));
         verifyStoreMetrics(STORE_NAMES.get(1));
         verifyStoreMetrics(STORE_NAMES.get(2));
         verifyStoreMetrics(STORE_NAMES.get(3), ImmutableMap.of(M_MUTATE, 1l));
