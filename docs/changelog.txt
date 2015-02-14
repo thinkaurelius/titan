@@ -9,7 +9,7 @@ Version 0.5.4 (February 13, 2015)
 *Features:*
 
 * Optimized away an unnecessary property read in certain property overwrite cases
-* Added gremlin.sh option `w <number>`: sets the number of initial elements in a result collection shown in the shell
+* Added gremlin commands `set tp-(olap|oltp)-result-peek <number>`: controls max # of result elements shown
 
 *Bugfixes:*
 
