@@ -73,6 +73,8 @@ public class KryoSerializer implements Closeable {
             public Void apply(Kryo k) {
                 k.setRegistrationRequired(registrationRequired);
                 k.register(Class.class, new DefaultSerializers.ClassSerializer());
+                //Not necessary for Spark compat when com.esotericsoftware.kryo.Kryo is shaded and shipped in titan-core
+                //k.setClassLoader(Thread.currentThread().getContextClassLoader());
                 for (int i = 0; i < defaultRegistrations.size(); i++) {
                     Class clazz = defaultRegistrations.get(i);
                     k.register(clazz, KRYO_ID_OFFSET + i);

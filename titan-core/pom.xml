@@ -121,6 +121,7 @@
             <groupId>com.esotericsoftware.kryo</groupId>
             <artifactId>kryo</artifactId>
             <version>2.22</version>
+            <optional>true</optional>
             <!--<classifier>shaded</classifier>-->
             
             <!--
@@ -214,6 +215,38 @@
                     </execution>
                 </executions>
             </plugin>
+            <plugin>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>2.3</version>
+                <executions>
+                    <execution>
+                        <id>shade-gremlin-groovy</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <configuration>
+                            <createDependencyReducedPom>true</createDependencyReducedPom>
+                            <artifactSet>
+                                <includes>
+                                    <include>com.esotericsoftware.kryo:*</include>
+                                </includes>
+                            </artifactSet>
+                            <relocations>
+                                <relocation>
+                                    <pattern>com.esotericsoftware.kryo</pattern>
+                                    <shadedPattern>com.thinkaurelius.shaded.kryo2_22</shadedPattern>
+                                </relocation>
+                            </relocations>
+                            <!-- false below means the shade plugin overwrites the main project artifact (the one with no classifier).
+                                 false does *not* actually detach the main artifact, despite what the option name suggests. -->
+                            <shadedArtifactAttached>false</shadedArtifactAttached>
+                            <minimizeJar>false</minimizeJar>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
         </plugins>
     </build>
 </project>
