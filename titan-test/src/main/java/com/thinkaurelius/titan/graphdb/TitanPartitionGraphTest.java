@@ -4,8 +4,6 @@ package com.thinkaurelius.titan.graphdb;
 import com.carrotsearch.hppc.LongArrayList;
 import com.google.common.collect.*;
 import com.thinkaurelius.titan.core.*;
-import com.thinkaurelius.titan.graphdb.olap.oldfulgora.OLAPJobBuilder;
-import com.thinkaurelius.titan.graphdb.olap.oldfulgora.OLAPResult;
 import com.thinkaurelius.titan.core.schema.VertexLabelMaker;
 import com.thinkaurelius.titan.diskstorage.configuration.BasicConfiguration;
 import com.thinkaurelius.titan.diskstorage.configuration.ModifiableConfiguration;
@@ -13,7 +11,6 @@ import com.thinkaurelius.titan.diskstorage.configuration.WriteConfiguration;
 import com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfiguration;
 import com.thinkaurelius.titan.graphdb.database.StandardTitanGraph;
 import com.thinkaurelius.titan.graphdb.database.idassigner.placement.SimpleBulkPlacementStrategy;
-import com.thinkaurelius.titan.graphdb.olap.oldfulgora.FulgoraBuilder;
 import com.thinkaurelius.titan.graphdb.idmanagement.IDManager;
 import com.thinkaurelius.titan.olap.OLAPTest;
 import com.thinkaurelius.titan.testcategory.OrderedKeyStoreTests;
@@ -49,11 +46,6 @@ public abstract class TitanPartitionGraphTest extends TitanGraphBaseTest {
     final static int numPartitions = 8;
 
     public abstract WriteConfiguration getBaseConfiguration();
-
-    protected <S> OLAPJobBuilder<S> getOLAPBuilder(StandardTitanGraph graph, Class<S> clazz) {
-        return new FulgoraBuilder<S>(graph);
-    }
-
 
     @Override
     public WriteConfiguration getConfiguration() {
@@ -281,35 +273,6 @@ public abstract class TitanPartitionGraphTest extends TitanGraphBaseTest {
             assertEquals(numV/2,alr.size());
 
             tx2.commit();
-        }
-
-        clopen(options);
-
-        //Test OLAP works with partitioned vertices
-        final OLAPJobBuilder<OLAPTest.Degree> builder = getOLAPBuilder(graph,OLAPTest.Degree.class);
-        OLAPResult<OLAPTest.Degree> degrees = OLAPTest.computeDegree(builder,"name","sig");
-        assertNotNull(degrees);
-        assertEquals(numTx*vPerTx+numG,degrees.size());
-        for (Map.Entry<Long,OLAPTest.Degree> entry : degrees.entries()) {
-            long vid = entry.getKey();
-            OLAPTest.Degree degree = entry.getValue();
-            assertEquals(degree.in+degree.out,degree.both);
-            if (idManager.isPartitionedVertex(vid)) {
-                if (vid==gids[0]) {
-                    assertEquals(numTx*vPerTx + (numG-1) + 1,degree.in);
-                    assertEquals(numTx*vPerTx,degree.out);
-                } else if (vid==gids[1]) {
-                    assertEquals(numTx*vPerTx/2,degree.in);
-                    assertEquals(2,degree.out);
-                } else {
-                    assertEquals(2,degree.in+degree.out);
-                }
-                assertEquals(names.size(),degree.prop);
-            } else {
-                assertEquals(1,degree.in);
-                assertTrue(1<=degree.out && degree.out<=2);
-                assertEquals(0,degree.prop);
-            }
         }
     }
 
