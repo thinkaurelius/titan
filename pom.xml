@@ -322,11 +322,6 @@
                 </plugin>
                 <plugin>
                     <groupId>org.codehaus.mojo</groupId>
-                    <artifactId>sonar-maven-plugin</artifactId>
-                    <version>2.1</version>
-                </plugin>
-                <plugin>
-                    <groupId>org.codehaus.mojo</groupId>
                     <artifactId>wagon-maven-plugin</artifactId>
                     <version>1.0-beta-4</version>
                 </plugin>
@@ -1025,17 +1020,6 @@
                 <sonar.jacoco.reportPath>../target/jacoco-combined.exec</sonar.jacoco.reportPath>
                 <sonar.dynamicAnalysis>reuseReports</sonar.dynamicAnalysis>
             </properties>
-            <build>
-                <plugins>
-                    <!-- This binds no goals by default.  The user has to run the sonar:sonar goal for this plugin to do anything. -->
-                    <plugin>
-                        <groupId>org.codehaus.sonar</groupId>
-                        <artifactId>sonar-maven-plugin</artifactId>
-                        <version>3.7</version>
-                        <inherited>false</inherited>
-                    </plugin>
-                </plugins>
-            </build>
         </profile>
 
         <profile>
