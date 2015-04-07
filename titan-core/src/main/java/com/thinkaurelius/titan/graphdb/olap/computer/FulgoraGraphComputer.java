@@ -14,6 +14,7 @@ import com.thinkaurelius.titan.diskstorage.keycolumnvalue.scan.ScanMetrics;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.scan.StandardScanner;
 import com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfiguration;
 import com.thinkaurelius.titan.graphdb.database.StandardTitanGraph;
+import com.thinkaurelius.titan.graphdb.olap.VertexScanJob;
 import com.tinkerpop.gremlin.process.Traversal;
 import com.tinkerpop.gremlin.process.TraversalSideEffects;
 import com.tinkerpop.gremlin.process.computer.ComputerResult;
@@ -93,7 +94,7 @@ public class FulgoraGraphComputer implements TitanGraphComputer {
 
     @Override
     public TitanGraphComputer program(final VertexProgram vertexProgram) {
-        Preconditions.checkState(this.vertexProgram==null,"A vertex program has already been set");
+        Preconditions.checkState(this.vertexProgram == null, "A vertex program has already been set");
         this.vertexProgram = vertexProgram;
         return this;
     }

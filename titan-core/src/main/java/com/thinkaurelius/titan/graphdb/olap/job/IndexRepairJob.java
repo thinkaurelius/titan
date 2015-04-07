@@ -167,7 +167,7 @@ public class IndexRepairJob extends IndexUpdateJob implements VertexScanJob {
             } else throw new UnsupportedOperationException("Unsupported index found: "+index);
         } catch (final Exception e) {
             mgmt.rollback();
-            writeTx.rollback();
+            writeTx.commit();
             metrics.incrementCustom(FAILED_TX);
             throw new TitanException(e.getMessage(), e);
         }
