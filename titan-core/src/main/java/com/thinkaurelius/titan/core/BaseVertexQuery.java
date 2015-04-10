@@ -24,7 +24,7 @@ import org.apache.tinkerpop.gremlin.structure.Vertex;
  * @see TitanMultiVertexQuery
  * @author Matthias Br&ouml;cheler (http://www.matthiasb.com)
  */
-public interface BaseVertexQuery<Q extends BaseVertexQuery<Q>> {
+public interface BaseVertexQuery<Q> {
 
     /* ---------------------------------------------------------------
     * Query Specification

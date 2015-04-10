@@ -181,7 +181,7 @@ public class IndexRepairJob extends IndexUpdateJob implements VertexScanJob {
             IndexType indexType = mgmt.getSchemaVertex(index).asIndexType();
             switch (indexType.getElement()) {
                 case PROPERTY:
-                    addIndexSchemaConstraint(queries.addQuery(),indexType).properties();
+                    addIndexSchemaConstraint((TitanVertexQuery)queries.addQuery(),indexType).properties();
                     break;
                 case VERTEX:
                     queries.addQuery().properties();
@@ -189,7 +189,7 @@ public class IndexRepairJob extends IndexUpdateJob implements VertexScanJob {
                     break;
                 case EDGE:
                     indexType.hasSchemaTypeConstraint();
-                    addIndexSchemaConstraint(queries.addQuery().direction(Direction.OUT),indexType).edges();
+                    addIndexSchemaConstraint((TitanVertexQuery)queries.addQuery().direction(Direction.OUT),indexType).edges();
                     break;
                 default: throw new AssertionError("Unexpected category: " + indexType.getElement());
             }

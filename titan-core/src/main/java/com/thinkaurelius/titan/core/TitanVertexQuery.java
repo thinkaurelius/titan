@@ -16,7 +16,7 @@ import org.apache.tinkerpop.gremlin.structure.Vertex;
  * @see BaseVertexQuery
  * @author Matthias Br&ouml;cheler (http://www.matthiasb.com)
  */
-public interface TitanVertexQuery<Q extends TitanVertexQuery<Q>> extends BaseVertexQuery<Q> {
+public interface TitanVertexQuery extends BaseVertexQuery<TitanVertexQuery> {
 
    /* ---------------------------------------------------------------
     * Query Specification (overwrite to merge BaseVertexQuery with Blueprint's VertexQuery)
@@ -24,46 +24,46 @@ public interface TitanVertexQuery<Q extends TitanVertexQuery<Q>> extends BaseVer
     */
 
     @Override
-    public Q adjacent(Vertex vertex);
+    public TitanVertexQuery adjacent(Vertex vertex);
 
     @Override
-    public Q types(String... type);
+    public TitanVertexQuery types(String... type);
 
     @Override
-    public Q types(RelationType... type);
+    public TitanVertexQuery types(RelationType... type);
 
     @Override
-    public Q labels(String... labels);
+    public TitanVertexQuery labels(String... labels);
 
     @Override
-    public Q keys(String... keys);
+    public TitanVertexQuery keys(String... keys);
 
     @Override
-    public Q direction(Direction d);
+    public TitanVertexQuery direction(Direction d);
 
     @Override
-    public Q has(String type, Object value);
+    public TitanVertexQuery has(String type, Object value);
 
     @Override
-    public Q has(String key);
+    public TitanVertexQuery has(String key);
 
     @Override
-    public Q hasNot(String key);
+    public TitanVertexQuery hasNot(String key);
 
     @Override
-    public Q hasNot(String key, Object value);
+    public TitanVertexQuery hasNot(String key, Object value);
 
     @Override
-    public Q has(String key, TitanPredicate predicate, Object value);
+    public TitanVertexQuery has(String key, TitanPredicate predicate, Object value);
 
     @Override
-    public <T extends Comparable<?>> Q interval(String key, T start, T end);
+    public <T extends Comparable<?>> TitanVertexQuery interval(String key, T start, T end);
 
     @Override
-    public Q limit(int limit);
+    public TitanVertexQuery limit(int limit);
 
     @Override
-    public Q orderBy(String key, Order order);
+    public TitanVertexQuery orderBy(String key, Order order);
 
 
     /* ---------------------------------------------------------------

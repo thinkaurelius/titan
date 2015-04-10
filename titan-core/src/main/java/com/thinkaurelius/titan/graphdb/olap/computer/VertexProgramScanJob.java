@@ -1,6 +1,7 @@
 package com.thinkaurelius.titan.graphdb.olap.computer;
 
 import com.google.common.base.Preconditions;
+import com.thinkaurelius.titan.core.BaseVertexQuery;
 import com.thinkaurelius.titan.core.TitanGraph;
 import com.thinkaurelius.titan.core.TitanVertex;
 import com.thinkaurelius.titan.diskstorage.EntryList;
@@ -132,7 +133,7 @@ public class VertexProgramScanJob<M> implements VertexScanJob {
                 TitanVertexStep<Vertex> startStep = (TitanVertexStep<Vertex>)incident.asAdmin().getStartStep();
                 startStep.reverseDirection();
                 QueryContainer.QueryBuilder qb = queries.addQuery();
-                startStep.makeQuery(qb);
+                startStep.makeQuery((BaseVertexQuery)qb);
                 qb.edges();
             }
         }

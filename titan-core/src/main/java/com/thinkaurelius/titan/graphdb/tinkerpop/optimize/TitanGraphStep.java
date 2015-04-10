@@ -15,6 +15,7 @@ import org.apache.tinkerpop.gremlin.structure.Order;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 
 /**
@@ -43,7 +44,7 @@ public class TitanGraphStep<E extends Element> extends GraphStep<E> implements H
             }
             for (OrderEntry order : orders) query.orderBy(order.key,order.order);
             if (limit!=BaseQuery.NO_LIMIT) query.limit(limit);
-            return Vertex.class.isAssignableFrom(this.returnClass) ? query.vertices().iterator() : query.edges().iterator();
+            return Vertex.class.isAssignableFrom(this.returnClass) ? (Iterator<E>)query.vertices().iterator() : (Iterator<E>)query.edges().iterator();
         });
     }
 
