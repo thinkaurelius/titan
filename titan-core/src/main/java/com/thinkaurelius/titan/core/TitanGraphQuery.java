@@ -15,7 +15,7 @@ import org.apache.tinkerpop.gremlin.structure.Order;
  * @since 0.3.0
  */
 
-public interface TitanGraphQuery<Q extends TitanGraphQuery<Q>> {
+public interface TitanGraphQuery {
 
    /* ---------------------------------------------------------------
     * Query Specification
@@ -31,17 +31,17 @@ public interface TitanGraphQuery<Q extends TitanGraphQuery<Q>> {
      * @param condition
      * @return This query
      */
-    public Q has(String key, TitanPredicate predicate, Object condition);
+    public TitanGraphQuery has(String key, TitanPredicate predicate, Object condition);
 
-    public Q has(String key);
+    public TitanGraphQuery has(String key);
 
-    public Q hasNot(String key);
+    public TitanGraphQuery hasNot(String key);
 
-    public Q has(String key, Object value);
+    public TitanGraphQuery has(String key, Object value);
 
-    public Q hasNot(String key, Object value);
+    public TitanGraphQuery hasNot(String key, Object value);
 
-    public <T extends Comparable<?>> Q interval(String key, T startValue, T endValue);
+    public <T extends Comparable<?>> TitanGraphQuery interval(String key, T startValue, T endValue);
 
     /**
      * Limits the size of the returned result set
@@ -49,7 +49,7 @@ public interface TitanGraphQuery<Q extends TitanGraphQuery<Q>> {
      * @param max The maximum number of results to return
      * @return This query
      */
-    public Q limit(final int max);
+    public TitanGraphQuery limit(final int max);
 
     /**
      * Orders the element results of this query according
@@ -59,7 +59,7 @@ public interface TitanGraphQuery<Q extends TitanGraphQuery<Q>> {
      * @param order the ordering direction
      * @return
      */
-    public Q orderBy(String key, Order order);
+    public TitanGraphQuery orderBy(String key, Order order);
 
 
     /* ---------------------------------------------------------------

@@ -91,7 +91,7 @@ public interface TitanVertex extends TitanElement, Vertex {
      * @return New TitanQuery for this vertex
      * @see TitanVertexQuery
      */
-    public TitanVertexQuery<? extends TitanVertexQuery> query();
+    public TitanVertexQuery query();
 
     /**
      * Checks whether this entity has been loaded into the current transaction and modified.

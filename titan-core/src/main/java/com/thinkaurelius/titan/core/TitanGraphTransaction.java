@@ -49,7 +49,7 @@ public interface TitanGraphTransaction extends Graph, SchemaManager {
      * @return
      * @see TitanGraph#query()
      */
-    public TitanGraphQuery<? extends TitanGraphQuery> query();
+    public TitanGraphQuery query();
 
     /**
      * Returns a {@link com.thinkaurelius.titan.core.TitanIndexQuery} to query for vertices or edges against the specified indexing backend using

@@ -23,7 +23,7 @@ import java.util.*;
  *
  * @author Matthias Broecheler (me@matthiasb.com)
  */
-public abstract class BaseVertexCentricQueryBuilder<Q extends BaseVertexQuery<Q>> implements BaseVertexQuery<Q> {
+public abstract class BaseVertexCentricQueryBuilder<Q> {
 
     private static final String[] NO_TYPES = new String[0];
     private static final List<PredicateCondition<String, TitanRelation>> NO_CONSTRAINTS = ImmutableList.of();
@@ -70,7 +70,6 @@ public abstract class BaseVertexCentricQueryBuilder<Q extends BaseVertexQuery<Q>
 	 */
 
 
-    @Override
     public Q adjacent(Vertex vertex) {
         Preconditions.checkArgument(vertex!=null && (vertex instanceof TitanVertex),"Not a valid vertex provided for adjacency constraint");
         this.adjacentVertex = (TitanVertex)vertex;
@@ -95,38 +94,31 @@ public abstract class BaseVertexCentricQueryBuilder<Q extends BaseVertexQuery<Q>
         return getThis();
     }
 
-    @Override
     public Q has(String type, Object value) {
         return addConstraint(type, Cmp.EQUAL, value);
     }
 
-    @Override
     public Q hasNot(String key, Object value) {
         return has(key, Cmp.NOT_EQUAL, value);
     }
 
-    @Override
     public Q has(String key) {
         return has(key, Cmp.NOT_EQUAL, (Object) null);
     }
 
-    @Override
     public Q hasNot(String key) {
         return has(key, Cmp.EQUAL, (Object) null);
     }
 
-    @Override
     public Q has(String key, TitanPredicate predicate, Object value) {
         return addConstraint(key, predicate, value);
     }
 
-    @Override
     public <T extends Comparable<?>> Q interval(String key, T start, T end) {
         addConstraint(key, Cmp.GREATER_THAN_EQUAL, start);
         return addConstraint(key, Cmp.LESS_THAN, end);
     }
 
-    @Override
     public Q types(RelationType... types) {
         String[] ts = new String[types.length];
         for (int i = 0; i < types.length; i++) {
@@ -137,12 +129,10 @@ public abstract class BaseVertexCentricQueryBuilder<Q extends BaseVertexQuery<Q>
 
 
 
-    @Override
     public Q labels(String... labels) {
         return types(labels);
     }
 
-    @Override
     public Q keys(String... keys) {
         return types(keys);
     }
@@ -151,7 +141,6 @@ public abstract class BaseVertexCentricQueryBuilder<Q extends BaseVertexQuery<Q>
         return types(type.name());
     }
 
-    @Override
     public Q types(String... types) {
         if (types==null) types = NO_TYPES;
         for (String type : types) Preconditions.checkArgument(StringUtils.isNotBlank(type),"Invalid type: %s",type);
@@ -159,21 +148,18 @@ public abstract class BaseVertexCentricQueryBuilder<Q extends BaseVertexQuery<Q>
         return getThis();
     }
 
-    @Override
     public Q direction(Direction d) {
         Preconditions.checkNotNull(d);
         dir = d;
         return getThis();
     }
 
-    @Override
     public Q limit(int limit) {
         Preconditions.checkArgument(limit >= 0);
         this.limit = limit;
         return getThis();
     }
 
-    @Override
     public Q orderBy(String keyName, org.apache.tinkerpop.gremlin.structure.Order order) {
         Preconditions.checkArgument(schemaInspector.containsPropertyKey(keyName),"Provided key does not exist: %s",keyName);
         PropertyKey key = schemaInspector.getPropertyKey(keyName);

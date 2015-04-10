@@ -341,11 +341,11 @@ public abstract class TitanGraphBaseTest {
         return Math.round(d*1000.0)/1000.0;
     }
 
-    public static TitanVertex getOnlyVertex(TitanGraphQuery<?> query) {
+    public static TitanVertex getOnlyVertex(TitanGraphQuery query) {
         return (TitanVertex)getOnlyElement(query.vertices());
     }
 
-    public static TitanEdge getOnlyEdge(TitanVertexQuery<?> query) {
+    public static TitanEdge getOnlyEdge(TitanVertexQuery query) {
         return (TitanEdge)getOnlyElement(query.edges());
     }
 

@@ -32,7 +32,7 @@ import java.util.*;
  *
  * @author Matthias Broecheler (me@matthiasb.com)
  */
-public class GraphCentricQueryBuilder implements TitanGraphQuery<GraphCentricQueryBuilder> {
+public class GraphCentricQueryBuilder implements TitanGraphQuery {
 
     private static final Logger log = LoggerFactory.getLogger(GraphCentricQueryBuilder.class);
 

@@ -32,7 +32,7 @@ import java.util.*;
  *
  * @author Matthias Broecheler (me@matthiasb.com)
  */
-public abstract class BasicVertexCentricQueryBuilder<Q extends BaseVertexQuery<Q>> extends BaseVertexCentricQueryBuilder<Q> {
+public abstract class BasicVertexCentricQueryBuilder<Q> extends BaseVertexCentricQueryBuilder<Q> {
     @SuppressWarnings("unused")
     private static final Logger log = LoggerFactory.getLogger(BasicVertexCentricQueryBuilder.class);
 
@@ -318,12 +318,10 @@ public abstract class BasicVertexCentricQueryBuilder<Q extends BaseVertexQuery<Q
     private static final int HARD_MAX_LIMIT   = 300000;
 
 
-    @Override
     public QueryDescription describeForEdges() {
         return describe(1, RelationCategory.EDGE);
     }
 
-    @Override
     public QueryDescription describeForProperties() {
         return describe(1,RelationCategory.PROPERTY);
     }

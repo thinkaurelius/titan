@@ -82,7 +82,7 @@ public class TitanVertexStep<E extends Element> extends VertexStep<E> implements
             return (Iterator<E>)multiQueryResults.get(traverser.get()).iterator();
         } else {
             TitanVertexQuery query = makeQuery((TitanTraversalUtil.getTitanVertex(traverser)).query());
-            return (Vertex.class.isAssignableFrom(getReturnClass())) ? query.vertices().iterator() : query.edges().iterator();
+            return (Iterator<E>)((Vertex.class.isAssignableFrom(getReturnClass())) ? query.vertices().iterator() : query.edges().iterator());
         }
     }
 

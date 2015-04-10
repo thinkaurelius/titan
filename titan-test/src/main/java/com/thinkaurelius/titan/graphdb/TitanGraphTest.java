@@ -4277,7 +4277,7 @@ public abstract class TitanGraphTest extends TitanGraphBaseTest {
 
         v3 = getV(graph,v3);
         assertEquals(445, v3.<Integer>value("uid").intValue());
-        e = getOnlyElement(v3.query().direction(Direction.OUT).labels("knows").edges());
+        e = getOnlyEdge(v3.query().direction(Direction.OUT).labels("knows"));
         assertEquals(111, e.<Integer>value("uid").intValue());
         assertEquals(e, getE(graph,e.id()));
         assertEquals(e, getE(graph,e.id().toString()));
@@ -4285,10 +4285,10 @@ public abstract class TitanGraphTest extends TitanGraphBaseTest {
         p.remove();
         v3.property("uid", 353);
 
-        e = getOnlyElement(v3.query().direction(Direction.OUT).labels("knows").edges());
+        e = getOnlyEdge(v3.query().direction(Direction.OUT).labels("knows"));
         e.property("uid",222);
 
-        e2 = getOnlyElement(v1.query().direction(Direction.OUT).labels("friend").edges());
+        e2 = getOnlyEdge(v1.query().direction(Direction.OUT).labels("friend"));
         e2.property("uid", 1);
         e2.property("weight", 2.0);
 
@@ -4301,7 +4301,7 @@ public abstract class TitanGraphTest extends TitanGraphBaseTest {
         v3 = getV(graph,v3.id());
         assertEquals(353, v3.<Integer>value("uid").intValue());
 
-        e = getOnlyElement(v3.query().direction(Direction.OUT).labels("knows").edges());
+        e = getOnlyEdge(v3.query().direction(Direction.OUT).labels("knows"));
         assertEquals(222,e.<Integer>value("uid").intValue());
     }
 
@@ -4684,14 +4684,14 @@ public abstract class TitanGraphTest extends TitanGraphBaseTest {
         assertEquals(86400, d.getLength(TimeUnit.SECONDS));
 
         // get the edge via a vertex
-        e1 = getOnlyElement(v1.query().direction(Direction.OUT).labels("likes").edges());
+        e1 = getOnlyEdge(v1.query().direction(Direction.OUT).labels("likes"));
         d = e1.value("~ttl");
         assertEquals(86400, d.getLength(TimeUnit.SECONDS));
 
         // returned value of ^ttl is the total time to live since commit, not remaining time
         Thread.sleep(1001);
         graph.tx().rollback();
-        e1 = getOnlyElement(v1.query().direction(Direction.OUT).labels("likes").edges());
+        e1 = getOnlyEdge(v1.query().direction(Direction.OUT).labels("likes"));
         d = e1.value("~ttl");
         assertEquals(86400, d.getLength(TimeUnit.SECONDS));
 

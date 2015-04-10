@@ -31,7 +31,7 @@ import java.util.List;
  *
  * @author Matthias Broecheler (me@matthiasb.com)
  */
-public class VertexCentricQueryBuilder extends BasicVertexCentricQueryBuilder<VertexCentricQueryBuilder> implements TitanVertexQuery<VertexCentricQueryBuilder> {
+public class VertexCentricQueryBuilder extends BasicVertexCentricQueryBuilder<VertexCentricQueryBuilder> implements TitanVertexQuery {
 
     private static final Logger log = LoggerFactory.getLogger(VertexCentricQueryBuilder.class);
 
