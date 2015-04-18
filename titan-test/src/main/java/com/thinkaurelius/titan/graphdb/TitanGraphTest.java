@@ -1600,9 +1600,9 @@ public abstract class TitanGraphTest extends TitanGraphBaseTest {
 
         newTx();
 
-        assertEquals(0,tx.query().has("name","name1").vertices());
-        assertEquals(1,tx.query().has("name","name2").vertices());
-        assertEquals(1,tx.query().has("uid",512).vertices());
+        assertEquals(0,Iterables.size(tx.query().has("name","name1").vertices()));
+        assertEquals(1,Iterables.size(tx.query().has("name","name2").vertices()));
+        assertEquals(1,Iterables.size(tx.query().has("uid",512).vertices()));
 
     }
 
