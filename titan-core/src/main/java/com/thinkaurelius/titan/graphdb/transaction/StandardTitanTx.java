@@ -761,7 +761,13 @@ public class StandardTitanTx extends TitanBlueprintsTransaction implements TypeI
                 uniqueLock = getLock(vertex, key, Direction.OUT);
             }
             uniqueLock.lock(LOCK_TIMEOUT);
-            if (config.hasVerifyUniqueness() && ((InternalRelationType)key).getConsistencyModifier()==ConsistencyModifier.LOCK) {
+            /* If we are simply overwriting a vertex property, then we don't have to explicitly remove it thereby saving a read operation
+               However, this only applies if
+               1) we don't lock on the property key or consistency checks are disabled and
+               2) there are no indexes for this property key
+            */
+            if ((config.hasVerifyUniqueness() && ((InternalRelationType)key).getConsistencyModifier()==ConsistencyModifier.LOCK) ||
+                    TypeUtil.hasAnyIndex(key)) {
                 vertex.removeProperty(key);
             } else {
                 //Only delete in-memory

@@ -1,11 +1,13 @@
 package com.thinkaurelius.titan.graphdb.types;
 
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 import com.thinkaurelius.titan.core.*;
 import com.thinkaurelius.titan.core.Cardinality;
 import com.thinkaurelius.titan.core.schema.ConsistencyModifier;
 import com.thinkaurelius.titan.graphdb.database.management.ModifierType;
 import com.thinkaurelius.titan.graphdb.internal.ElementCategory;
+import com.thinkaurelius.titan.graphdb.internal.InternalRelation;
 import com.thinkaurelius.titan.graphdb.internal.InternalRelationType;
 import com.tinkerpop.blueprints.Direction;
 
@@ -70,6 +72,12 @@ public class TypeUtil {
             }
         }
         return indexes;
+    }
+
+    public static boolean hasAnyIndex(PropertyKey key) {
+        InternalRelationType type = (InternalRelationType) key;
+        return !Iterables.isEmpty(type.getKeyIndexes()) ||
+                !Iterables.isEmpty(type.getRelationIndexes());
     }
 
     private static <T> T getTypeModifier(final SchemaSource schema,
