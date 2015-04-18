@@ -64,6 +64,7 @@
         <junit.version>4.11</junit.version>
         <mrunit.version>1.1.0</mrunit.version>
         <cassandra.version>2.0.8</cassandra.version>
+        <kryo.version>2.22</kryo.version>
         <metrics2.version>2.1.2</metrics2.version>
         <metrics3.version>3.0.1</metrics3.version>
         <sesame.version>2.7.10</sesame.version>
@@ -1537,5 +1538,24 @@
             </build>
         </profile>
         -->
+
+
+        <!-- This belongs in the titan-core module, but IDEA doesn't bother scanning
+             for profiles in submodules of a multimodule project.  It has to be here
+             for IDEA's Maven importer to see it. -->
+        <profile>
+            <id>intellij-idea-hacks</id>
+            <activation>
+                <activeByDefault>false</activeByDefault>
+            </activation>
+            <dependencies>
+                <dependency>
+                    <groupId>com.esotericsoftware.kryo</groupId>
+                    <artifactId>kryo</artifactId>
+                    <version>${kryo.version}</version>
+                    <optional>false</optional>
+                </dependency>
+            </dependencies>
+        </profile>
     </profiles>
 </project>

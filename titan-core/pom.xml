@@ -120,7 +120,7 @@
         <dependency>
             <groupId>com.esotericsoftware.kryo</groupId>
             <artifactId>kryo</artifactId>
-            <version>2.22</version>
+            <version>${kryo.version}</version>
             <optional>true</optional>
             <!--<classifier>shaded</classifier>-->
             
@@ -272,7 +272,6 @@
                     </execution>
                 </executions>
             </plugin>
-
         </plugins>
     </build>
 </project>
