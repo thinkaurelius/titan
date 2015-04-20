@@ -154,7 +154,7 @@ public class BerkeleyJEStoreManager extends LocalStoreManager implements Ordered
         }
         try {
             DatabaseConfig dbConfig = new DatabaseConfig();
-            dbConfig.setReadOnly(isReadOnly);
+            dbConfig.setReadOnly(false);
             dbConfig.setAllowCreate(true);
             dbConfig.setTransactional(transactional);
 
