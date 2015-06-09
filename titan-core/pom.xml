@@ -218,7 +218,9 @@
                     </execution>
                 </executions>
             </plugin>
-
+            <plugin>
+                <artifactId>maven-gpg-plugin</artifactId>
+            </plugin>
         </plugins>
     </build>
 </project>
