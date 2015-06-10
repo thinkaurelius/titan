@@ -3,10 +3,10 @@
 Release Notes
 -------------
 
-Version 0.9.0-M2 (June 8, 2015)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Version 0.9.0-M2 (June 9, 2015)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-[source,m2]
+[source, m2]
 <dependency>
    <groupId>com.thinkaurelius.titan</groupId>
    <artifactId>titan-core</artifactId>
