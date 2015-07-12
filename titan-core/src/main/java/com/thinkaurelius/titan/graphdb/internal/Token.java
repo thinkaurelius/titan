@@ -8,9 +8,9 @@ import org.apache.commons.lang.StringUtils;
  */
 public class Token {
 
-    public static final char SEPARATOR_CHAR = '%';
+    public static final char SEPARATOR_CHAR = 0x1e;
 
-    public static final char SPECIAL_TYPE_CHAR = '$';
+    public static final char SPECIAL_TYPE_CHAR = 0x1f;
 
     public static final String getSeparatedName(String... components) {
         for (String component : components) verifyName(component);
