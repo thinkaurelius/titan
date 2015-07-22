@@ -11,6 +11,8 @@ import com.thinkaurelius.titan.graphdb.database.idhandling.VariableLong;
 import org.apache.commons.lang.builder.HashCodeBuilder;
 
 import java.lang.reflect.Array;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * A generic representation of a geographic shape, which can either be a single point,
@@ -345,7 +347,7 @@ public class Geoshape {
      * @author Matthias Broecheler (me@matthiasb.com)
      */
     public static class GeoshapeSerializer implements AttributeSerializer<Geoshape> {
-
+        public static Pattern pattern = Pattern.compile("[-]?\\d+(\\.\\d+)?");
         @Override
         public void verifyAttribute(Geoshape value) {
             //All values of Geoshape are valid
@@ -365,6 +367,20 @@ public class Geoshape {
                 else throw new IllegalArgumentException("Expected 2-4 coordinates to create Geoshape, but given: " + value);
                 return shape;
             } else if (value instanceof String) {
+                String str = (String) value;
+				if (str.startsWith("point") || str.startsWith("circle") || str.startsWith("box")) {
+					List<Double> digits = new ArrayList<Double>();
+					Matcher matcher = pattern.matcher(str);
+					while (matcher.find()) {
+						digits.add(Double.valueOf(matcher.group()));
+					}
+					if(digits.size() == 2)
+						return Geoshape.point(digits.get(0), digits.get(1));
+					if(digits.size() == 3)
+						return Geoshape.circle(digits.get(0), digits.get(1), digits.get(2));
+					if(digits.size() == 4)
+						return Geoshape.box(digits.get(0), digits.get(1), digits.get(2), digits.get(3));
+				}
                 String[] components=null;
                 for (String delimiter : new String[]{",",";"}) {
                     components = ((String)value).split(delimiter);
