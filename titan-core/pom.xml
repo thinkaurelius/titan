@@ -111,6 +111,7 @@
         <dependency>
             <groupId>com.carrotsearch</groupId>
             <artifactId>hppc</artifactId>
+            <version>0.7.1</version>
         </dependency>
         <dependency>
             <groupId>com.github.stephenc.high-scale-lib</groupId>
