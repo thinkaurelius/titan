@@ -491,7 +491,7 @@ public class ElasticSearchIndex implements IndexProvider {
 //                        default: throw new UnsupportedOperationException("Geo type is not supported: " + shape.getType());
 //                    }
 //                    builder.endObject();
-                } else throw new IllegalArgumentException("Unsupported type: " + add.value);
+                } else throw new IllegalArgumentException("Unsupported type: " + add.value.getClass() + " (value: " + add.value + ")");
 
             }
             if (ttl>0) builder.field(TTL_FIELD, TimeUnit.MILLISECONDS.convert(ttl,TimeUnit.SECONDS));
@@ -673,7 +673,7 @@ public class ElasticSearchIndex implements IndexProvider {
                     return FilterBuilders.geoBoundingBoxFilter(key).bottomRight(southwest.getLatitude(), northeast.getLongitude()).topLeft(northeast.getLatitude(), southwest.getLongitude());
                 } else
                     throw new IllegalArgumentException("Unsupported or invalid search shape type: " + shape.getType());
-            } else throw new IllegalArgumentException("Unsupported type: " + value);
+            } else throw new IllegalArgumentException("Unsupported type: " + value.getClass() + " (value: " + value + ")");
         } else if (condition instanceof Not) {
             return FilterBuilders.notFilter(getFilter(((Not) condition).getChild(),informations));
         } else if (condition instanceof And) {
