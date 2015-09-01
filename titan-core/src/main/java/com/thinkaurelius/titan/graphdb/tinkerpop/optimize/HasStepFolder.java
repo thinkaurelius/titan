@@ -18,7 +18,6 @@ import org.apache.tinkerpop.gremlin.process.traversal.step.util.ElementValueComp
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 
 
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 

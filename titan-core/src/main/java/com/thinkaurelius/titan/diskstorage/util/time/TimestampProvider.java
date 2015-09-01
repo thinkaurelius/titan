@@ -5,8 +5,6 @@ package com.thinkaurelius.titan.diskstorage.util.time;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.time.temporal.TemporalUnit;
-import java.util.concurrent.TimeUnit;
 
 /**
  * System time interface that abstracts time units, resolution, and measurements of time.

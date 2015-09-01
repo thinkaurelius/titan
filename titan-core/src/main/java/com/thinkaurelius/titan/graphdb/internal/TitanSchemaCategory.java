@@ -4,8 +4,6 @@ import com.google.common.base.Preconditions;
 import com.thinkaurelius.titan.graphdb.types.TypeDefinitionCategory;
 import com.thinkaurelius.titan.graphdb.types.TypeDefinitionMap;
 import com.thinkaurelius.titan.graphdb.types.TypeUtil;
-import org.apache.tinkerpop.gremlin.structure.Element;
-import org.apache.commons.lang.StringUtils;
 
 /**
  * @author Matthias Broecheler (me@matthiasb.com)

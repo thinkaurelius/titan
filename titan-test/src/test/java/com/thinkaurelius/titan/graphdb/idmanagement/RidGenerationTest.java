@@ -1,19 +1,12 @@
 package com.thinkaurelius.titan.graphdb.idmanagement;
 
-import static org.junit.Assert.assertEquals;
-
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.concurrent.ConcurrentSkipListSet;
-
-import com.google.common.collect.Sets;
 import com.thinkaurelius.titan.diskstorage.configuration.Configuration;
-import org.apache.commons.configuration.BaseConfiguration;
 import org.junit.Test;
 
 import com.google.common.base.Preconditions;
-import com.thinkaurelius.titan.diskstorage.common.DistributedStoreManager;
 
 public class RidGenerationTest {
 

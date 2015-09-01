@@ -2,8 +2,6 @@ package com.thinkaurelius.titan.diskstorage.util;
 
 import com.thinkaurelius.titan.diskstorage.ReadBuffer;
 
-import java.nio.ByteBuffer;
-
 /**
  * Implementation of {@link ReadBuffer} against a byte array.
  *

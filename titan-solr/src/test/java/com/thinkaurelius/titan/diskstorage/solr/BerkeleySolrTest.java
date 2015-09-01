@@ -2,11 +2,6 @@ package com.thinkaurelius.titan.diskstorage.solr;
 
 import com.thinkaurelius.titan.diskstorage.configuration.ModifiableConfiguration;
 import com.thinkaurelius.titan.diskstorage.configuration.WriteConfiguration;
-import com.thinkaurelius.titan.graphdb.TitanIndexTest;
-
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-
 import static com.thinkaurelius.titan.BerkeleyStorageSetup.getBerkeleyJEConfiguration;
 import static com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfiguration.*;
 

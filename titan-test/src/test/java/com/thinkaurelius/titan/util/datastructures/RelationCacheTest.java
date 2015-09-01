@@ -3,7 +3,6 @@ package com.thinkaurelius.titan.util.datastructures;
 import com.carrotsearch.hppc.LongObjectHashMap;
 import com.carrotsearch.hppc.cursors.LongObjectCursor;
 import com.google.common.collect.Iterables;
-import com.thinkaurelius.titan.graphdb.relations.RelationCache;
 import org.junit.Test;
 
 import java.util.HashMap;

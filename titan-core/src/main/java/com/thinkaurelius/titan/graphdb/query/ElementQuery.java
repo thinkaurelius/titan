@@ -2,7 +2,6 @@ package com.thinkaurelius.titan.graphdb.query;
 
 import com.thinkaurelius.titan.core.TitanElement;
 
-import java.util.Collection;
 import java.util.Comparator;
 
 /**

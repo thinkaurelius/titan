@@ -2,11 +2,9 @@ package com.thinkaurelius.titan.diskstorage.keycolumnvalue;
 
 import com.thinkaurelius.titan.diskstorage.BackendException;
 import com.thinkaurelius.titan.diskstorage.Entry;
-import com.thinkaurelius.titan.diskstorage.EntryList;
 import com.thinkaurelius.titan.diskstorage.StaticBuffer;
 
 import java.util.List;
-import java.util.Map;
 
 /**
  * Wraps a {@link KeyColumnValueStore} and throws exceptions when a mutation is attempted.

@@ -5,8 +5,6 @@ import static com.thinkaurelius.titan.diskstorage.cassandra.AbstractCassandraSto
 import java.io.File;
 import java.io.IOException;
 import java.time.Duration;
-import java.util.concurrent.TimeUnit;
-
 import com.thinkaurelius.titan.diskstorage.cassandra.AbstractCassandraStoreManager;
 
 import com.thinkaurelius.titan.diskstorage.cassandra.utils.CassandraDaemonWrapper;

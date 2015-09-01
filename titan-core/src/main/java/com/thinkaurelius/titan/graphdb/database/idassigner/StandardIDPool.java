@@ -19,7 +19,6 @@ import com.thinkaurelius.titan.diskstorage.IDBlock;
 
 import com.thinkaurelius.titan.diskstorage.IDAuthority;
 
-import com.thinkaurelius.titan.diskstorage.util.time.Temporals;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

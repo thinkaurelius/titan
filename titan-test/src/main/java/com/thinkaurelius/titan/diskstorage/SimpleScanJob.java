@@ -19,7 +19,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.function.Predicate;
 
 import static org.junit.Assert.*;
-import static org.junit.Assert.assertEquals;
 
 public class SimpleScanJob implements ScanJob {
 

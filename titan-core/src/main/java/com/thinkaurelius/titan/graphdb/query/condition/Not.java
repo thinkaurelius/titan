@@ -1,6 +1,5 @@
 package com.thinkaurelius.titan.graphdb.query.condition;
 
-import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.thinkaurelius.titan.core.TitanElement;

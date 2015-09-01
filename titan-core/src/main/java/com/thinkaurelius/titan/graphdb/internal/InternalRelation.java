@@ -1,7 +1,6 @@
 package com.thinkaurelius.titan.graphdb.internal;
 
 import com.thinkaurelius.titan.core.PropertyKey;
-import com.thinkaurelius.titan.core.RelationType;
 import com.thinkaurelius.titan.core.TitanRelation;
 
 /**

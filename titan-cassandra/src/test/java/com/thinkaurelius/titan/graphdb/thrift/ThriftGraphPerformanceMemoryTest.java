@@ -1,7 +1,6 @@
 package com.thinkaurelius.titan.graphdb.thrift;
 
 import com.thinkaurelius.titan.diskstorage.configuration.WriteConfiguration;
-import org.apache.commons.configuration.Configuration;
 import org.junit.BeforeClass;
 
 import com.thinkaurelius.titan.CassandraStorageSetup;

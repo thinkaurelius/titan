@@ -4,7 +4,6 @@ import com.thinkaurelius.titan.core.schema.SchemaManager;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 
 import java.util.Collection;
-import java.util.Map;
 
 /**
  * TitanGraphTransaction defines a transactional context for a {@link com.thinkaurelius.titan.core.TitanGraph}. Since TitanGraph is a transactional graph

@@ -152,7 +152,9 @@ public abstract class TitanGraphTest extends TitanGraphBaseTest {
 
     private Logger log = LoggerFactory.getLogger(TitanGraphTest.class);
 
-    protected abstract boolean isLockingOptimistic();
+    private boolean isLockingOptimistic() {
+        return ((StandardTitanGraph) graph).getBackend().getStoreManager().getFeatures().isLockingOptimistic();
+    }
 
   /* ==================================================================================
                             INDEXING

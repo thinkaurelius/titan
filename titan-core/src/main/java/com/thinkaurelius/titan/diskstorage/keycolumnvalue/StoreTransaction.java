@@ -1,6 +1,5 @@
 package com.thinkaurelius.titan.diskstorage.keycolumnvalue;
 
-import com.thinkaurelius.titan.diskstorage.BaseTransactionConfig;
 import com.thinkaurelius.titan.diskstorage.BaseTransactionConfigurable;
 
 /**

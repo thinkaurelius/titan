@@ -2,8 +2,6 @@ package com.thinkaurelius.titan.graphdb.olap.computer;
 
 import org.apache.tinkerpop.gremlin.process.computer.KeyValue;
 import org.apache.tinkerpop.gremlin.process.computer.MapReduce;
-import org.apache.tinkerpop.gremlin.tinkergraph.process.computer.TinkerMapEmitter;
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;

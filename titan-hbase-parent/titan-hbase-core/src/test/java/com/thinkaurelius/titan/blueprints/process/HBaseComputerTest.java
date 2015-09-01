@@ -2,13 +2,10 @@ package com.thinkaurelius.titan.blueprints.process;
 
 import com.thinkaurelius.titan.HBaseStorageSetup;
 import com.thinkaurelius.titan.blueprints.HBaseGraphComputerProvider;
-import com.thinkaurelius.titan.blueprints.HBaseGraphProvider;
 import com.thinkaurelius.titan.core.TitanGraph;
 import org.apache.hadoop.hbase.util.VersionInfo;
 import org.apache.tinkerpop.gremlin.GraphProviderClass;
 import org.apache.tinkerpop.gremlin.process.ProcessComputerSuite;
-import org.apache.tinkerpop.gremlin.process.ProcessStandardSuite;
-import org.apache.tinkerpop.gremlin.structure.StructureStandardSuite;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.runner.RunWith;

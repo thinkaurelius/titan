@@ -2,7 +2,6 @@
 package com.thinkaurelius.titan.core;
 
 import com.google.common.collect.ImmutableList;
-import com.thinkaurelius.titan.graphdb.relations.EdgeDirection;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Vertex;

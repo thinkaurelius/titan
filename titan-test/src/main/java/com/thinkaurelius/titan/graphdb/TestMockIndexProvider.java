@@ -1,13 +1,10 @@
 package com.thinkaurelius.titan.graphdb;
 
-import com.google.common.base.Preconditions;
 import com.thinkaurelius.titan.diskstorage.*;
 import com.thinkaurelius.titan.diskstorage.configuration.ConfigOption;
 import com.thinkaurelius.titan.diskstorage.configuration.Configuration;
 import com.thinkaurelius.titan.diskstorage.indexing.*;
 import com.thinkaurelius.titan.graphdb.query.TitanPredicate;
-import org.apache.commons.lang.StringUtils;
-
 import java.util.List;
 import java.util.Map;
 

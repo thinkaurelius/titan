@@ -1,7 +1,6 @@
 package com.thinkaurelius.titan.graphdb.internal;
 
 import com.thinkaurelius.titan.core.TitanElement;
-import com.thinkaurelius.titan.core.TitanGraphTransaction;
 import com.thinkaurelius.titan.core.TitanTransaction;
 import com.thinkaurelius.titan.graphdb.transaction.StandardTitanTx;
 

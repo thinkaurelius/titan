@@ -1,12 +1,8 @@
 package com.thinkaurelius.titan.util.datastructures;
 
 import com.google.common.base.Preconditions;
-import com.google.common.base.Predicate;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Sets;
 import org.apache.commons.lang.builder.HashCodeBuilder;
 
-import javax.annotation.Nullable;
 import java.util.*;
 
 /**

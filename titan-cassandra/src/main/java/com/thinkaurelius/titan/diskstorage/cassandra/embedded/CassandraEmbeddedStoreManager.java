@@ -3,7 +3,6 @@ package com.thinkaurelius.titan.diskstorage.cassandra.embedded;
 import static com.thinkaurelius.titan.diskstorage.cassandra.CassandraTransaction.getTx;
 
 import java.io.File;
-import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.concurrent.TimeoutException;
 
