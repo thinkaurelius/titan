@@ -2,7 +2,6 @@ package com.thinkaurelius.titan.graphdb.vertices;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
-import com.thinkaurelius.titan.diskstorage.Entry;
 import com.thinkaurelius.titan.diskstorage.EntryList;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.SliceQuery;
 import com.thinkaurelius.titan.graphdb.internal.ElementLifeCycle;
@@ -12,10 +11,6 @@ import com.thinkaurelius.titan.graphdb.transaction.addedrelations.AddedRelations
 import com.thinkaurelius.titan.graphdb.transaction.addedrelations.ConcurrentAddedRelations;
 import com.thinkaurelius.titan.graphdb.transaction.addedrelations.SimpleAddedRelations;
 import com.thinkaurelius.titan.util.datastructures.Retriever;
-import org.apache.tinkerpop.gremlin.structure.Vertex;
-
-import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 
 /**

@@ -4,7 +4,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
 import com.thinkaurelius.titan.core.util.ReflectiveConfigOptionLoader;
 
-import java.util.Iterator;
 import java.util.Map;
 
 /**

@@ -1,7 +1,5 @@
 package com.thinkaurelius.titan.diskstorage;
 
-import java.nio.ByteBuffer;
-
 /**
  * A Buffer that allows sequential reads and static reads.
  * Should not be used by multiple threads.

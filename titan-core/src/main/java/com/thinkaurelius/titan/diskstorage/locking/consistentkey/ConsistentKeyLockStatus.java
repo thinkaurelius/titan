@@ -4,8 +4,6 @@ package com.thinkaurelius.titan.diskstorage.locking.consistentkey;
 import com.thinkaurelius.titan.diskstorage.locking.LockStatus;
 
 import java.time.Instant;
-import java.time.temporal.TemporalUnit;
-import java.util.concurrent.TimeUnit;
 
 /**
  * The timestamps of a lock held by a {@link ConsistentKeyLocker}

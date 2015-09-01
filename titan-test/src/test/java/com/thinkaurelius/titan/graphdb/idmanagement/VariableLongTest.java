@@ -6,7 +6,6 @@ import com.thinkaurelius.titan.diskstorage.StaticBuffer;
 import com.thinkaurelius.titan.diskstorage.WriteBuffer;
 import com.thinkaurelius.titan.diskstorage.util.WriteByteBuffer;
 import com.thinkaurelius.titan.graphdb.database.idhandling.VariableLong;
-import com.thinkaurelius.titan.testutil.RandomGenerator;
 import org.apache.commons.lang.time.StopWatch;
 import org.junit.Test;
 import org.slf4j.Logger;

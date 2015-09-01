@@ -3,8 +3,6 @@ package com.thinkaurelius.titan.graphdb.transaction;
 import static com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfiguration.ROOT_NS;
 
 import java.time.Instant;
-import java.util.concurrent.TimeUnit;
-
 import com.google.common.base.Preconditions;
 import com.thinkaurelius.titan.core.schema.DefaultSchemaMaker;
 import com.thinkaurelius.titan.core.TitanTransaction;

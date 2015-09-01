@@ -8,7 +8,6 @@ import com.thinkaurelius.titan.core.schema.SchemaStatus;
 import java.time.Duration;
 import java.time.temporal.TemporalUnit;
 import java.util.concurrent.Callable;
-import java.util.concurrent.TimeUnit;
 
 public abstract class AbstractIndexStatusWatcher<R, S extends AbstractIndexStatusWatcher<R,S>> implements Callable<R> {
 

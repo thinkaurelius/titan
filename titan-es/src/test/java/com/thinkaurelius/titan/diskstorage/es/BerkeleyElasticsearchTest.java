@@ -1,6 +1,5 @@
 package com.thinkaurelius.titan.diskstorage.es;
 
-import com.google.common.base.Joiner;
 import com.thinkaurelius.titan.StorageSetup;
 import com.thinkaurelius.titan.core.TitanGraph;
 import com.thinkaurelius.titan.diskstorage.configuration.ModifiableConfiguration;

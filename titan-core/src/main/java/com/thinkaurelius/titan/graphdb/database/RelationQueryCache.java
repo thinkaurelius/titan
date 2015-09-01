@@ -7,7 +7,6 @@ import com.thinkaurelius.titan.graphdb.internal.InternalRelationType;
 import com.thinkaurelius.titan.graphdb.internal.RelationCategory;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 
-import java.io.Closeable;
 import java.util.EnumMap;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;

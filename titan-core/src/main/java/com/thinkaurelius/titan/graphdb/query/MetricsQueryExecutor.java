@@ -1,8 +1,5 @@
 package com.thinkaurelius.titan.graphdb.query;
-import java.io.IOException;
 import java.util.Iterator;
-import java.util.concurrent.Callable;
-
 import com.codahale.metrics.Timer;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;

@@ -1,19 +1,11 @@
 package com.thinkaurelius.titan.hadoop.compat.h1;
 
-import com.thinkaurelius.titan.core.TitanException;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.scan.ScanMetrics;
 import com.thinkaurelius.titan.graphdb.configuration.TitanConstants;
 import com.thinkaurelius.titan.hadoop.config.job.JobClasspathConfigurer;
-import com.thinkaurelius.titan.hadoop.formats.cassandra.CassandraBinaryInputFormat;
-import com.thinkaurelius.titan.hadoop.scan.HadoopVertexScanMapper;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.*;
-import org.apache.hadoop.mapreduce.lib.output.NullOutputFormat;
-
 import com.thinkaurelius.titan.hadoop.compat.HadoopCompat;
-
-import java.io.IOException;
 
 public class Hadoop1Compat implements HadoopCompat {
 

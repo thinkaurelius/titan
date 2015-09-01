@@ -3,8 +3,6 @@ package com.thinkaurelius.titan.graphdb.database.serialize.attribute;
 import com.thinkaurelius.titan.core.attribute.AttributeSerializer;
 import com.thinkaurelius.titan.diskstorage.ScanBuffer;
 import com.thinkaurelius.titan.diskstorage.WriteBuffer;
-import com.thinkaurelius.titan.graphdb.database.serialize.SupportsNullSerializer;
-
 import java.lang.reflect.Array;
 
 public class BooleanArraySerializer extends ArraySerializer implements AttributeSerializer<boolean[]> {

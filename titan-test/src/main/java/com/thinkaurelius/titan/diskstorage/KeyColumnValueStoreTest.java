@@ -6,7 +6,6 @@ import java.util.*;
 import java.util.concurrent.*;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Maps;
 import com.thinkaurelius.titan.diskstorage.configuration.Configuration;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.scan.ScanJob;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.scan.ScanMetrics;
@@ -14,10 +13,8 @@ import com.thinkaurelius.titan.diskstorage.keycolumnvalue.scan.StandardScanner;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.ttl.TTLKCVSManager;
 import com.thinkaurelius.titan.diskstorage.util.*;
 
-import com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfiguration;
 import com.thinkaurelius.titan.testcategory.BrittleTests;
 import com.thinkaurelius.titan.testutil.TestGraphConfigs;
-import org.apache.tinkerpop.gremlin.LoadGraphWith;
 import org.junit.*;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.TestName;

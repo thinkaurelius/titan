@@ -3,7 +3,6 @@ package com.thinkaurelius.titan.graphdb.database.cache;
 import com.thinkaurelius.titan.diskstorage.EntryList;
 import com.thinkaurelius.titan.diskstorage.util.CacheMetricsAction;
 import com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfiguration;
-import com.thinkaurelius.titan.graphdb.transaction.StandardTitanTx;
 import com.thinkaurelius.titan.graphdb.types.system.BaseRelationType;
 import com.thinkaurelius.titan.util.stats.MetricManager;
 import org.apache.tinkerpop.gremlin.structure.Direction;

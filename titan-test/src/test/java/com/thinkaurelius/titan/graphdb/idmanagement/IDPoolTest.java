@@ -2,7 +2,6 @@ package com.thinkaurelius.titan.graphdb.idmanagement;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.easymock.EasyMock.*;
@@ -10,16 +9,12 @@ import static org.easymock.EasyMock.*;
 import java.time.Duration;
 import java.util.List;
 import java.util.Random;
-import java.util.concurrent.TimeUnit;
-
-
 import com.thinkaurelius.titan.diskstorage.BackendException;
 import com.thinkaurelius.titan.diskstorage.IDAuthority;
 import com.thinkaurelius.titan.diskstorage.IDBlock;
 import com.thinkaurelius.titan.diskstorage.TemporaryBackendException;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.KeyRange;
 import com.thinkaurelius.titan.graphdb.database.idassigner.IDBlockSizer;
-import junit.framework.Assert;
 import org.easymock.EasyMock;
 import org.easymock.IMocksControl;
 import org.junit.Test;

@@ -2,7 +2,6 @@ package com.thinkaurelius.titan.graphdb.hbase;
 
 import com.thinkaurelius.titan.HBaseStorageSetup;
 import com.thinkaurelius.titan.diskstorage.configuration.WriteConfiguration;
-import com.thinkaurelius.titan.graphdb.TitanOperationCountingTest;
 import com.thinkaurelius.titan.graphdb.TitanPartitionGraphTest;
 
 import org.apache.hadoop.hbase.util.VersionInfo;

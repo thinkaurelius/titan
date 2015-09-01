@@ -1,7 +1,5 @@
 package com.thinkaurelius.titan.util.datastructures;
 
-import java.util.Collections;
-
 /**
  * Interface for the Retriever design pattern.
  *

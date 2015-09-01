@@ -3,7 +3,6 @@ package com.thinkaurelius.titan.diskstorage.configuration;
 import com.google.common.base.Preconditions;
 
 import java.util.Map;
-import java.util.Set;
 
 /**
  *

@@ -2,7 +2,6 @@ package com.thinkaurelius.titan.blueprints.thrift;
 
 import com.thinkaurelius.titan.CassandraStorageSetup;
 import com.thinkaurelius.titan.blueprints.AbstractTitanGraphComputerProvider;
-import com.thinkaurelius.titan.blueprints.AbstractTitanGraphProvider;
 import com.thinkaurelius.titan.diskstorage.configuration.ModifiableConfiguration;
 
 /**

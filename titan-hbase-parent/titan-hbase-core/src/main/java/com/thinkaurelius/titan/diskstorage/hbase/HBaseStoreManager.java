@@ -384,7 +384,7 @@ public class HBaseStoreManager extends DistributedStoreManager implements KeyCol
                 .orderedScan(true).unorderedScan(true).batchMutation(true)
                 .multiQuery(true).distributed(true).keyOrdered(true).storeTTL(true)
                 .timestamps(true).preferredTimestamps(PREFERRED_TIMESTAMPS)
-                .keyConsistent(c);
+                .keyConsistent(c).optimisticLocking(true);
 
         try {
             fb.localKeyPartition(getDeployment() == Deployment.LOCAL);

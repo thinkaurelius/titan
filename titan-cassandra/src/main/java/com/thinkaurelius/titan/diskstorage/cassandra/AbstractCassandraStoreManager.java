@@ -21,7 +21,6 @@ import com.thinkaurelius.titan.graphdb.configuration.PreInitializeConfigOptions;
 import static com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfiguration.*;
 
 import org.apache.cassandra.dht.IPartitioner;
-import org.apache.cassandra.dht.Token;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -227,6 +226,7 @@ public abstract class AbstractCassandraStoreManager extends DistributedStoreMana
             fb.batchMutation(true).distributed(true);
             fb.timestamps(true).cellTTL(true);
             fb.keyConsistent(global, local);
+            fb.optimisticLocking(true);
 
             boolean keyOrdered;
 

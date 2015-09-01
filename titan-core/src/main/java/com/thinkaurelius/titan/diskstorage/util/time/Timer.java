@@ -3,8 +3,6 @@ package com.thinkaurelius.titan.diskstorage.util.time;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.TemporalUnit;
-import java.util.concurrent.TimeUnit;
-
 import com.google.common.base.Preconditions;
 
 /**

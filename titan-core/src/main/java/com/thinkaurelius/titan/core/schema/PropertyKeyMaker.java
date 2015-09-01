@@ -2,7 +2,6 @@ package com.thinkaurelius.titan.core.schema;
 
 import com.thinkaurelius.titan.core.Cardinality;
 import com.thinkaurelius.titan.core.PropertyKey;
-import com.thinkaurelius.titan.core.RelationType;
 
 /**
  * Used to define new {@link com.thinkaurelius.titan.core.PropertyKey}s.

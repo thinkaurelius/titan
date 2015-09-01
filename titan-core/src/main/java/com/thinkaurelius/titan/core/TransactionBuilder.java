@@ -1,8 +1,6 @@
 package com.thinkaurelius.titan.core;
 
 import java.time.Instant;
-import java.util.concurrent.TimeUnit;
-
 import com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfiguration;
 
 /**

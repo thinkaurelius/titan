@@ -1,12 +1,9 @@
 package com.thinkaurelius.titan.blueprints.thrift.process;
 
-import com.thinkaurelius.titan.CassandraStorageSetup;
 import com.thinkaurelius.titan.blueprints.thrift.ThriftGraphProvider;
 import com.thinkaurelius.titan.core.TitanGraph;
 import org.apache.tinkerpop.gremlin.GraphProviderClass;
 import org.apache.tinkerpop.gremlin.process.ProcessStandardSuite;
-import org.apache.tinkerpop.gremlin.structure.StructureStandardSuite;
-import org.junit.BeforeClass;
 import org.junit.runner.RunWith;
 
 /**

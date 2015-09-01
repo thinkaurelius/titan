@@ -9,7 +9,6 @@ import com.thinkaurelius.titan.graphdb.database.StandardTitanGraph;
 
 import java.time.Duration;
 import java.util.concurrent.Callable;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Utility class containing methods that simplify Titan clean-up processes.

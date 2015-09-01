@@ -1,8 +1,6 @@
 package com.thinkaurelius.titan.diskstorage.log;
 
 import java.time.Duration;
-import java.util.concurrent.TimeUnit;
-
 import com.thinkaurelius.titan.diskstorage.BackendException;
 import com.thinkaurelius.titan.diskstorage.configuration.ModifiableConfiguration;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.KeyColumnValueStoreManager;

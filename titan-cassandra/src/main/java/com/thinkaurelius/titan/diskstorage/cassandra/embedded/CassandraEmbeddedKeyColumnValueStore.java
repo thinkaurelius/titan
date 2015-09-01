@@ -38,8 +38,6 @@ import javax.annotation.Nullable;
 
 import java.nio.ByteBuffer;
 import java.util.*;
-import java.util.concurrent.TimeUnit;
-
 import static com.thinkaurelius.titan.diskstorage.cassandra.CassandraTransaction.getTx;
 
 public class CassandraEmbeddedKeyColumnValueStore implements KeyColumnValueStore {

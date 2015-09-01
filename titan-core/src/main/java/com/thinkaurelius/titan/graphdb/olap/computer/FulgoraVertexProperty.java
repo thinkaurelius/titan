@@ -7,8 +7,6 @@ import com.thinkaurelius.titan.core.TitanVertexProperty;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
-import org.apache.tinkerpop.gremlin.structure.VertexProperty;
-
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.NoSuchElementException;

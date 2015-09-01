@@ -1,10 +1,7 @@
 package com.thinkaurelius.titan.graphdb.database.serialize.attribute;
 
-import com.google.common.base.Preconditions;
-import com.thinkaurelius.titan.core.attribute.AttributeSerializer;
 import com.thinkaurelius.titan.diskstorage.ScanBuffer;
 import com.thinkaurelius.titan.diskstorage.WriteBuffer;
-import com.thinkaurelius.titan.graphdb.database.serialize.AttributeUtil;
 import com.thinkaurelius.titan.graphdb.database.serialize.OrderPreservingSerializer;
 import com.thinkaurelius.titan.util.encoding.NumericUtils;
 

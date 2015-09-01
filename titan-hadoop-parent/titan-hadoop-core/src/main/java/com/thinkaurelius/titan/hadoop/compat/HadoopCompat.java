@@ -1,14 +1,9 @@
 package com.thinkaurelius.titan.hadoop.compat;
 
-import com.thinkaurelius.titan.diskstorage.keycolumnvalue.scan.ScanJob;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.scan.ScanMetrics;
-import com.thinkaurelius.titan.graphdb.olap.VertexScanJob;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.*;
-import org.apache.hadoop.mrunit.mapreduce.MapReduceDriver;
 import com.thinkaurelius.titan.hadoop.config.job.JobClasspathConfigurer;
-
-import java.io.IOException;
 
 /**
  * This interface encapsulates both API and bytecode-level

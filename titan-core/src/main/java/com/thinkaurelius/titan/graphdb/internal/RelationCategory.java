@@ -1,6 +1,5 @@
 package com.thinkaurelius.titan.graphdb.internal;
 
-import com.google.common.base.Function;
 import com.google.common.collect.ImmutableList;
 import com.thinkaurelius.titan.core.TitanRelation;
 import com.thinkaurelius.titan.core.TitanVertexQuery;

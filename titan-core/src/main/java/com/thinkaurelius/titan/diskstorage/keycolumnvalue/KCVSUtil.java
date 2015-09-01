@@ -1,6 +1,5 @@
 package com.thinkaurelius.titan.diskstorage.keycolumnvalue;
 
-import com.google.common.base.Preconditions;
 import com.thinkaurelius.titan.diskstorage.BackendException;
 import com.thinkaurelius.titan.diskstorage.Entry;
 import com.thinkaurelius.titan.diskstorage.EntryList;

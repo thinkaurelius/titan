@@ -6,8 +6,6 @@ import com.thinkaurelius.titan.graphdb.configuration.TitanConstants;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.*;
 import org.apache.hadoop.mapreduce.task.TaskAttemptContextImpl;
-import org.apache.hadoop.mrunit.mapreduce.MapReduceDriver;
-
 import com.thinkaurelius.titan.hadoop.compat.HadoopCompat;
 import com.thinkaurelius.titan.hadoop.config.job.JobClasspathConfigurer;
 

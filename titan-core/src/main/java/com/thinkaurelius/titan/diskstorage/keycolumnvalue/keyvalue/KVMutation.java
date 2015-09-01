@@ -3,10 +3,7 @@ package com.thinkaurelius.titan.diskstorage.keycolumnvalue.keyvalue;
 import com.google.common.base.Function;
 import com.google.common.base.Functions;
 import com.thinkaurelius.titan.diskstorage.Mutation;
-import com.thinkaurelius.titan.diskstorage.Entry;
 import com.thinkaurelius.titan.diskstorage.StaticBuffer;
-import com.thinkaurelius.titan.diskstorage.keycolumnvalue.cache.KCVEntryMutation;
-
 import javax.annotation.Nullable;
 import java.util.List;
 

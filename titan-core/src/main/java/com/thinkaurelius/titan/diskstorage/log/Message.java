@@ -3,7 +3,6 @@ package com.thinkaurelius.titan.diskstorage.log;
 import com.thinkaurelius.titan.diskstorage.StaticBuffer;
 
 import java.time.Instant;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Messages which are added to and received from the {@link Log}.
