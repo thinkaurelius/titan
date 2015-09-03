@@ -64,7 +64,7 @@ public abstract class OLAPTest extends TitanGraphBaseTest {
         assertEquals(numV*(numV+1),numE*2);
         clopen();
 
-        Stopwatch w = new Stopwatch().start();
+        Stopwatch w = Stopwatch.createStarted();
         final OLAPJobBuilder<Degree> builder = getOLAPBuilder(graph,Degree.class);
         OLAPResult<Degree> degrees = computeDegree(builder,"values","numvals");
         System.out.println("Execution time (ms) ["+numV+"|"+numE+"]: " + w.elapsed(TimeUnit.MILLISECONDS));
@@ -201,7 +201,7 @@ public abstract class OLAPTest extends TitanGraphBaseTest {
             correctPR[i]=pr;
         }
 
-        Stopwatch w = new Stopwatch().start();
+        Stopwatch w = Stopwatch.createStarted();
         OLAPResult<PageRank> ranks = computePageRank(graph,alpha,1,numV,"likes");
         System.out.println(String.format("Computing PR on graph with %s vertices took: %s ms",numV,w.elapsed(TimeUnit.MILLISECONDS)));
         double totalPr = 0.0;
@@ -287,7 +287,7 @@ public abstract class OLAPTest extends TitanGraphBaseTest {
                     return pr;
                 }
             });
-            Stopwatch w = new Stopwatch().start();
+            Stopwatch w = Stopwatch.createStarted();
             try {
                 ranks = builder.execute().get();
             } catch (Exception e) {
@@ -404,7 +404,7 @@ public abstract class OLAPTest extends TitanGraphBaseTest {
                  }
              }
             );
-            Stopwatch w = new Stopwatch().start();
+            Stopwatch w = Stopwatch.createStarted();
             distances = builder.execute().get(200, TimeUnit.SECONDS);
             System.out.println("Execution time (ms) [" + numV + "|" + numE + "]: " + w.elapsed(TimeUnit.MILLISECONDS));
             assertEquals(numV,distances.size());
