@@ -113,7 +113,7 @@ public class StandardIDPool implements IDPool {
     }
 
     private synchronized void waitForIDBlockGetter() throws InterruptedException {
-        Stopwatch sw = new Stopwatch().start();
+        Stopwatch sw = Stopwatch.createStarted();
         if (null != idBlockFuture) {
             try {
                 nextBlock = idBlockFuture.get(renewTimeout.getLength(SCHEDULING_TIME_UNIT), SCHEDULING_TIME_UNIT);
