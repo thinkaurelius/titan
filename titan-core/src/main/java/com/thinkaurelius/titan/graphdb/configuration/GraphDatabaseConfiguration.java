@@ -1689,6 +1689,10 @@ public class GraphDatabaseConfiguration {
         return batchLoading;
     }
 
+    public boolean isOptimisticLocking() {
+        return getStoreFeatures().isLockingOptimistic();
+    }
+
     public String getUniqueGraphId() {
         return uniqueGraphId;
     }
