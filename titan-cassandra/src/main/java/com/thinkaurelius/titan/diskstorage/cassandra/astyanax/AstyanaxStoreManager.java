@@ -243,6 +243,10 @@ public class AstyanaxStoreManager extends AbstractCassandraStoreManager {
             /* It's between either LOCAL or MASKABLE.  MASKABLE could be useful for cases where
                all the Titan instances are closest to the same Cassandra DC. */
             ConfigOption.Type.MASKABLE, String.class);
+    
+    public static final ConfigOption<Integer> THRIFT_FRAME_SIZE = 	
+    	            new ConfigOption<Integer>(ASTYANAX_NS, "frame-size",
+    	            "The thrift frame size in mega bytes", ConfigOption.Type.MASKABLE, 15);
 
     private final String clusterName;
 
@@ -259,6 +263,8 @@ public class AstyanaxStoreManager extends AbstractCassandraStoreManager {
     private final String localDatacenter;
 
     private final Map<String, AstyanaxKeyColumnValueStore> openStores;
+    
+    private final int thriftFrameSizeBytes;
 
     public AstyanaxStoreManager(Configuration config) throws BackendException {
         super(config);
@@ -286,6 +292,8 @@ public class AstyanaxStoreManager extends AbstractCassandraStoreManager {
         this.keyspaceContext.start();
 
         openStores = new HashMap<String, AstyanaxKeyColumnValueStore>(8);
+        
+        thriftFrameSizeBytes = config.get(THRIFT_FRAME_SIZE) * 1024 * 1024;
     }
 
     @Override
@@ -494,7 +502,8 @@ public class AstyanaxStoreManager extends AbstractCassandraStoreManager {
                 new AstyanaxConfigurationImpl()
                         .setConnectionPoolType(poolType)
                         .setDiscoveryType(discType)
-                        .setTargetCassandraVersion("1.2");
+                        .setTargetCassandraVersion("1.2")
+                        .setMaxThriftSize(thriftFrameSizeBytes);
 
         if (0 < maxConnections) {
             cpool.setMaxConns(maxConnections);
