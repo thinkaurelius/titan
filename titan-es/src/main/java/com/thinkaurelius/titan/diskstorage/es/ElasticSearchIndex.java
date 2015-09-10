@@ -30,6 +30,7 @@ import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsReques
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsResponse;
 import org.elasticsearch.action.admin.indices.mapping.put.PutMappingResponse;
 import org.elasticsearch.action.bulk.BulkRequestBuilder;
+import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.delete.DeleteRequest;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.search.SearchRequestBuilder;
@@ -561,7 +562,12 @@ public class ElasticSearchIndex implements IndexProvider {
 
                 }
             }
-            if (bulkrequests > 0) brb.execute().actionGet();
+            if (bulkrequests > 0) {
+                BulkResponse bulkResponse = brb.execute().actionGet();
+                if (bulkResponse.hasFailures()) {
+                    // TODO try again or inspect the responses and possibly throw an exception
+                }
+            }
         } catch (Exception e) {
             throw convert(e);
         }
@@ -595,8 +601,12 @@ public class ElasticSearchIndex implements IndexProvider {
                 }
             }
 
-            if (requests > 0)
-                bulk.execute().actionGet();
+            if (requests > 0) {
+                BulkResponse bulkResponse = bulk.execute().actionGet();
+                if (bulkResponse.hasFailures()) {
+                    // TODO try again or inspect the responses and possibly throw an exception
+                }
+            }
         } catch (Exception e) {
             throw convert(e);
         }
