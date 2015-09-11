@@ -19,6 +19,7 @@ import com.thinkaurelius.titan.graphdb.database.serialize.AttributeUtil;
 import com.thinkaurelius.titan.graphdb.query.TitanPredicate;
 import com.thinkaurelius.titan.graphdb.query.condition.*;
 import com.thinkaurelius.titan.util.system.IOUtils;
+
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
@@ -39,12 +40,12 @@ import org.apache.lucene.spatial.vector.PointVectorStrategy;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.util.Version;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -63,7 +64,7 @@ public class LuceneIndex implements IndexProvider {
     private static final String GEOID = "_____geo";
     private static final int MAX_STRING_FIELD_LEN = 256;
 
-    private static final Version LUCENE_VERSION = Version.LUCENE_4_10_4;
+    private static final Version LUCENE_VERSION = Version.LUCENE_5_2_1;
     private static final IndexFeatures LUCENE_FEATURES = new IndexFeatures.Builder().supportedStringMappings(Mapping.TEXT, Mapping.STRING).supportsCardinality(Cardinality.SINGLE).supportsNanoseconds().build();
 
     private static final int GEO_MAX_LEVELS = 11;
@@ -97,7 +98,7 @@ public class LuceneIndex implements IndexProvider {
             if (!path.exists() || !path.isDirectory() || !path.canWrite())
                 throw new PermanentBackendException("Cannot access or write to directory: " + dir);
             log.debug("Opening store directory [{}]", path);
-            return FSDirectory.open(path);
+            return FSDirectory.open(path.toPath());
         } catch (IOException e) {
             throw new PermanentBackendException("Could not open directory: " + dir, e);
         }
@@ -107,7 +108,7 @@ public class LuceneIndex implements IndexProvider {
         Preconditions.checkArgument(writerLock.isHeldByCurrentThread());
         IndexWriter writer = writers.get(store);
         if (writer == null) {
-            IndexWriterConfig iwc = new IndexWriterConfig(LUCENE_VERSION, analyzer);
+            IndexWriterConfig iwc = new IndexWriterConfig(analyzer);
             iwc.setOpenMode(IndexWriterConfig.OpenMode.CREATE_OR_APPEND);
             try {
                 writer = new IndexWriter(getStoreDirectory(store), iwc);

@@ -6,10 +6,10 @@ import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
 
-import org.elasticsearch.common.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Preconditions;
 import com.thinkaurelius.titan.util.system.IOUtils;
 
 public class HBaseStatus {
