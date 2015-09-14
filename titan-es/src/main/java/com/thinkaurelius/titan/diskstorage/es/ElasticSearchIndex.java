@@ -321,8 +321,7 @@ public class ElasticSearchIndex implements IndexProvider {
                 }
                 b.put("script.inline", "on");
                 b.put("indices.ttl.interval", "5s");
-                //TODO fix this
-                b.put("path.home", "/tmp");
+                b.put("path.home", System.getProperty("java.io.tmpdir"));
 
                 builder.settings(b.build());
 

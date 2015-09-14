@@ -197,8 +197,7 @@ public enum ElasticSearchSetup {
                     disableScriptsKey);
         }
         settings.put(disableScriptsKey, "on");
-        //TODO fix this
-        settings.put("path.home", "/tmp");
+        settings.put("path.home", System.getProperty("java.io.tmpdir"));
         log.debug("Set {}: {}", disableScriptsKey, "on");
 
         return settings;
