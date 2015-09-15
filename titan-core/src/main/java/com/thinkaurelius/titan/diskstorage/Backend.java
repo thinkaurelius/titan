@@ -538,7 +538,6 @@ public class Backend implements LockerProvider, AutoCloseable {
                 maxReadTime, indexTx, threadPool);
     }
 
-    @Override
     public synchronized void close() throws BackendException {
         if (!hasAttemptedClose) {
             hasAttemptedClose = true;
