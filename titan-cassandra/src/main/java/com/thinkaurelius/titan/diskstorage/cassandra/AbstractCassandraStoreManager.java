@@ -235,6 +235,7 @@ public abstract class AbstractCassandraStoreManager extends DistributedStoreMana
             fb.batchMutation(true).distributed(true);
             fb.timestamps(true).cellTTL(true);
             fb.keyConsistent(global, local);
+            fb.optimisticLocking(true);
 
             boolean keyOrdered;
 
