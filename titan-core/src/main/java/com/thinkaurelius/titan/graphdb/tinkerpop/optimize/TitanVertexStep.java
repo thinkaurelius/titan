@@ -91,6 +91,11 @@ public class TitanVertexStep<E extends Element> extends VertexStep<E> implements
     @Override
     protected Iterator<E> flatMap(final Traverser.Admin<Vertex> traverser) {
         if (useMultiQuery) {
+            // if this step did not have a start at time of initialization, reinitialize
+            if(multiQueryResults == null) {
+                initialized = false;
+                initialize();
+            }
             assert multiQueryResults != null;
             return (Iterator<E>) multiQueryResults.get(traverser.get()).iterator();
         } else {
