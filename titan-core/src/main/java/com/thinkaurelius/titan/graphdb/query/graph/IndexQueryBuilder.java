@@ -9,6 +9,7 @@ import com.thinkaurelius.titan.core.schema.Parameter;
 import com.thinkaurelius.titan.core.TitanElement;
 import com.thinkaurelius.titan.core.TitanIndexQuery;
 import com.thinkaurelius.titan.core.TitanProperty;
+import com.thinkaurelius.titan.core.Order;
 import com.thinkaurelius.titan.diskstorage.indexing.RawQuery;
 import com.thinkaurelius.titan.graphdb.database.IndexSerializer;
 import com.thinkaurelius.titan.graphdb.internal.ElementCategory;
@@ -175,6 +176,12 @@ public class IndexQueryBuilder extends BaseQuery implements TitanIndexQuery {
         return this;
     }
 
+    public IndexQueryBuilder orderBy(String field, String order) {
+        Parameter orderByClause = Parameter.of("orderBy", Parameter.of(field, order.equals("asc") ? Order.ASC : Order.DESC));
+        addParameter(orderByClause);
+        return this;
+    }
+
     private Iterable<Result<TitanElement>> execute(ElementCategory resultType) {
         Preconditions.checkNotNull(indexName);
         Preconditions.checkNotNull(query);
@@ -194,6 +201,22 @@ public class IndexQueryBuilder extends BaseQuery implements TitanIndexQuery {
                 return !r.getElement().isRemoved();
             }
         });
+    }
+
+    // We use this method to calculate total number of vertices, which satisfy the query.
+    public long executeCount() {
+        addParameter(Parameter.of("count", true)); // it is required to set parameter to influence on SolrIndex behavior
+        setPrefixInternal(VERTEX_PREFIX);
+        Preconditions.checkNotNull(indexName);
+        Preconditions.checkNotNull(query);
+        if (tx.hasModifications())
+            log.warn("Modifications in this transaction might not be accurately reflected in this index query: {}",
+                     query);
+        Iterable<RawQuery.Result> results = serializer.executeQuery(this, ElementCategory.VERTEX, tx.getTxHandle(), tx);
+        for (RawQuery.Result result : results) {
+            return (long) result.getScore(); // count is set as score of result
+        }
+        return -1;
     }
 
     @Override
