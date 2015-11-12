@@ -8,6 +8,7 @@ import com.thinkaurelius.titan.core.Order;
 import com.thinkaurelius.titan.core.TitanElement;
 import com.thinkaurelius.titan.core.attribute.*;
 import com.thinkaurelius.titan.core.schema.Mapping;
+import com.thinkaurelius.titan.core.schema.Parameter;
 import com.thinkaurelius.titan.diskstorage.*;
 import com.thinkaurelius.titan.diskstorage.configuration.ConfigNamespace;
 import com.thinkaurelius.titan.diskstorage.configuration.ConfigOption;
@@ -57,6 +58,8 @@ import static com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfigu
  */
 @PreInitializeConfigOptions
 public class SolrIndex implements IndexProvider {
+
+    public static final String ORDER_BY = "orderBy";
 
     private static final Logger logger = LoggerFactory.getLogger(SolrIndex.class);
 
@@ -452,11 +455,16 @@ public class SolrIndex implements IndexProvider {
         List<RawQuery.Result<String>> result;
         String collection = query.getStore();
         String keyIdField = getKeyFieldId(collection);
+        List<SolrQuery.SortClause> solrSortClauses = getSolrSortClauses(query);
         SolrQuery solrQuery = newQuery(collection, query.getQuery())
                                 .addField(keyIdField)
                                 .setIncludeScore(true)
                                 .setStart(query.getOffset())
                                 .setRows(query.hasLimit() ? query.getLimit() : maxResults);
+
+        for (SolrQuery.SortClause solrSortClause : solrSortClauses) {
+            solrQuery.addSort(solrSortClause);
+        }
 
         try {
             QueryResponse response = solrServer.query(solrQuery);
@@ -485,6 +493,21 @@ public class SolrIndex implements IndexProvider {
 
     private static String escapeValue(Object value) {
         return ClientUtils.escapeQueryChars(value.toString());
+    }
+
+    private static List<SolrQuery.SortClause> getSolrSortClauses(RawQuery query) {
+        List<SolrQuery.SortClause> solrSortClauses = new ArrayList<SolrQuery.SortClause>();
+        if (query.getParameters() != null) {
+            for (Parameter parameter : query.getParameters()) {
+                if (parameter.getKey().equals(ORDER_BY)) {
+                    Parameter<Order> sortClause = (Parameter<Order>) parameter.getValue();
+                    solrSortClauses.add(SolrQuery.SortClause.create(sortClause.getKey(),
+                                                                    sortClause.getValue() == Order.ASC
+                                                                    ? SolrQuery.ORDER.asc : SolrQuery.ORDER.desc));
+                }
+            }
+        }
+        return solrSortClauses;
     }
 
     public String buildQueryFilter(Condition<TitanElement> condition, KeyInformation.StoreRetriever informations) {

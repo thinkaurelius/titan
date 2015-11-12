@@ -51,6 +51,8 @@ import static com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfigu
 
 public class IndexSerializer {
 
+    public static final String ORDER_BY = "orderBy";
+
     private static final Logger log = LoggerFactory.getLogger(IndexSerializer.class);
 
     private static final int DEFAULT_OBJECT_BYTELEN = 30;
@@ -646,7 +648,11 @@ public class IndexSerializer {
         String queryStr = qB.toString();
         if (replacements<=0) log.warn("Could not convert given {} index query: [{}]",resultType, query.getQuery());
         log.info("Converted query string with {} replacements: [{}] => [{}]",replacements,query.getQuery(),queryStr);
-        RawQuery rawQuery=new RawQuery(index.getStoreName(),queryStr,query.getParameters());
+
+        // I need to map titan properties to solr properties in ORDER_BY parameters for sorting on the solr side
+        Parameter[] mappedParameters = mapQueryParameters(transaction, index, query.getParameters());
+
+        RawQuery rawQuery = new RawQuery(index.getStoreName(),queryStr,mappedParameters);
         if (query.hasLimit()) rawQuery.setLimit(query.getLimit());
         rawQuery.setOffset(query.getOffset());
         return Iterables.transform(backendTx.rawQuery(index.getBackingIndexName(), rawQuery), new Function<RawQuery.Result<String>, RawQuery.Result>() {
@@ -656,6 +662,32 @@ public class IndexSerializer {
                 return new RawQuery.Result(string2ElementId(result.getResult()), result.getScore());
             }
         });
+    }
+
+    /**
+     * Method maps 'orderBy' parameters like Parameter{"orderBy", Parameter{"name", "asc"}} to Parameter{"orderBy", Parameter{"ch5_t", "asc"}}
+     * @param transaction
+     * @param index
+     * @param parameters array of parameters passed via indexQueryBuilder()
+     * @return array of mapped 'orderBy' parameters and other parameters w/o changes
+     */
+    private Parameter[] mapQueryParameters(StandardTitanTx transaction, MixedIndexType index, Parameter[] parameters) {
+        Parameter[] mappedParameters = new Parameter[parameters.length];
+        for (int i = 0; i < parameters.length; i++) {
+            Parameter parameter = parameters[i];
+            String parameterKey = parameter.getKey();
+            if (parameterKey.equals(ORDER_BY)) {
+                Parameter<Order> orderClause = (Parameter<Order>) parameter.getValue();
+                String titanProperty = orderClause.getKey();
+                PropertyKey propertyKey = transaction.getPropertyKey(titanProperty);
+                String mappedTitanProperty = key2Field(index, propertyKey);
+                mappedParameters[i] = Parameter.of(parameterKey, Parameter.of(mappedTitanProperty, orderClause.getValue()));
+            } else {
+                mappedParameters[i] = parameter; // just copy other parameters w/o changes
+            }
+        }
+        log.info("Mapped parameters {} to {}", Arrays.toString(parameters), Arrays.toString(mappedParameters));
+        return mappedParameters;
     }
 
 

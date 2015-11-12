@@ -9,6 +9,7 @@ import com.thinkaurelius.titan.core.schema.Parameter;
 import com.thinkaurelius.titan.core.TitanElement;
 import com.thinkaurelius.titan.core.TitanIndexQuery;
 import com.thinkaurelius.titan.core.TitanProperty;
+import com.thinkaurelius.titan.core.Order;
 import com.thinkaurelius.titan.diskstorage.indexing.RawQuery;
 import com.thinkaurelius.titan.graphdb.database.IndexSerializer;
 import com.thinkaurelius.titan.graphdb.internal.ElementCategory;
@@ -172,6 +173,12 @@ public class IndexQueryBuilder extends BaseQuery implements TitanIndexQuery {
     @Override
     public IndexQueryBuilder addParameters(Parameter... paras) {
         for (Parameter para: paras) addParameter(para);
+        return this;
+    }
+
+    public IndexQueryBuilder orderBy(String field, String order) {
+        Parameter orderByClause = Parameter.of("orderBy", Parameter.of(field, order.equals("asc") ? Order.ASC : Order.DESC));
+        addParameter(orderByClause);
         return this;
     }
 
