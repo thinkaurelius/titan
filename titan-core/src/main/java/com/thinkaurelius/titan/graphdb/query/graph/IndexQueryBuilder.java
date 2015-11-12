@@ -203,6 +203,22 @@ public class IndexQueryBuilder extends BaseQuery implements TitanIndexQuery {
         });
     }
 
+    // We use this method to calculate total number of vertices, which satisfy the query.
+    public long executeCount() {
+        addParameter(Parameter.of("count", true)); // it is required to set parameter to influence on SolrIndex behavior
+        setPrefixInternal(VERTEX_PREFIX);
+        Preconditions.checkNotNull(indexName);
+        Preconditions.checkNotNull(query);
+        if (tx.hasModifications())
+            log.warn("Modifications in this transaction might not be accurately reflected in this index query: {}",
+                     query);
+        Iterable<RawQuery.Result> results = serializer.executeQuery(this, ElementCategory.VERTEX, tx.getTxHandle(), tx);
+        for (RawQuery.Result result : results) {
+            return (long) result.getScore(); // count is set as score of result
+        }
+        return -1;
+    }
+
     @Override
     public Iterable<Result<Vertex>> vertices() {
         setPrefixInternal(VERTEX_PREFIX);

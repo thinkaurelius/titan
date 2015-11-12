@@ -60,6 +60,7 @@ import static com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfigu
 public class SolrIndex implements IndexProvider {
 
     public static final String ORDER_BY = "orderBy";
+    public static final String COUNT = "count";
 
     private static final Logger logger = LoggerFactory.getLogger(SolrIndex.class);
 
@@ -456,11 +457,13 @@ public class SolrIndex implements IndexProvider {
         String collection = query.getStore();
         String keyIdField = getKeyFieldId(collection);
         List<SolrQuery.SortClause> solrSortClauses = getSolrSortClauses(query);
+        boolean isCountQuery = isCountQuery(query);
+
         SolrQuery solrQuery = newQuery(collection, query.getQuery())
                                 .addField(keyIdField)
                                 .setIncludeScore(true)
                                 .setStart(query.getOffset())
-                                .setRows(query.hasLimit() ? query.getLimit() : maxResults);
+                                .setRows(isCountQuery ? 0 : (query.hasLimit() ? query.getLimit() : maxResults)); // we set limit 0 for counting query
 
         for (SolrQuery.SortClause solrSortClause : solrSortClauses) {
             solrQuery.addSort(solrSortClause);
@@ -470,6 +473,12 @@ public class SolrIndex implements IndexProvider {
             QueryResponse response = solrServer.query(solrQuery);
             if (logger.isDebugEnabled())
                 logger.debug("Executed query [{}] in {} ms", query.getQuery(), response.getElapsedTime());
+
+            if (isCountQuery) {
+                result = new ArrayList<RawQuery.Result<String>>(1);
+                result.add(new RawQuery.Result<String>(COUNT, response.getResults().getNumFound())); // return counts as score of a RawQuery.Result to not break an existing logic
+                return result;
+            }
 
             int totalHits = response.getResults().size();
             if (!query.hasLimit() && totalHits >= maxResults) {
@@ -493,6 +502,17 @@ public class SolrIndex implements IndexProvider {
 
     private static String escapeValue(Object value) {
         return ClientUtils.escapeQueryChars(value.toString());
+    }
+
+    private boolean isCountQuery(RawQuery query) {
+        if (query.getParameters() != null) {
+            for (Parameter parameter : query.getParameters()) {
+                if (parameter.getKey().equals(COUNT)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private static List<SolrQuery.SortClause> getSolrSortClauses(RawQuery query) {
