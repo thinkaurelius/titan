@@ -78,6 +78,7 @@
         <hbase098.version>${hbase098.core.version}-hadoop2</hbase098.version>
         <hbase100.core.version>1.0.2</hbase100.core.version>
         <hbase100.version>${hbase100.core.version}</hbase100.version>
+        <hbase111.version>1.1.1</hbase111.version>
         <jackson1.version>1.9.2</jackson1.version>
         <jackson2.version>2.3.0</jackson2.version>
         <!-- ES depends on Lucene.  This ES dependency can affect the
