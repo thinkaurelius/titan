@@ -46,7 +46,7 @@
         <dependency>
             <groupId>org.apache.hbase</groupId>
             <artifactId>hbase-client</artifactId>
-            <version>${hbase098.core.version}-hadoop1</version>
+            <version>${hbase111.version}</version>
         </dependency>
         <dependency>
             <groupId>${project.groupId}</groupId>
@@ -55,8 +55,13 @@
         </dependency>
         <dependency>
             <groupId>org.apache.hadoop</groupId>
-            <artifactId>hadoop-core</artifactId>
-            <version>${hadoop1.version}</version>
+            <artifactId>hadoop-common</artifactId>
+            <version>${hadoop2.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-mapreduce-client-core</artifactId>
+            <version>${hadoop2.version}</version>
         </dependency>
         <dependency>
             <groupId>com.thinkaurelius.titan</groupId>

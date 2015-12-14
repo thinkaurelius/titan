@@ -15,6 +15,7 @@
         <module>titan-hbase-core</module>
         <module>titan-hbase-098</module>
         <module>titan-hbase-10</module>
+        <module>titan-hbase-11</module>
         <module>titan-hbase</module>
     </modules>
     
