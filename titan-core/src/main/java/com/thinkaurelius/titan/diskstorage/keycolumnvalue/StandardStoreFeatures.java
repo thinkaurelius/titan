@@ -191,106 +191,106 @@ public class StandardStoreFeatures implements StoreFeatures {
             supportsInterruption(template.supportsInterruption());
         }
 
-        public Builder unorderedScan(boolean b) {
+        public final Builder unorderedScan(boolean b) {
             unorderedScan = b;
             return this;
         }
 
-        public Builder orderedScan(boolean b) {
+        public final Builder orderedScan(boolean b) {
             orderedScan = b;
             return this;
         }
 
-        public Builder multiQuery(boolean b) {
+        public final  Builder multiQuery(boolean b) {
             multiQuery = b;
             return this;
         }
 
-        public Builder locking(boolean b) {
+        public final Builder locking(boolean b) {
             locking = b;
             return this;
         }
 
-        public Builder batchMutation(boolean b) {
+        public final Builder batchMutation(boolean b) {
             batchMutation = b;
             return this;
         }
 
-        public Builder localKeyPartition(boolean b) {
+        public final Builder localKeyPartition(boolean b) {
             localKeyPartition = b;
             return this;
         }
 
-        public Builder keyOrdered(boolean b) {
+        public final Builder keyOrdered(boolean b) {
             keyOrdered = b;
             return this;
         }
 
-        public Builder distributed(boolean b) {
+        public final Builder distributed(boolean b) {
             distributed = b;
             return this;
         }
 
-        public Builder transactional(boolean b) {
+        public final Builder transactional(boolean b) {
             transactional = b;
             return this;
         }
 
-        public Builder timestamps(boolean b) {
+        public final Builder timestamps(boolean b) {
             timestamps = b;
             return this;
         }
 
-        public Builder preferredTimestamps(TimestampProviders t) {
+        public final Builder preferredTimestamps(TimestampProviders t) {
             preferredTimestamps = t;
             return this;
         }
 
-        public Builder cellTTL(boolean b) {
+        public final Builder cellTTL(boolean b) {
             cellLevelTTL = b;
             return this;
         }
 
-        public Builder storeTTL(boolean b) {
+        public final Builder storeTTL(boolean b) {
             storeLevelTTL = b;
             return this;
         }
 
 
-        public Builder visibility(boolean b) {
+        public final Builder visibility(boolean b) {
             visibility = b;
             return this;
         }
 
-        public Builder persists(boolean b) {
+        public final Builder persists(boolean b) {
             supportsPersist = b;
             return this;
         }
 
-        public Builder keyConsistent(Configuration c) {
+        public final Builder keyConsistent(Configuration c) {
             keyConsistent = true;
             keyConsistentTxConfig = c;
             return this;
         }
 
-        public Builder keyConsistent(Configuration global, Configuration local) {
+        public final Builder keyConsistent(Configuration global, Configuration local) {
             keyConsistent = true;
             keyConsistentTxConfig = global;
             localKeyConsistentTxConfig = local;
             return this;
         }
 
-        public Builder notKeyConsistent() {
+        public final Builder notKeyConsistent() {
             keyConsistent = false;
             return this;
         }
 
-        public Builder scanTxConfig(Configuration c) {
+        public final Builder scanTxConfig(Configuration c) {
             scanTxConfig = c;
             return this;
         }
 
-        public Builder supportsInterruption(boolean i)
+        public final Builder supportsInterruption(boolean i)
         {
             supportsInterruption = i;
             return this;

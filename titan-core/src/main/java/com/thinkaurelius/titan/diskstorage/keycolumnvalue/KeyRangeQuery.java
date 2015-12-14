@@ -50,7 +50,7 @@ public class KeyRangeQuery extends SliceQuery {
     }
 
     @Override
-    public KeyRangeQuery setLimit(int limit) {
+    public final KeyRangeQuery setLimit(int limit) {
         super.setLimit(limit);
         return this;
     }

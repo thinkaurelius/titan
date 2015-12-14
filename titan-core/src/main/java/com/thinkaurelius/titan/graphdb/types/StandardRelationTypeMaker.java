@@ -170,7 +170,7 @@ public abstract class StandardRelationTypeMaker implements RelationTypeMaker {
         return this;
     }
 
-    public StandardRelationTypeMaker name(String name) {
+    public final StandardRelationTypeMaker name(String name) {
         SystemTypeManager.isNotSystemName(getSchemaCategory(), name);
         this.name = name;
         return this;

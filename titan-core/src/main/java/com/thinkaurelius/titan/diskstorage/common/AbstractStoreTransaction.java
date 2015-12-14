@@ -29,7 +29,7 @@ public abstract class AbstractStoreTransaction implements StoreTransaction {
     }
 
     @Override
-    public BaseTransactionConfig getConfiguration() {
+    public final BaseTransactionConfig getConfiguration() {
         return config;
     }
 

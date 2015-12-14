@@ -324,7 +324,7 @@ public class CompactMap implements Map<String,Object> {
 
         KeyContainer() {}
 
-        void setKeys(final String[] keys) {
+        final void setKeys(final String[] keys) {
             checkKeys(keys);
             this.keys = keys;
             this.hashcode= Arrays.hashCode(keys);

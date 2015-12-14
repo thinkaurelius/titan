@@ -6,6 +6,8 @@ import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.databind.DeserializationContext;
+import com.fasterxml.jackson.databind.JsonDeserializer;
+import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 import com.fasterxml.jackson.databind.jsontype.TypeSerializer;
@@ -28,6 +30,16 @@ public class TitanGraphSONModule extends SimpleModule {
 
         addDeserializer(RelationIdentifier.class, new RelationIdentifierDeserializer());
         addDeserializer(Geoshape.class, new Geoshape.GeoshapeGsonDeserializer());
+    }
+
+    @Override
+    public final <T> SimpleModule addSerializer(Class<? extends T> aClass, JsonSerializer<T> jsonSerializer) {
+        return super.addSerializer(aClass, jsonSerializer);
+    }
+
+    @Override
+    public final <T> SimpleModule addDeserializer(Class<T> aClass, JsonDeserializer<? extends T> jsonDeserializer) {
+        return super.addDeserializer(aClass, jsonDeserializer);
     }
 
     private static final TitanGraphSONModule INSTANCE = new TitanGraphSONModule();
