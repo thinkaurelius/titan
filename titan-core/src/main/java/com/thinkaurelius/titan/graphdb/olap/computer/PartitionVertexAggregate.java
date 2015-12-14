@@ -26,10 +26,12 @@ public class PartitionVertexAggregate<M> extends VertexState<M> {
         return (EntryList)properties;
     }
 
+    @Override
     public<V> void setProperty(String key, V value, Map<String,Integer> keyMap) {
         throw new UnsupportedOperationException();
     }
 
+    @Override
     public<V> V getProperty(String key, Map<String,Integer> keyMap) {
         throw new UnsupportedOperationException();
     }

@@ -37,6 +37,7 @@ public abstract class AbstractMessage implements Message {
         return senderId;
     }
 
+    @Override
     public Instant getTimestamp() {
         return timestamp;
     }

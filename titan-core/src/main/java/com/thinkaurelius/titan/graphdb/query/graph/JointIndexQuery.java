@@ -103,6 +103,7 @@ public class JointIndexQuery extends BaseQuery implements BackendQuery<JointInde
             this.query = query;
         }
 
+        @Override
         public void observeWith(QueryProfiler prof) {
             this.profiler = prof.addNested(QueryProfiler.AND_QUERY);
             profiler.setAnnotation(QueryProfiler.QUERY_ANNOTATION,query);

@@ -53,6 +53,7 @@ public abstract class RelationTypeVertex extends TitanSchemaVertex implements In
 
     private ConsistencyModifier consistency = null;
 
+    @Override
     public ConsistencyModifier getConsistencyModifier() {
         if (consistency==null) {
             consistency = TypeUtil.getConsistencyModifier(this);
@@ -70,6 +71,7 @@ public abstract class RelationTypeVertex extends TitanSchemaVertex implements In
         return ttl;
     }
 
+    @Override
     public InternalRelationType getBaseType() {
         Entry entry = Iterables.getOnlyElement(getRelated(TypeDefinitionCategory.RELATIONTYPE_INDEX,Direction.IN),null);
         if (entry==null) return null;
@@ -77,6 +79,7 @@ public abstract class RelationTypeVertex extends TitanSchemaVertex implements In
         return (InternalRelationType)entry.getSchemaType();
     }
 
+    @Override
     public Iterable<InternalRelationType> getRelationIndexes() {
         return Iterables.concat(ImmutableList.of(this),Iterables.transform(getRelated(TypeDefinitionCategory.RELATIONTYPE_INDEX,Direction.OUT),new Function<Entry, InternalRelationType>() {
             @Nullable
@@ -90,6 +93,7 @@ public abstract class RelationTypeVertex extends TitanSchemaVertex implements In
 
     private List<IndexType> indexes = null;
 
+    @Override
     public Iterable<IndexType> getKeyIndexes() {
         List<IndexType> result = indexes;
         if (result==null) {
@@ -105,6 +109,7 @@ public abstract class RelationTypeVertex extends TitanSchemaVertex implements In
         return result;
     }
 
+    @Override
     public void resetCache() {
         super.resetCache();
         indexes=null;

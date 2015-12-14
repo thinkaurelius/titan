@@ -12,11 +12,13 @@ import java.util.concurrent.ExecutionException;
 
 public class BerkeleyVariableLengthKCVSTest extends KeyColumnValueStoreTest {
 
+    @Override
     public KeyColumnValueStoreManager openStorageManager() throws BackendException {
         BerkeleyJEStoreManager sm = new BerkeleyJEStoreManager(BerkeleyStorageSetup.getBerkeleyJEConfiguration());
         return new OrderedKeyValueStoreManagerAdapter(sm);
     }
 
+    @Override
     @Test
     public void testGetKeysWithKeyRange() throws Exception {
         super.testGetKeysWithKeyRange();

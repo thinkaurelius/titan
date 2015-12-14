@@ -33,6 +33,7 @@ public interface TitanRelation extends TitanElement {
      * @param key string identifying a key
      * @return value or list of values associated with key
      */
+    @Override
     public <V> V value(String key);
 
     /**

@@ -694,6 +694,7 @@ public class ElasticSearchIndex implements IndexProvider {
     }
 
 
+    @Override
     public void restore(Map<String,Map<String, List<IndexEntry>>> documents, KeyInformation.IndexRetriever informations, BaseTransaction tx) throws BackendException {
         BulkRequestBuilder bulk = client.prepareBulk();
         int requests = 0;

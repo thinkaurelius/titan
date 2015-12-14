@@ -401,6 +401,7 @@ public class IndexSerializer {
 
     public static class IndexRecords extends ArrayList<RecordEntry[]> {
 
+        @Override
         public boolean add(RecordEntry[] record) {
             return super.add(Arrays.copyOf(record,record.length));
         }

@@ -194,6 +194,7 @@ public class HBaseStorageSetup {
      */
     private static void registerKillerHook(final HBaseStatus stat) {
         Runtime.getRuntime().addShutdownHook(new Thread() {
+            @Override
             public void run() {
                 shutdownHBase(stat);
             }

@@ -17,26 +17,31 @@ public class UncaughtExceptionLogger implements UncaughtExceptionHandler {
      */
     public static enum UELevel implements UELogLevel {
         TRACE {
+            @Override
             public void dispatch(String message, Throwable t) {
                 log.trace(message, t);
             }
         },
         DEBUG {
+            @Override
             public void dispatch(String message, Throwable t) {
                 log.debug(message, t);
             }
         },
         INFO {
+            @Override
             public void dispatch(String message, Throwable t) {
                 log.info(message, t);
             }
         },
         WARN {
+            @Override
             public void dispatch(String message, Throwable t) {
                 log.warn(message, t);
             }
         },
         ERROR {
+            @Override
             public void dispatch(String message, Throwable t) {
                 log.error(message, t);
             }

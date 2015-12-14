@@ -32,6 +32,7 @@ public class HBaseIDAuthorityTest extends IDAuthorityTest {
             HBaseStorageSetup.killIfRunning();
     }
 
+    @Override
     public KeyColumnValueStoreManager openStorageManager() throws BackendException {
         return new HBaseStoreManager(HBaseStorageSetup.getHBaseConfiguration());
     }

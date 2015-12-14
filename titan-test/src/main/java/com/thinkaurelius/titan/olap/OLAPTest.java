@@ -41,6 +41,7 @@ public abstract class OLAPTest extends TitanGraphBaseTest {
     private static final Logger log =
             LoggerFactory.getLogger(OLAPTest.class);
 
+    @Override
     @Before
     public void setUp() throws Exception {
         super.setUp();

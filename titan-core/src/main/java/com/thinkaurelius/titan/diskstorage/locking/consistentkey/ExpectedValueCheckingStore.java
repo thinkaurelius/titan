@@ -105,6 +105,7 @@ public class ExpectedValueCheckingStore extends KCVSProxy {
         return store;
     }
 
+    @Override
     protected StoreTransaction unwrapTx(StoreTransaction t) {
         assert null != t;
         assert t instanceof ExpectedValueCheckingTransaction;

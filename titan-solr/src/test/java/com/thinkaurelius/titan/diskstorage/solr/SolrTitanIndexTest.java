@@ -35,6 +35,7 @@ public abstract class SolrTitanIndexTest extends TitanIndexTest {
         return false;
     }
 
+    @Override
     @Test
     public void testRawQueries() {
         clopen(option(SolrIndex.DYNAMIC_FIELDS,TitanIndexTest.INDEX),false);

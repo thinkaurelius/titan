@@ -2479,6 +2479,7 @@ public abstract class TitanGraphTest extends TitanGraphBaseTest {
         final AtomicInteger txSuccess = new AtomicInteger(0);
         for (int i = 0; i < number; i++) {
             new Thread() {
+                @Override
                 public void run() {
                     awaitAllThreadsReady();
                     TitanTransaction tx = graph.newTransaction();

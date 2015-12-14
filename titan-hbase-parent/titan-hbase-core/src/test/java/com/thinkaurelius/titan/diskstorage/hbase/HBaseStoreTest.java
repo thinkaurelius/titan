@@ -29,11 +29,13 @@ public class HBaseStoreTest extends KeyColumnValueStoreTest {
             HBaseStorageSetup.killIfRunning();
     }
 
+    @Override
     public KeyColumnValueStoreManager openStorageManager() throws BackendException {
         WriteConfiguration config = HBaseStorageSetup.getHBaseGraphConfiguration();
         return new HBaseStoreManager(new BasicConfiguration(GraphDatabaseConfiguration.ROOT_NS,config, BasicConfiguration.Restriction.NONE));
     }
 
+    @Override
     @Test
     public void testGetKeysWithKeyRange() throws Exception {
         super.testGetKeysWithKeyRange();

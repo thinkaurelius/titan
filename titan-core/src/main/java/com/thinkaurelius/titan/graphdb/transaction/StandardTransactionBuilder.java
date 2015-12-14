@@ -280,6 +280,7 @@ public class StandardTransactionBuilder implements TransactionConfiguration, Tra
         return verifyUniqueness;
     }
 
+    @Override
     public boolean hasPropertyPrefetching() {
         return propertyPrefetching;
     }

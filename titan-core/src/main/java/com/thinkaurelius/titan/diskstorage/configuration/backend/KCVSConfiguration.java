@@ -102,6 +102,7 @@ public class KCVSConfiguration implements ConcurrentWriteConfiguration {
         return staticBuffer2Object(result, datatype);
     }
 
+    @Override
     public<O> void set(String key, O value, O expectedValue) {
         set(key,value,expectedValue,true);
     }

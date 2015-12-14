@@ -24,6 +24,7 @@ public class HBaseLockStoreTest extends LockKeyColumnValueStoreTest {
             HBaseStorageSetup.killIfRunning();
     }
 
+    @Override
     public KeyColumnValueStoreManager openStorageManager(int idx) throws BackendException {
         return new HBaseStoreManager(HBaseStorageSetup.getHBaseConfiguration());
     }

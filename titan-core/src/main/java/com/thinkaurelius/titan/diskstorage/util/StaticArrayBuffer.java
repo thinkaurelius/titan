@@ -242,6 +242,7 @@ public class StaticArrayBuffer implements StaticBuffer {
         return result;
     }
 
+    @Override
     public short[] getShorts(int position, int length) {
         short[] result = new short[length];
         for (int i = 0; i < length; i++) {
@@ -251,6 +252,7 @@ public class StaticArrayBuffer implements StaticBuffer {
         return result;
     }
 
+    @Override
     public int[] getInts(int position, int length) {
         int[] result = new int[length];
         for (int i = 0; i < length; i++) {
@@ -260,6 +262,7 @@ public class StaticArrayBuffer implements StaticBuffer {
         return result;
     }
 
+    @Override
     public long[] getLongs(int position, int length) {
         long[] result = new long[length];
         for (int i = 0; i < length; i++) {
@@ -269,6 +272,7 @@ public class StaticArrayBuffer implements StaticBuffer {
         return result;
     }
 
+    @Override
     public char[] getChars(int position, int length) {
         char[] result = new char[length];
         for (int i = 0; i < length; i++) {
@@ -278,6 +282,7 @@ public class StaticArrayBuffer implements StaticBuffer {
         return result;
     }
 
+    @Override
     public float[] getFloats(int position, int length) {
         float[] result = new float[length];
         for (int i = 0; i < length; i++) {
@@ -287,6 +292,7 @@ public class StaticArrayBuffer implements StaticBuffer {
         return result;
     }
 
+    @Override
     public double[] getDoubles(int position, int length) {
         double[] result = new double[length];
         for (int i = 0; i < length; i++) {

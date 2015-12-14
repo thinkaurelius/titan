@@ -69,6 +69,7 @@ public abstract class TitanPartitionGraphTest extends TitanGraphBaseTest {
 
     private IDManager idManager;
 
+    @Override
     @Before
     public void setUp() throws Exception {
         super.setUp();

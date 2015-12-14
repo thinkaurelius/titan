@@ -224,6 +224,7 @@ public class TitanVertexDeserializer implements AutoCloseable {
         }
     }
 
+    @Override
     public void close() {
         setup.close();
     }

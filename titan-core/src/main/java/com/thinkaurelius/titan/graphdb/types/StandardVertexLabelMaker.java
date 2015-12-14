@@ -36,6 +36,7 @@ public class StandardVertexLabelMaker implements VertexLabelMaker {
     }
 
 
+    @Override
     public String getName() {
         return name;
     }

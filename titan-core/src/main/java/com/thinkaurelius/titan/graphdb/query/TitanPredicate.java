@@ -50,6 +50,7 @@ public interface TitanPredicate extends BiPredicate<Object, Object> {
      * Returns the negation of this predicate if it exists, otherwise an exception is thrown. Check {@link #hasNegation()} first.
      * @return
      */
+    @Override
     public TitanPredicate negate();
 
     /**

@@ -219,6 +219,7 @@ public class QueryContainer {
             return this;
         }
 
+        @Override
         public QueryBuilder type(RelationType type) {
             super.type(type);
             return this;

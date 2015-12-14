@@ -98,6 +98,7 @@ public abstract class AbstractElement implements InternalElement, Comparable<Tit
         return id;
     }
 
+    @Override
     public boolean hasId() {
         return !isTemporaryId(longId());
     }

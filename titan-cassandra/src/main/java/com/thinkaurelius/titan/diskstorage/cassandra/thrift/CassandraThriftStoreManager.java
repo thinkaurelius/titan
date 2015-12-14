@@ -369,6 +369,7 @@ public class CassandraThriftStoreManager extends AbstractCassandraStoreManager {
      *
      * @throws com.thinkaurelius.titan.diskstorage.BackendException if any checked Thrift or UnknownHostException is thrown in the body of this method
      */
+    @Override
     public void clearStorage() throws BackendException {
         openStores.clear();
         final String lp = "ClearStorage: "; // "log prefix"
