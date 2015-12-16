@@ -23,10 +23,12 @@ public class IntHashSet extends IntIntHashMap implements IntSet {
         super(size);
     }
 
+    @Override
     public boolean add(int value) {
         return super.put(value, defaultValue)==0;
     }
 
+    @Override
     public boolean addAll(int[] values) {
         boolean addedAll = true;
         for (int i = 0; i < values.length; i++) {
@@ -35,10 +37,12 @@ public class IntHashSet extends IntIntHashMap implements IntSet {
         return addedAll;
     }
 
+    @Override
     public boolean contains(int value) {
         return super.containsKey(value);
     }
 
+    @Override
     public int[] getAll() {
         KeysContainer keys = keys();
         int[] all = new int[keys.size()];

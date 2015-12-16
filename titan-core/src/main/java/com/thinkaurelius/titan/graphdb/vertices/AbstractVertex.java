@@ -131,6 +131,7 @@ public abstract class AbstractVertex extends AbstractElement implements Internal
 	 * ---------------------------------------------------------------
 	 */
 
+    @Override
     public<V> TitanVertexProperty<V> property(final String key, final V value, final Object... keyValues) {
         TitanVertexProperty<V> p = tx().addProperty(it(), tx().getOrCreatePropertyKey(key), value);
         ElementHelper.attachProperties(p,keyValues);
@@ -152,14 +153,17 @@ public abstract class AbstractVertex extends AbstractElement implements Internal
         return edge;
     }
 
+    @Override
     public Iterator<Edge> edges(Direction direction, String... labels) {
         return (Iterator)query().direction(direction).labels(labels).edges().iterator();
     }
 
+    @Override
     public <V> Iterator<VertexProperty<V>> properties(String... keys) {
         return (Iterator)query().direction(Direction.OUT).keys(keys).properties().iterator();
     }
 
+    @Override
     public Iterator<Vertex> vertices(final Direction direction, final String... edgeLabels) {
         return (Iterator)query().direction(direction).labels(edgeLabels).vertices().iterator();
 

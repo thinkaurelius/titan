@@ -25,6 +25,7 @@ public class HBaseMultiWriteStoreTest extends MultiWriteKeyColumnValueStoreTest 
             HBaseStorageSetup.killIfRunning();
     }
 
+    @Override
     public KeyColumnValueStoreManager openStorageManager() throws BackendException {
         return new HBaseStoreManager(HBaseStorageSetup.getHBaseConfiguration());
     }

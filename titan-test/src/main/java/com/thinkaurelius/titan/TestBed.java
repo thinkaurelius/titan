@@ -140,6 +140,7 @@ public class TestBed {
             other.observe(combined);
         }
 
+        @Override
         public boolean observes() {
             return observed;
         }

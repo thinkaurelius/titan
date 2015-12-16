@@ -76,6 +76,7 @@ public class CompositeIndexTypeWrapper extends IndexTypeWrapper implements Compo
 
     private ConsistencyModifier consistency = null;
 
+    @Override
     public ConsistencyModifier getConsistencyModifier() {
         if (consistency==null) {
             consistency = TypeUtil.getConsistencyModifier(base);

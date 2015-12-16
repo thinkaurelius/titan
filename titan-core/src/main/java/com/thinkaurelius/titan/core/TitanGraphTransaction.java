@@ -40,6 +40,7 @@ public interface TitanGraphTransaction extends Graph, SchemaManager {
      * @param vertexLabel the name of the vertex label to use
      * @return a new vertex in the graph created in the context of this transaction
      */
+    @Override
     public TitanVertex addVertex(String vertexLabel);
 
     @Override

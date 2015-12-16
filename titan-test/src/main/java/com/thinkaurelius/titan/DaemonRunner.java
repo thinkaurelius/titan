@@ -77,6 +77,7 @@ public abstract class DaemonRunner<S> {
             return;
         }
         killerHook = new Thread() {
+            @Override
             public void run() {
                 killAndUnregisterHook(stat);
             }

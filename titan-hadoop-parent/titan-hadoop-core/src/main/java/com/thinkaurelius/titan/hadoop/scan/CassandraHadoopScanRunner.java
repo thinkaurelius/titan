@@ -29,6 +29,7 @@ public class CassandraHadoopScanRunner extends AbstractHadoopScanRunner<Cassandr
         super(vertexScanJob);
     }
 
+    @Override
     protected CassandraHadoopScanRunner self() {
         return this;
     }

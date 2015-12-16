@@ -100,6 +100,7 @@ public class SimpleScanJob implements ScanJob {
         }
     }
 
+    @Override
     public void workerIterationEnd(ScanMetrics metrics) {
         metrics.incrementCustom(TEARDOWN_COUNT);
     }

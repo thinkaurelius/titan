@@ -44,6 +44,7 @@ public abstract class TitanBlueprintsGraph implements TitanGraph {
 
     private ThreadLocal<TitanBlueprintsTransaction> txs = new ThreadLocal<TitanBlueprintsTransaction>() {
 
+        @Override
         protected TitanBlueprintsTransaction initialValue() {
             return null;
         }

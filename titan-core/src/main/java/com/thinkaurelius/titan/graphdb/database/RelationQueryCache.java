@@ -56,6 +56,7 @@ public class RelationQueryCache implements AutoCloseable {
         return ce.get(dir);
     }
 
+    @Override
     public void close() {
         cache.invalidateAll();
         cache.cleanUp();

@@ -126,6 +126,7 @@ public class CsvConsumer implements IResultsConsumer {
         printHeader();
     }
 
+    @Override
     public synchronized void accept(Result r) throws IOException {
         Joiner j = Joiner.on(separator);
         List<String> fields = new ArrayList<String>(Column.values().length);

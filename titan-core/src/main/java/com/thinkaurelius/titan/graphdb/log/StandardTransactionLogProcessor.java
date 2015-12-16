@@ -125,6 +125,7 @@ public class StandardTransactionLogProcessor implements TransactionRecovery {
         return new long[]{successTxCounter.get(),failureTxCounter.get()};
     }
 
+    @Override
     public synchronized void shutdown() throws TitanException {
         cleaner.close(CLEAN_SLEEP_TIME);
     }

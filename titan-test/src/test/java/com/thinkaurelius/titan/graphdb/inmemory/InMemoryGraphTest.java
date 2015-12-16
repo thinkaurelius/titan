@@ -15,6 +15,7 @@ import java.util.Map;
 
 public class InMemoryGraphTest extends TitanGraphTest {
 
+    @Override
     public WriteConfiguration getConfiguration() {
         ModifiableConfiguration config = GraphDatabaseConfiguration.buildGraphConfiguration();
         config.set(GraphDatabaseConfiguration.STORAGE_BACKEND,"inmemory");
@@ -40,18 +41,23 @@ public class InMemoryGraphTest extends TitanGraphTest {
         newTx();
     }
 
+    @Override
     @Test
     public void testLocalGraphConfiguration() {}
 
+    @Override
     @Test
     public void testMaskableGraphConfig() {}
 
+    @Override
     @Test
     public void testGlobalGraphConfig() {}
 
+    @Override
     @Test
     public void testGlobalOfflineGraphConfig() {}
 
+    @Override
     @Test
     public void testFixedGraphConfig() {}
 

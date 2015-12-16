@@ -290,6 +290,7 @@ public abstract class AbstractCassandraStoreManager extends DistributedStoreMana
      */
     public abstract Map<String, String> getCompressionOptions(String cf) throws BackendException;
 
+    @Override
     public String getName() {
         return getClass().getSimpleName() + keySpaceName;
     }

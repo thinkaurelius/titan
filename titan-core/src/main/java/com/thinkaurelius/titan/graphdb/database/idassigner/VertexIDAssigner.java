@@ -123,6 +123,7 @@ public class VertexIDAssigner implements AutoCloseable {
         return idManager;
     }
 
+    @Override
     public synchronized void close() {
         schemaIdPool.close();
         for (PartitionIDPool pool : idPools.values()) {

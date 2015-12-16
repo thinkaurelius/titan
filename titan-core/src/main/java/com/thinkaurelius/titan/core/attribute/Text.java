@@ -140,6 +140,7 @@ public enum Text implements TitanPredicate {
             return evaluateRaw(value.toString(),(String)condition);
         }
 
+        @Override
         public boolean evaluateRaw(String value, String regex) {
             return value.matches(regex);
         }

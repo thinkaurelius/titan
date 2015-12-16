@@ -39,15 +39,18 @@ public abstract class MultiCondition<E extends TitanElement> extends ArrayList<C
         super.addAll(cond);
     }
 
+    @Override
     public boolean add(Condition<E> condition) {
         assert condition != null;
         return super.add(condition);
     }
 
+    @Override
     public int size() {
         return super.size();
     }
 
+    @Override
     public Condition<E> get(int position) {
         return super.get(position);
     }

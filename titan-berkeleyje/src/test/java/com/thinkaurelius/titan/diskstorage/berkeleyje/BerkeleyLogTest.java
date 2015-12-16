@@ -9,6 +9,7 @@ import com.thinkaurelius.titan.diskstorage.log.KCVSLogTest;
 
 public class BerkeleyLogTest extends KCVSLogTest {
 
+    @Override
     public KeyColumnValueStoreManager openStorageManager() throws BackendException {
         BerkeleyJEStoreManager sm = new BerkeleyJEStoreManager(BerkeleyStorageSetup.getBerkeleyJEConfiguration());
         return new OrderedKeyValueStoreManagerAdapter(sm);

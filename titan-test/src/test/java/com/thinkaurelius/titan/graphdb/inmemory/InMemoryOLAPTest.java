@@ -12,6 +12,7 @@ import com.thinkaurelius.titan.olap.OLAPTest;
 
 public class InMemoryOLAPTest extends OLAPTest {
 
+    @Override
     public WriteConfiguration getConfiguration() {
         ModifiableConfiguration config = GraphDatabaseConfiguration.buildGraphConfiguration();
         config.set(GraphDatabaseConfiguration.STORAGE_BACKEND,"inmemory");

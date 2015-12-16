@@ -161,6 +161,7 @@ public class StaticArrayEntryList extends AbstractList<Entry> implements EntryLi
             caches[currentIndex]=cache;
         }
 
+        @Override
         public boolean hasMetaData() {
             verifyAccess();
             return !metadata.isEmpty();

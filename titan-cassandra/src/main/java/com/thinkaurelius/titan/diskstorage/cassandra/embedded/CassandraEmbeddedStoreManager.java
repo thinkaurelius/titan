@@ -131,6 +131,7 @@ public class CassandraEmbeddedStoreManager extends AbstractCassandraStoreManager
      * {@link StorageService#getLocalPrimaryRanges(String)} returns a raw
      * (unparameterized) type.
      */
+    @Override
     public List<KeyRange> getLocalKeyPartition() throws BackendException {
         ensureKeyspaceExists(keySpaceName);
 

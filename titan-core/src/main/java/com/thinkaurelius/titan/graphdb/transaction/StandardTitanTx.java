@@ -425,6 +425,7 @@ public class StandardTitanTx extends TitanBlueprintsTransaction implements TypeI
         return vertexCache.get(vertexid, existingVertexRetriever);
     }
 
+    @Override
     public InternalVertex getInternalVertex(long vertexid) {
         //return vertex but potentially check for existence
         return vertexCache.get(vertexid, internalVertexRetriever);

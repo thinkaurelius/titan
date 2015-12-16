@@ -101,6 +101,7 @@ public class PreloadedVertex extends CacheVertex {
         return p;
     }
 
+    @Override
     public <V> TitanVertexProperty<V> property(final String key, final V value, final Object... keyValues) {
         return property(VertexProperty.Cardinality.single, key, value, keyValues);
     }

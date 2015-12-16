@@ -51,6 +51,7 @@ public abstract class StandardRelationTypeMaker implements RelationTypeMaker {
     }
 
 
+    @Override
     public String getName() {
         return this.name;
     }

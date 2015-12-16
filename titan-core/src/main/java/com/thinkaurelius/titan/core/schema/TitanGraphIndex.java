@@ -19,6 +19,7 @@ public interface TitanGraphIndex extends TitanIndex {
      * Returns the name of the index
      * @return
      */
+    @Override
     public String name();
 
     /**

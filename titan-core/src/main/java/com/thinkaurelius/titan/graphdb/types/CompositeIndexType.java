@@ -11,6 +11,7 @@ public interface CompositeIndexType extends IndexType {
 
     public long getID();
 
+    @Override
     public IndexField[] getFieldKeys();
 
     public SchemaStatus getStatus();
