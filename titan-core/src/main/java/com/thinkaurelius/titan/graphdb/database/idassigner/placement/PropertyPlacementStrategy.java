@@ -45,7 +45,7 @@ public class PropertyPlacementStrategy extends SimpleBulkPlacementStrategy {
         setPartitionKey(key);
     }
 
-    public void setPartitionKey(String key) {
+    public final void setPartitionKey(String key) {
         Preconditions.checkArgument(StringUtils.isNotBlank(key),"Invalid key configured: %s",key);
         this.key=key;
     }

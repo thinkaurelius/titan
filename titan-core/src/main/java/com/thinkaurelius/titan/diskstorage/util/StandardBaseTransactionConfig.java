@@ -101,7 +101,7 @@ public class StandardBaseTransactionConfig implements BaseTransactionConfig {
             timestampProvider(template.getTimestampProvider());
         }
 
-        public Builder groupName(String group) {
+        public final Builder groupName(String group) {
             groupName = group;
             return this;
         }
@@ -111,12 +111,12 @@ public class StandardBaseTransactionConfig implements BaseTransactionConfig {
             return this;
         }
 
-        public Builder timestampProvider(TimestampProvider times) {
+        public final Builder timestampProvider(TimestampProvider times) {
             this.times = times;
             return this;
         }
 
-        public Builder customOptions(Configuration c) {
+        public final Builder customOptions(Configuration c) {
             customOptions = c;
             Preconditions.checkNotNull(customOptions, "Null custom options disallowed; use an empty Configuration object instead");
             return this;

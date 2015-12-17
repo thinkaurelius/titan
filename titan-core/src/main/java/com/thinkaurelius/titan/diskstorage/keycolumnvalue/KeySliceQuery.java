@@ -34,7 +34,7 @@ public class KeySliceQuery extends SliceQuery {
     }
 
     @Override
-    public KeySliceQuery setLimit(int limit) {
+    public final KeySliceQuery setLimit(int limit) {
         super.setLimit(limit);
         return this;
     }

@@ -29,14 +29,14 @@ public class RangeInterval<T> implements Interval<T> {
         setEnd(end,true);
     }
 
-    public RangeInterval<T> setStart(T start, boolean inclusive) {
+    public final RangeInterval<T> setStart(T start, boolean inclusive) {
         Preconditions.checkArgument(start instanceof Comparable);
         this.start=start;
         setStartInclusive(inclusive);
         return this;
     }
 
-    public RangeInterval<T> setEnd(T end, boolean inclusive) {
+    public final RangeInterval<T> setEnd(T end, boolean inclusive) {
         Preconditions.checkArgument(end instanceof Comparable);
         this.end=end;
         setEndInclusive(inclusive);

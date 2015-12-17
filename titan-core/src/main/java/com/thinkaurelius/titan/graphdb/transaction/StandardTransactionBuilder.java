@@ -117,13 +117,13 @@ public class StandardTransactionBuilder implements TransactionConfiguration, Tra
     }
 
     @Override
-    public StandardTransactionBuilder readOnly() {
+    public final StandardTransactionBuilder readOnly() {
         this.isReadOnly = true;
         return this;
     }
 
     @Override
-    public StandardTransactionBuilder enableBatchLoading() {
+    public final StandardTransactionBuilder enableBatchLoading() {
         hasEnabledBatchLoading = true;
         checkExternalVertexExistence(false);
         consistencyChecks(false);
@@ -139,7 +139,7 @@ public class StandardTransactionBuilder implements TransactionConfiguration, Tra
     }
 
     @Override
-    public StandardTransactionBuilder vertexCacheSize(int size) {
+    public final StandardTransactionBuilder vertexCacheSize(int size) {
         Preconditions.checkArgument(size >= 0);
         this.vertexCacheSize = size;
         this.indexCacheWeight = size / 2;
@@ -147,7 +147,7 @@ public class StandardTransactionBuilder implements TransactionConfiguration, Tra
     }
 
     @Override
-    public TransactionBuilder dirtyVertexSize(int size) {
+    public final TransactionBuilder dirtyVertexSize(int size) {
         this.dirtyVertexSize = size;
         return this;
     }

@@ -84,7 +84,7 @@ public class StaticArrayBuffer implements StaticBuffer {
     }
 
     @Override
-    public int length() {
+    public final int length() {
         return limit - offset;
     }
 

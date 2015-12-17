@@ -22,7 +22,7 @@ public class TypeDefinitionMap extends EnumMap<TypeDefinitionCategory,Object> {
         }
     }
 
-    public TypeDefinitionMap setValue(TypeDefinitionCategory type, Object value) {
+    public final TypeDefinitionMap setValue(TypeDefinitionCategory type, Object value) {
         assert type  != null;
         assert value != null;
         assert type.verifyAttribute(value);

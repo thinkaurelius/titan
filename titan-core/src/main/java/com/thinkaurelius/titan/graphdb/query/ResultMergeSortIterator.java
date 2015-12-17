@@ -51,7 +51,7 @@ public class ResultMergeSortIterator<R> implements Iterator<R> {
         return current;
     }
 
-    public R nextInternal() {
+    public final R nextInternal() {
         if (nextFirst == null && first.hasNext()) {
             nextFirst = first.next();
             assert nextFirst != null;

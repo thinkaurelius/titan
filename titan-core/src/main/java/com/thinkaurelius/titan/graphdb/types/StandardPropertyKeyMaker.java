@@ -43,7 +43,7 @@ public class StandardPropertyKeyMaker extends StandardRelationTypeMaker implemen
     }
 
     @Override
-    public StandardPropertyKeyMaker cardinality(Cardinality cardinality) {
+    public final StandardPropertyKeyMaker cardinality(Cardinality cardinality) {
         super.multiplicity(Multiplicity.convert(cardinality));
         return this;
     }

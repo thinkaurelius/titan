@@ -27,6 +27,8 @@ public enum CLevel implements CLevelInterface { // One ring to rule them all
         astyanax = com.netflix.astyanax.model.ConsistencyLevel.valueOf("CL_" + toString());
     }
 
+
+
     @Override
     public org.apache.cassandra.db.ConsistencyLevel getDB() {
         return db;
@@ -55,5 +57,10 @@ public enum CLevel implements CLevelInterface { // One ring to rule them all
             }
         }
         throw new IllegalArgumentException("Unrecognized cassandra consistency level: " + value);
+    }
+
+    @Override
+    public final String toString() {
+        return super.toString();
     }
 }

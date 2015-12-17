@@ -18,7 +18,7 @@ public class SimplePartitionAssignment implements PartitionAssignment {
         setPartitionID(id);
     }
 
-    public void setPartitionID(int id) {
+    public final void setPartitionID(int id) {
         Preconditions.checkArgument(id >= 0);
         this.partitionID = id;
     }

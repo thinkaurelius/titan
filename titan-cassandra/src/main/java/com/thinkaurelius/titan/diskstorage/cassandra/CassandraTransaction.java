@@ -39,7 +39,7 @@ public class CassandraTransaction extends AbstractStoreTransaction {
         return (CassandraTransaction) txh;
     }
 
-    public String toString() {
+    public final String toString() {
         StringBuilder sb = new StringBuilder(64);
         sb.append("CassandraTransaction@");
         sb.append(Integer.toHexString(hashCode()));

@@ -357,7 +357,7 @@ public class HBaseStoreManager extends DistributedStoreManager implements KeyCol
         return "hbase[" + tableName + "@" + super.toString() + "]";
     }
 
-    public void dumpOpenManagers() {
+    public final void dumpOpenManagers() {
         int estimatedSize = openManagers.size();
         logger.trace("---- Begin open HBase store manager list ({} managers) ----", estimatedSize);
         for (HBaseStoreManager m : openManagers.keySet()) {

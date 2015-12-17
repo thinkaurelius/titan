@@ -129,7 +129,7 @@ public class StandardSerializer implements AttributeHandler, Serializer {
         registerClassInternal(CLASS_REGISTRATION_OFFSET + registrationNo, datatype, serializer);
     }
 
-    public synchronized <V> void registerClassInternal(int registrationNo, Class<? extends V> datatype, AttributeSerializer<V> serializer) {
+    public final synchronized <V> void registerClassInternal(int registrationNo, Class<? extends V> datatype, AttributeSerializer<V> serializer) {
         Preconditions.checkArgument(registrationNo>0); //must be bigger than 0 since 0 is used to indicate null values
         Preconditions.checkNotNull(datatype);
         Preconditions.checkArgument(!handlers.containsKey(datatype), "DataType has already been registered: %s", datatype);

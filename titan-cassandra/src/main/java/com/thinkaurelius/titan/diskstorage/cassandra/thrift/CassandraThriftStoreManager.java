@@ -199,7 +199,7 @@ public class CassandraThriftStoreManager extends AbstractCassandraStoreManager {
 
     @Override
     @SuppressWarnings("unchecked")
-    public IPartitioner getCassandraPartitioner() throws BackendException {
+    public final IPartitioner getCassandraPartitioner() throws BackendException {
         CTConnection conn = null;
         try {
             conn = pool.borrowObject(SYSTEM_KS);

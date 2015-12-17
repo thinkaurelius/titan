@@ -380,12 +380,12 @@ public class Backend implements LockerProvider, AutoCloseable {
         return configuration.get(METRICS_MERGE_STORES) ? METRICS_MERGED_CACHE : storeName + METRICS_CACHE_SUFFIX;
     }
 
-    public KCVSLogManager getKCVSLogManager(String logName) {
+    public final KCVSLogManager getKCVSLogManager(String logName) {
         Preconditions.checkArgument(configuration.restrictTo(logName).get(LOG_BACKEND).equalsIgnoreCase(LOG_BACKEND.getDefaultValue()));
         return (KCVSLogManager)getLogManager(logName);
     }
 
-    public LogManager getLogManager(String logName) {
+    public final LogManager getLogManager(String logName) {
         return getLogManager(configuration, logName, storeManager);
     }
 
