@@ -1153,7 +1153,7 @@ public class GraphDatabaseConfiguration {
             ConfigOption.Type.MASKABLE, "unicast", new Predicate<String>() {
         @Override
         public boolean apply(@Nullable String s) {
-            return s!=null && s.equalsIgnoreCase("unicast") || s.equalsIgnoreCase("multicast");
+            return s!=null && (s.equalsIgnoreCase("unicast") || s.equalsIgnoreCase("multicast"));
         }
     });
 
