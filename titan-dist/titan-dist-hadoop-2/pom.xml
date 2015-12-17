@@ -3,7 +3,7 @@
     <parent>
         <groupId>com.thinkaurelius.titan</groupId>
         <artifactId>titan-dist</artifactId>
-        <version>0.9.0-SNAPSHOT</version>
+        <version>1.0.1-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
     <packaging>pom</packaging>
@@ -24,13 +24,19 @@
         <dependency>
             <groupId>org.apache.hbase</groupId>
             <artifactId>hbase-client</artifactId>
-            <version>${hbase098.version}</version>
+            <version>${hbase111.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.hbase</groupId>
             <artifactId>hbase-server</artifactId>
+            <version>${hbase111.version}</version>
             <!-- Need the -server artifact for hbase.mapreduce.TableInputFormat (Faunus) -->
-            <version>${hbase098.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>com.lmax</groupId>
+                    <artifactId>disruptor</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
     </dependencies>
 
@@ -151,7 +157,7 @@
                                         <argument>-classpath</argument>
                                         <classpath />
                                         <argument>com.thinkaurelius.titan.example.GraphOfTheGodsFactory</argument>
-                                        <argument>${project.build.directory}/conf/titan-berkeleydb-es.properties</argument>
+                                        <argument>${project.build.directory}/conf/titan-berkeleyje-es.properties</argument>
                                     </arguments>
                                 </configuration>
                             </execution>

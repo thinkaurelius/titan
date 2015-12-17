@@ -20,7 +20,6 @@
 
     <modules>
         <module>titan-hadoop-core</module>
-        <module>titan-hadoop-1</module>
         <module>titan-hadoop-2</module>
         <module>titan-hadoop</module>
     </modules>
