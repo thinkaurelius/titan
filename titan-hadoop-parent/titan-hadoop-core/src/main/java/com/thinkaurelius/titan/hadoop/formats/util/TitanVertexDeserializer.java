@@ -14,7 +14,6 @@ import com.thinkaurelius.titan.hadoop.formats.util.input.SystemTypeInspector;
 import com.thinkaurelius.titan.hadoop.formats.util.input.TitanHadoopSetup;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Direction;
-import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerEdge;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerGraph;
@@ -22,7 +21,6 @@ import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerVertex;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Iterator;
 import java.util.NoSuchElementException;
 
 public class TitanVertexDeserializer implements AutoCloseable {
@@ -41,20 +39,6 @@ public class TitanVertexDeserializer implements AutoCloseable {
         this.typeManager = setup.getTypeInspector();
         this.systemTypes = setup.getSystemTypeInspector();
         this.idManager = setup.getIDManager();
-    }
-
-    private static Boolean isLoopAdded(Vertex vertex, String label) {
-        Iterator<Vertex> adjacentVertices = vertex.vertices(Direction.BOTH, label);
-
-        while (adjacentVertices.hasNext()) {
-            Vertex adjacentVertex = adjacentVertices.next();
-
-            if(adjacentVertex.equals(vertex)){
-                return true;
-            }
-        }
-
-        return false;
     }
 
     // Read a single row from the edgestore and create a TinkerVertex corresponding to the row
@@ -139,18 +123,28 @@ public class TitanVertexDeserializer implements AutoCloseable {
                     // Decode edge
                     TinkerEdge te;
 
-                    // We don't know the label of the other vertex, but one must be provided
-                    TinkerVertex adjacentVertex = getOrCreateVertex(relation.getOtherVertexId(), null, tg);
-
-                    // handle self-loop edges
-                    if (tv.equals(adjacentVertex) && isLoopAdded(tv, type.name())) {
-                        continue;
-                    }
-
                     if (relation.direction.equals(Direction.IN)) {
-                        te = (TinkerEdge)adjacentVertex.addEdge(type.name(), tv, T.id, relation.relationId);
+
+                        // If this edge connects a vertex to itself
+                        if (relation.getOtherVertexId() == vertexId) {
+                            /*
+                             * Bugfix: handles a scenario of an Edge connecting a Vertex to itself,
+                             * by adding the edge to the graph only when the direction is OUT.
+                             * The original implementation without the fix causes edge to be added twice -
+                             * the first succeeds, the second causes 'Edge with id already exists' exception.
+                             */
+
+                            continue;
+                        }
+
+                        // We don't know the label of the other vertex, but one must be provided
+                        TinkerVertex outV = getOrCreateVertex(relation.getOtherVertexId(), null, tg);
+                        te = (TinkerEdge)outV.addEdge(type.name(), tv, T.id, relation.relationId);
+
                     } else if (relation.direction.equals(Direction.OUT)) {
-                        te = (TinkerEdge)tv.addEdge(type.name(), adjacentVertex, T.id, relation.relationId);
+                        // We don't know the label of the other vertex, but one must be provided
+                        TinkerVertex inV = getOrCreateVertex(relation.getOtherVertexId(), null, tg);
+                        te = (TinkerEdge)tv.addEdge(type.name(), inV, T.id, relation.relationId);
                     } else {
                         throw new RuntimeException("Direction.BOTH is not supported");
                     }
