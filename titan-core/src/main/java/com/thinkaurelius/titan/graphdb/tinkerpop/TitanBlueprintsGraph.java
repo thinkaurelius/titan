@@ -15,7 +15,7 @@ import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.Transaction;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.io.Io;
-import org.apache.tinkerpop.gremlin.structure.util.AbstractTransaction;
+import org.apache.tinkerpop.gremlin.structure.util.AbstractThreadLocalTransaction;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -247,7 +247,7 @@ public abstract class TitanBlueprintsGraph implements TitanGraph {
 
 
 
-    class GraphTransaction extends AbstractTransaction {
+    class GraphTransaction extends AbstractThreadLocalTransaction {
 
         public GraphTransaction() {
             super(TitanBlueprintsGraph.this);
@@ -275,6 +275,10 @@ public abstract class TitanBlueprintsGraph implements TitanGraph {
 
         @Override
         public boolean isOpen() {
+            if (null == txs) {
+                // Graph has been closed
+                return false;
+            }
             TitanBlueprintsTransaction tx = txs.get();
             return tx!=null && tx.isOpen();
         }
@@ -285,8 +289,8 @@ public abstract class TitanBlueprintsGraph implements TitanGraph {
         }
 
         void close(Transaction tx) {
-            closeConsumer.accept(tx);
-            Preconditions.checkState(!tx.isOpen(),"Invalid close behavior configured: Should close transaction. [%s]",closeConsumer);
+            closeConsumerInternal.get().accept(tx);
+            Preconditions.checkState(!tx.isOpen(),"Invalid close behavior configured: Should close transaction. [%s]", closeConsumerInternal);
         }
 
         @Override

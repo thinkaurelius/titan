@@ -124,9 +124,23 @@ public class TitanVertexDeserializer implements AutoCloseable {
                     TinkerEdge te;
 
                     if (relation.direction.equals(Direction.IN)) {
+
+                        // If this edge connects a vertex to itself
+                        if (relation.getOtherVertexId() == vertexId) {
+                            /*
+                             * Bugfix: handles a scenario of an Edge connecting a Vertex to itself,
+                             * by adding the edge to the graph only when the direction is OUT.
+                             * The original implementation without the fix causes edge to be added twice -
+                             * the first succeeds, the second causes 'Edge with id already exists' exception.
+                             */
+
+                            continue;
+                        }
+
                         // We don't know the label of the other vertex, but one must be provided
                         TinkerVertex outV = getOrCreateVertex(relation.getOtherVertexId(), null, tg);
                         te = (TinkerEdge)outV.addEdge(type.name(), tv, T.id, relation.relationId);
+
                     } else if (relation.direction.equals(Direction.OUT)) {
                         // We don't know the label of the other vertex, but one must be provided
                         TinkerVertex inV = getOrCreateVertex(relation.getOtherVertexId(), null, tg);
