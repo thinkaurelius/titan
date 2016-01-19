@@ -53,6 +53,10 @@ public interface SchemaInspector {
      */
     public PropertyKey getOrCreatePropertyKey(String name);
 
+    public default PropertyKey getOrCreatePropertyKey(String name, Object value) {
+        return getOrCreatePropertyKey(name);
+    }
+
     /**
      * Returns the property key with the given name. If it does not exist, NULL is returned
      *
