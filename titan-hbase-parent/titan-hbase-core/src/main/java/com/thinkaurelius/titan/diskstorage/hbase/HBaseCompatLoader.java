@@ -12,7 +12,7 @@ public class HBaseCompatLoader {
 
     private static final String DEFAULT_HBASE_COMPAT_VERSION = "1.0";
 
-    private static final String DEFAULT_HBASE_CLASS_NAME = "com.thinkaurelius.titan.diskstorage.hbase.HBaseCompat1_00";
+    private static final String DEFAULT_HBASE_CLASS_NAME = "com.thinkaurelius.titan.diskstorage.hbase.HBaseCompat1_0";
 
     private static HBaseCompat cachedCompat;
 
