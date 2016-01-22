@@ -166,12 +166,12 @@ public enum Text implements TitanPredicate {
         ArrayList<String> tokens = new ArrayList<String>();
         int previous = 0;
         for (int p = 0; p < str.length(); p++) {
-            if (!Character.isLetterOrDigit(str.charAt(p))) {
+            if (!Character.isLetterOrDigit(str.codePointAt(p))) {
                 if (p > previous + MIN_TOKEN_LENGTH) tokens.add(str.substring(previous, p));
                 previous = p + 1;
             }
         }
-        if (previous + MIN_TOKEN_LENGTH < str.length()) tokens.add(str.substring(previous, str.length()));
+        if (previous + MIN_TOKEN_LENGTH <= str.length()) tokens.add(str.substring(previous, str.length()));
         return tokens;
     }
 
