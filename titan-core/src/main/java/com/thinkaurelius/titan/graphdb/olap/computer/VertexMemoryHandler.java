@@ -5,16 +5,19 @@ import com.thinkaurelius.titan.core.TitanEdge;
 import com.thinkaurelius.titan.core.TitanVertex;
 import com.thinkaurelius.titan.core.TitanVertexProperty;
 import com.thinkaurelius.titan.graphdb.vertices.PreloadedVertex;
-import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.computer.GraphComputer;
 import org.apache.tinkerpop.gremlin.process.computer.MessageScope;
 import org.apache.tinkerpop.gremlin.process.computer.Messenger;
+import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
 import java.util.function.BiFunction;
 import java.util.stream.Stream;
 
@@ -28,34 +31,34 @@ class VertexMemoryHandler<M> implements PreloadedVertex.PropertyMixing, Messenge
     protected final long vertexId;
 
     VertexMemoryHandler(FulgoraVertexMemory<M> vertexMemory, PreloadedVertex vertex) {
-        assert vertex!=null && vertexMemory!=null;
+        assert vertex != null && vertexMemory != null;
         this.vertexMemory = vertexMemory;
         this.vertex = vertex;
         this.vertexId = vertexMemory.getCanonicalId(vertex.longId());
     }
 
     void removeKey(String key) {
-        vertexMemory.setProperty(vertexId,key,null);
+        vertexMemory.setProperty(vertexId, key, null);
     }
 
     <V> TitanVertexProperty<V> constructProperty(String key, V value) {
-        assert key!=null && value!=null;
-        return new FulgoraVertexProperty<V>(this,vertex,key,value);
+        assert key != null && value != null;
+        return new FulgoraVertexProperty<V>(this, vertex, key, value);
     }
 
     @Override
     public <V> Iterator<VertexProperty<V>> properties(String... keys) {
         if (vertexMemory.elementKeyMap.isEmpty()) return Collections.emptyIterator();
-        if (keys==null || keys.length==0) {
+        if (keys == null || keys.length == 0) {
             return Collections.emptyIterator(); //Do NOT return compute keys as part of all the properties...
             //keys = vertexMemory.elementKeyMap.keySet().toArray(new String[vertexMemory.elementKeyMap.size()]);
         }
         //..but only if specifically asked for by key
-        List<VertexProperty<V>> result = new ArrayList<>(Math.min(keys.length,vertexMemory.elementKeyMap.size()));
+        List<VertexProperty<V>> result = new ArrayList<>(Math.min(keys.length, vertexMemory.elementKeyMap.size()));
         for (String key : keys) {
             if (!supports(key)) continue;
-            V value = vertexMemory.getProperty(vertexId,key);
-            if (value!=null) result.add(constructProperty(key,value));
+            V value = vertexMemory.getProperty(vertexId, key);
+            if (value != null) result.add(constructProperty(key, value));
         }
         return result.iterator();
     }
@@ -69,20 +72,20 @@ class VertexMemoryHandler<M> implements PreloadedVertex.PropertyMixing, Messenge
     public <V> TitanVertexProperty<V> property(VertexProperty.Cardinality cardinality, String key, V value) {
         if (!supports(key)) throw GraphComputer.Exceptions.providedKeyIsNotAnElementComputeKey(key);
         Preconditions.checkArgument(value != null);
-        Preconditions.checkArgument(cardinality== VertexProperty.Cardinality.single,"Only single cardinality is supported, provided: %s",cardinality);
+        Preconditions.checkArgument(cardinality == VertexProperty.Cardinality.single, "Only single cardinality is supported, provided: %s", cardinality);
         vertexMemory.setProperty(vertexId, key, value);
-        return constructProperty(key,value);
+        return constructProperty(key, value);
     }
 
     public Stream<M> receiveMessages(MessageScope messageScope) {
         if (messageScope instanceof MessageScope.Global) {
-            M message = vertexMemory.getMessage(vertexId,messageScope);
+            M message = vertexMemory.getMessage(vertexId, messageScope);
             if (message == null) return Stream.empty();
             else return Stream.of(message);
         } else {
             final MessageScope.Local<M> localMessageScope = (MessageScope.Local) messageScope;
-            final Traversal<Vertex, Edge> reverseIncident = FulgoraUtil.getReverseElementTraversal(localMessageScope,vertex,vertex.tx());
-            final BiFunction<M,Edge,M> edgeFct = localMessageScope.getEdgeFunction();
+            final Traversal<Vertex, Edge> reverseIncident = FulgoraUtil.getReverseElementTraversal(localMessageScope, vertex, vertex.tx());
+            final BiFunction<M, Edge, M> edgeFct = localMessageScope.getEdgeFunction();
 
             return IteratorUtils.stream(reverseIncident)
                     .map(e -> {
@@ -97,9 +100,9 @@ class VertexMemoryHandler<M> implements PreloadedVertex.PropertyMixing, Messenge
     public Iterator<M> receiveMessages() {
         Stream<M> combinedStream = Stream.empty();
         for (MessageScope scope : vertexMemory.getPreviousScopes()) {
-            combinedStream = Stream.concat(receiveMessages(scope),combinedStream);
+            combinedStream = Stream.concat(receiveMessages(scope), combinedStream);
         }
-        return combinedStream.iterator();
+        return IteratorUtils.noRemove(combinedStream.iterator());
     }
 
     @Override
@@ -109,8 +112,8 @@ class VertexMemoryHandler<M> implements PreloadedVertex.PropertyMixing, Messenge
         } else {
             ((MessageScope.Global) messageScope).vertices().forEach(v -> {
                 long vertexId;
-                if (v instanceof TitanVertex) vertexId=((TitanVertex)v).longId();
-                else vertexId = (Long)v.id();
+                if (v instanceof TitanVertex) vertexId = ((TitanVertex) v).longId();
+                else vertexId = (Long) v.id();
                 vertexMemory.sendMessage(vertexMemory.getCanonicalId(vertexId), m, messageScope);
             });
         }
@@ -128,8 +131,8 @@ class VertexMemoryHandler<M> implements PreloadedVertex.PropertyMixing, Messenge
                 return super.receiveMessages(messageScope);
             } else {
                 final MessageScope.Local<M> localMessageScope = (MessageScope.Local) messageScope;
-                M aggregateMsg = vertexMemory.getAggregateMessage(vertexId,localMessageScope);
-                if (aggregateMsg==null) return Stream.empty();
+                M aggregateMsg = vertexMemory.getAggregateMessage(vertexId, localMessageScope);
+                if (aggregateMsg == null) return Stream.empty();
                 else return Stream.of(aggregateMsg);
             }
         }
