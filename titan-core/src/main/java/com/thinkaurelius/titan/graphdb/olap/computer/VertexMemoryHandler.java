@@ -102,7 +102,7 @@ class VertexMemoryHandler<M> implements PreloadedVertex.PropertyMixing, Messenge
         for (MessageScope scope : vertexMemory.getPreviousScopes()) {
             combinedStream = Stream.concat(receiveMessages(scope), combinedStream);
         }
-        return IteratorUtils.noRemove(combinedStream.iterator());
+        return combinedStream.iterator();
     }
 
     @Override
