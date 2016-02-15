@@ -1,7 +1,6 @@
 package com.thinkaurelius.titan.diskstorage.es;
 
 import com.google.common.base.Joiner;
-
 import com.thinkaurelius.titan.core.TitanFactory;
 import com.thinkaurelius.titan.core.TitanGraph;
 import com.thinkaurelius.titan.core.attribute.Text;
@@ -13,15 +12,15 @@ import com.thinkaurelius.titan.diskstorage.configuration.ModifiableConfiguration
 import com.thinkaurelius.titan.diskstorage.configuration.backend.CommonsConfiguration;
 import com.thinkaurelius.titan.diskstorage.indexing.*;
 import com.thinkaurelius.titan.diskstorage.util.StandardBaseTransactionConfig;
-
 import com.thinkaurelius.titan.diskstorage.util.time.TimestampProviders;
 import com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfiguration;
 import com.thinkaurelius.titan.graphdb.query.condition.PredicateCondition;
 import com.thinkaurelius.titan.util.system.IOUtils;
+
 import org.apache.commons.configuration.BaseConfiguration;
 import org.elasticsearch.action.admin.indices.settings.get.GetSettingsRequest;
 import org.elasticsearch.action.admin.indices.settings.get.GetSettingsResponse;
-import org.elasticsearch.common.settings.ImmutableSettings;
+import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.node.Node;
 import org.elasticsearch.node.NodeBuilder;
 import org.junit.Assert;
@@ -35,7 +34,6 @@ import static com.thinkaurelius.titan.diskstorage.es.ElasticSearchIndex.*;
 import static com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfiguration.INDEX_CONF_FILE;
 import static com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfiguration.INDEX_DIRECTORY;
 import static com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfiguration.INDEX_HOSTS;
-
 import static org.junit.Assert.*;
 
 /**
@@ -259,7 +257,7 @@ public class ElasticSearchConfigTest {
 
 
 
-        ImmutableSettings.Builder settingsBuilder = ImmutableSettings.settingsBuilder();
+        Settings.Builder settingsBuilder = Settings.settingsBuilder();
         settingsBuilder.put("discovery.zen.ping.multicast.enabled", "false");
         settingsBuilder.put("discovery.zen.ping.unicast.hosts", "localhost,127.0.0.1:9300");
         settingsBuilder.put("cluster.name", "indexCreationOptions");
@@ -271,7 +269,7 @@ public class ElasticSearchConfigTest {
         assertEquals(String.valueOf(shards), response.getSetting("titan", "index.number_of_shards"));
 
         idx.close();
-        n.stop();
+        n.close();
         esr.stop();
     }
 
