@@ -928,6 +928,17 @@ public class StandardTitanTx extends TitanBlueprintsTransaction implements TypeI
     }
 
     @Override
+    public PropertyKey getOrCreatePropertyKey(String name, Object value) {
+        RelationType et = getRelationType(name);
+        if (et == null) {
+            return config.getAutoSchemaMaker().makePropertyKey(makePropertyKey(name), value);
+        } else if (et.isPropertyKey()) {
+            return (PropertyKey) et;
+        } else
+            throw new IllegalArgumentException("The type of given name is not a key: " + name);
+    }
+
+    @Override
     public EdgeLabel getEdgeLabel(String name) {
         RelationType el = getRelationType(name);
         Preconditions.checkArgument(el==null || el.isEdgeLabel(), "The relation type with name [%s] is not an edge label",name);

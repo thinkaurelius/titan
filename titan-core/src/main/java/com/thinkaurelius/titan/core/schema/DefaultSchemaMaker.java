@@ -47,6 +47,10 @@ public interface DefaultSchemaMaker {
         return factory.cardinality(defaultPropertyCardinality(factory.getName())).dataType(Object.class).make();
     }
 
+    public default PropertyKey makePropertyKey(PropertyKeyMaker factory, Object value) {
+        return makePropertyKey(factory);
+    }
+
     /**
      * Creates a new vertex label with the default settings against the provided {@link VertexLabelMaker}.
      *
