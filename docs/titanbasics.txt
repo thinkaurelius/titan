@@ -126,9 +126,15 @@ graph = TitanFactory.open('berkeleyje:/tmp/graph')
 Titan Server
 ^^^^^^^^^^^^
 
-To interact with Titan remotely or in another process through a client, a Titan "server" needs to be configured and started. Internally, Titan uses http://tinkerpop.incubator.apache.org/docs/{tinkerpop_version}/#gremlin-server[Gremlin Server] of the http://tinkerpop.incubator.apache.org/[TinkerPop] stack to service client requests, therefore, configuring Titan Server is accomplished through a Gremlin Server configuration file.
+Titan, by itself, is simply a set of jar files with no thread of execution.  There are two basic patterns for connecting to, and using a Titan database:
 
-To configure Gremlin Server with a `TitanGraph` instance the Gremlin Server configuration file requires the following settings:
+.Patterns
+. Titan can be used by embedding Titan calls in a client program where the program provides the thread of execution.  
+. Titan packages a long running server process that, when started, allows a remote client or logic running in a separate program to make Titan calls.  This long running server process is called *Titan Server*.  
+
+For the Titan Server, Titan uses http://tinkerpop.incubator.apache.org/docs/{tinkerpop_version}/#gremlin-server[Gremlin Server] of the http://tinkerpop.incubator.apache.org/[TinkerPop] stack to service client requests.  Titan provides an out-of-the-box configuration for a quick start with Titan Server, but the configuration can be changed to provide a wide range of server capabilities.
+
+Configuring Titan Server is accomplished through a Titan Server yaml configuration file located in the ./conf/gremlin-server directory in the Titan distribution. To configure Titan Server with a titan graph instance (`TitanGraph`), the Titan Server configuration file requires the following settings:
 
 [source, yaml]
 ----
@@ -141,9 +147,9 @@ plugins:
 ...
 ----
 
-The entry for `graphs` defines the bindings to specific `TitanGraph` configurations. In the above case it binds `graph` to a Titan configuration at `conf/titan-berkeleyje.properties`.  This means that when referencing the `TitanGraph` in remote contexts, this graph can simply be referred to as `g` in scripts sent to the server.  The `plugins` entry simply enables the Titan Gremlin Plugin, which enables auto-imports of Titan classes so that they can be referenced in remotely submitted scripts.
+The entry for `graphs` defines the bindings to specific `TitanGraph` configurations. In the above case it binds `graph` to a Titan configuration at `conf/titan-berkeleyje.properties`.  The `plugins` entry enables the Titan Gremlin Plugin, which enables auto-imports of Titan classes so that they can be referenced in remotely submitted scripts.
 
-Learn more about using and connecting to Titan server in <<server>>.
+Learn more about configuring and using Titan Server in <<server>>.
 
 Server Distribution
 +++++++++++++++++++
@@ -305,11 +311,6 @@ Defining Vertex Labels
 ~~~~~~~~~~~~~~~~~~~~~~
 
 Like edges, vertices have labels. Unlike edge labels, vertex labels are optional.  Vertex labels are useful to distinguish different types of vertices, e.g. _user_ vertices and _product_ vertices.
-
-For compatibility with Blueprints, Titan provides differently-named methods for adding labeled and unlabeled vertices:
-
-* `addVertexWithLabel`
-* `addVertex`
 
 Although labels are optional at the conceptual and data model level, Titan assigns all vertices a label as an internal implementation detail.  Vertices created by the `addVertex` methods use Titan's default label.
 
@@ -477,19 +478,18 @@ Titan Server
 
 image:http://tinkerpop.incubator.apache.org/docs/{tinkerpop_version}/images/gremlin-server.png[width=400]
 
-Titan uses the http://tinkerpop.incubator.apache.org/docs/{tinkerpop_version}/#gremlin-server[Gremlin Server] engine as the server component to process and answer client queries.
+Titan uses the http://tinkerpop.incubator.apache.org/docs/{tinkerpop_version}/#gremlin-server[Gremlin Server] engine as the server component to process and answer client queries.  When packaged in Titan, Gremlin Server is called Titan Server.
 
-Gremlin Server provides a way to remotely execute Gremlin scripts against one or more Titan instances hosted within it.  By default, client applications can connect to it via link:https://en.wikipedia.org/wiki/WebSocket[WebSockets] using a custom subprotocol (there are a link:http://tinkerpop.incubator.apache.org/#libraries[number of clients] developed in different languages to help support the subprotocol).  Gremlin Server can also be configured to serve a simple REST-style endpoint for processing Gremlin as well.  These configurations just represent the out-of-the-box options for Gremlin Server.  It is certainly possible to also extend it with other means of communication by implementing the interfaces that it provides.
+Titan Server must be started manually in order to use it.  Titan Server provides a way to remotely execute Gremlin scripts against one or more Titan instances hosted within it. This section will describe how to use the WebSockets configuration, as well as describe how to configure Titan Server to handle REST-style interactions.
 
+[[titan-server-getting-started]]
 Getting Started
 ~~~~~~~~~~~~~~~
-
-The Titan https://github.com/thinkaurelius/titan/wiki/Downloads[Download] comes pre-configured to run Gremlin Server without any additional configuration.  Alternatively, one can http://tinkerpop.incubator.apache.org/[Download Gremlin Server] separately and then install Titan manually.
 
 Using the Pre-Packaged Distribution
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The pre-packaged version of Titan with Gremlin Server is designed to get users started quickly with Gremlin Server, Cassandra and ElasticSearch.  It starts each of these components in their own process through a single shell script called `bin/titan.sh`.  This quick-start bundle is not meant to be representative of what a production installation architecture should look like, but it does provide a good way to do some development with Titan, run some tests and see how all the components are wired up together.  
+The Titan https://github.com/thinkaurelius/titan/wiki/Downloads[Download] comes pre-configured to run Titan Server out of the box leveraging a sample Cassandra and ElasticSearch configuration to allow users to get started quickly with Titan Server.  This configuration defaults to client applications that can connect to Titan Server via WebSockets with a custom subprotocol.  There are a number of clients developed in different languages to help support the subprotocol.  The most familiar client to use the WebSocket interface is the gremlin.sh shell. The quick-start bundle is not intended to be representative of a production installation, but does provide a way to perform development with Titan Server, run tests and see how the components are wired together. To use this default configuration:
 
 * Download a copy of the current `titan-$VERSION.zip` file from the https://github.com/thinkaurelius/titan/wiki/Downloads[Downloads page]
 * Unzip it and enter the `titan-$VERSION` directory
@@ -507,12 +507,168 @@ Connecting to Gremlin-Server (127.0.0.1:8182)... OK (connected to 127.0.0.1:8182
 Run gremlin.sh to connect.
 ----
 
-Manual Setup
-^^^^^^^^^^^^
+[[first-example-connecting-gremlin-server]]
+Connecting to Gremlin Server
+++++++++++++++++++++++++++++
 
-Manual setup of Titan in Gremlin Server is straightforward as long as the individual doing the setup has some basic understanding of Titan configuration and how Gremlin Server handles any link:http://tinkerpop.incubator.apache.org/docs/{tinkerpop_version}/#_configuring_2[graph configuration].  In short, Gremlin Server configuration files point to graph-specific configuration files and use those to instantiate `Graph` instances that it will then host.  In order to instantiate these `Graph` instances, Gremlin Server requires that the appropriate libraries and dependencies for the `Graph` be available on its classpath.
+After running titan.sh, Gremlin Server will be ready to listen for WebSocket connections.  The easiest way to test the connection is with Gremlin Console.
 
-Get started by link:http://tinkerpop.incubator.apache.org/[downloading] the appropriate version of Gremlin Server, which needs to <<versions.txt#version-compat,match a version>> supported by the Titan version in use.  For purposes of demonstration, these instructions will outline how to configure the BerkeleyDB backend for Titan in Gremlin Server. As stated earlier, Gremlin Server needs Titan dependencies on its classpath.  Invoke the following command replacing `$VERSION` with the version of Titan to use:
+Start http://tinkerpop.incubator.apache.org/docs/{tinkerpop_version}/#gremlin-console[Gremlin Console] with `bin/gremlin.sh` and use the `:remote` and `:>` commands to issue Gremlin to Gremlin Server:
+
+[source, text]
+----
+$  bin/gremlin.sh
+         \,,,/
+         (o o)
+-----oOOo-(3)-oOOo-----
+plugin activated: tinkerpop.server
+plugin activated: tinkerpop.hadoop
+plugin activated: tinkerpop.utilities
+plugin activated: aurelius.titan
+plugin activated: tinkerpop.tinkergraph
+gremlin> :remote connect tinkerpop.server conf/remote.yaml
+==>Connected - localhost/127.0.0.1:8182
+gremlin> :> graph.addVertex("name", "stephen")
+==>v[256]
+gremlin> :> g.V().values('name')
+==>stephen
+----
+
+The `:remote` command tells the console to configure a remote connection to Gremlin Server using the `conf/remote.yaml` file to connect.  That file points to a Gremlin Server instance running on `localhost`.  The `:>` is the "submit" command which sends the Gremlin on that line to the currently active remote.
+
+Titan Server as a WebSocket Endpoint
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The default configuration described in <<titan-server-getting-started>> is already a WebSocket configuration.  If you want to alter the default configuration to work with your own Cassandra or HBase environment rather than use the quick start environment, follow these steps:
+
+.To Configure Titan Server For WebSockets
+. Test a local connection to a Titan database first.  This step applies whether using the Gremlin Console to test the connection, or whether connecting from a program.  Make appropriate changes in a properties file in the ./conf directory for your environment.  For example, edit ./conf/titan-hbase.properties and make sure the storage.backend, storage.hostname and storage.hbase.table parameters are specified correctly.  For more information on configuring Titan for various storage backends, see <<storage-backends>>.  Make sure the properties file contains the following line: 
++
+```
+gremlin.graph=com.thinkaurelius.titan.core.TitanFactory
+```
+
+. Once a local configuration is tested and you have a working properties file, copy the properties file from the ./conf directory to the ./conf/gremlin-server directory.
++
+```
+cp conf/titan-hbase.properties conf/gremlin-server/socket-titan-hbase-server.properties
+```
++
+. Copy ./conf/gremlin-server/gremlin-server.yaml to a new file called socket-gremlin-server.yaml.  Do this in case you need to refer to the original version of the file
++
+```
+cp conf/gremlin-server/gremlin-server.yaml conf/gremlin-server/socket-gremlin-server.yaml
+```
++
+. Edit the socket-gremlin-server.yaml file and make the following updates:
+.. If you are planning to connect to Titan Server from something other than localhost, update the ip address for host: 
++
+```
+host: 10.10.10.100
+```
++
+.. Update the graphs section to point to your new properties file so the Titan Server can find and connect to your Titan instance:
++
+```
+graphs: {
+  graph: conf/gremlin-server/socket-titan-hbase-server.properties}
+```
++
+. Start the Titan Server, specifying the yaml file you just configured:
++
+```
+bin/gremlin-server.sh ./conf/gremlin-server/socket-gremlin-server.yaml
+```
+IMPORTANT: Do not use bin/titan.sh.  That starts the default configuration, which starts a separate Cassandra/ElasticSearch environment.
++
+. The Titan Server should now be running in WebSocket mode and can be tested by following the instructions in <<first-example-connecting-gremlin-server>>
+
+
+
+Titan Server as a REST-style Endpoint
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The default configuration described in <<titan-server-getting-started>> is a WebSocket configuration.  If you want to alter the default configuration in order to use Titan Server as a REST endpoint for your Titan database, follow these steps:
+
+.To Configure Titan Server For Rest
+. Test a local connection to a Titan database first.  This step applies whether using the Gremlin Console to test the connection, or whether connecting from a program.  Make appropriate changes in a properties file in the ./conf directory for your environment.  For example, edit ./conf/titan-hbase.properties and make sure the storage.backend, storage.hostname and storage.hbase.table parameters are specified correctly.  For more information on configuring Titan for various storage backends, see <<storage-backends>>.  Make sure the properties file contains the following line: 
++
+```
+gremlin.graph=com.thinkaurelius.titan.core.TitanFactory
+```
+
+. Once a local configuration is tested and you have a working properties file, copy the properties file from the ./conf directory to the ./conf/gremlin-server directory.
++
+```
+cp conf/titan-hbase.properties conf/gremlin-server/rest-titan-hbase-server.properties
+```
++
+. Copy ./conf/gremlin-server/gremlin-server.yaml to a new file called rest-gremlin-server.yaml.  Do this in case you need to refer to the original version of the file
++
+```
+cp conf/gremlin-server/gremlin-server.yaml conf/gremlin-server/rest-gremlin-server.yaml
+```
++
+. Edit the rest-gremlin-server.yaml file and make the following updates:
+.. If you are planning to connect to Titan Server from something other than localhost, update the ip address for host: 
++
+```
+host: 10.10.10.100
+```
++
+.. Update the channelizer setting to specify the HttpChannelizer:
++
+```
+channelizer: org.apache.tinkerpop.gremlin.server.channel.HttpChannelizer
+```
++
+.. Update the graphs section to point to your new properties file so the Titan Server can find and connect to your Titan instance:
++
+```
+graphs: {
+  graph: conf/gremlin-server/rest-titan-hbase-server.properties}
+```
++
+. Start the Titan Server, specifying the yaml file you just configured:
++
+```
+bin/gremlin-server.sh ./conf/gremlin-server/rest-gremlin-server.yaml
+```
++
+. The Titan Server should now be running in REST mode and available for testing.  *curl* can be used to verify the server is working:
++
+```
+curl -XPOST -Hcontent-type:application/json -d '{"gremlin":"g.V().count()"}' http://[ip for titan server host]:8182
+```
+
+Advanced Titan Server Configurations
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+WebSocket versus REST
+^^^^^^^^^^^^^^^^^^^^^
+
+Titan Server must be run with a configuration for either WebSockets (for gremlin shell or other WebSocket programs) or re-configured for REST to work with REST clients.
+
+There is, currently, no way to configure a single running instance of Titan Server to communicate simultaneously with clients talking WebSockets and REST.  However, it is possible to create configuration files (following the steps in this chapter) for both WebSockets and REST and start two instances of the Titan Server by pointing it to the various configurations when it is started.  In this way, the same Titan database instance can be reached through different Titan Servers through both WebSocket and REST calls. Make sure the port parameter in each yaml configuration is different if starting more than one Titan Server on the same machine:
+
+```
+port: 8182
+```
+ 
+In the future, the option to have one running instance of Titan Server supporting multiple protocols may be possible.
+
+[[gremlin-server-with-titan]]
+Using TinkerPop Gremlin Server with Titan
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Since Titan Server is, essentially, TinkerPop Gremlin Server packaged with configuration files for Titan, a version compatible 
+TinkerPop Gremlin Server can be downloaded separately and used with Titan.  Get started by link:http://tinkerpop.incubator.apache.org/[downloading] the appropriate version of Gremlin Server, which needs to <<versions.txt#version-compat,match a version>> supported by the Titan version in use.  
+
+IMPORTANT: Any references to file paths in this section refer to paths under a TinkerPop distribution for Gremlin Server and not a Titan distribution with the Titan Server, unless specifically noted.
+
+Configuring a standalone Gremlin Server to work with Titan is similar to configuring the packaged Titan Server. You should be familiar with link:http://tinkerpop.incubator.apache.org/docs/{tinkerpop_version}/#_configuring_2[graph configuration].  Basically, the Gremlin Server yaml file points to graph-specific configuration files that are used to instantiate `TitanGraph` instances that it will then host.  In order to instantiate these `Graph` instances, Gremlin Server requires that the appropriate libraries and dependencies for the `TitanGraph` be available on its classpath.
+
+For purposes of demonstration, these instructions will outline how to configure the BerkeleyDB backend for Titan in Gremlin Server. As stated earlier, Gremlin Server needs Titan dependencies on its classpath.  Invoke the following command replacing `$VERSION` with the version of Titan to use:
 
 [source,bourne]
 ----
@@ -532,7 +688,7 @@ storage.backend=berkeleyje
 storage.directory=db/berkeley
 ----
 
-Configuration of other backends would not be so different. If using Cassandra, then use Cassandra configuration options in the `titan.properties` file.  The only important piece to leave unchanged is the `gremlin.graph` setting which should always use `TitanFactory`.  This setting tells Gremlin Server how to instantiate a `TitanGraph` instance.
+Configuration of other backends is similar.  See <<storage-backends>>. If using Cassandra, then use Cassandra configuration options in the `titan.properties` file.  The only important piece to leave unchanged is the `gremlin.graph` setting which should always use `TitanFactory`.  This setting tells Gremlin Server how to instantiate a `TitanGraph` instance.
 
 Next create a file called `GREMLIN_SERVER_HOME/conf/gremlin-server-titan.yaml` that has the following contents:
 
@@ -554,7 +710,11 @@ metrics: {
   slf4jReporter: {enabled: true, interval: 180000}}
 ----
 
-There are several important parts to this configuration file as they relate to Titan.  First, in the `graphs` map, there is a key called `graph` and its value is `conf/titan.properties`.  This tells Gremlin Server to instantiate a `Graph` instance called "graph" and use the `conf/titan.properties` file to configure it.  The "graph" key becomes the unique name for the `Graph` instance in Gremlin Server and it can be referenced as such in the scripts submitted to it. Second, in the `plugins` list, there is a reference to `aurelius.titan`, which tells Gremlin Server to initialize the "Titan Plugin".  The "Titan Plugin" will auto-import Titan specific classes for usage in scripts.  Finally, note the `scripts` key and the reference to `scripts/titan.groovy`.  This Groovy file is an initialization script for Gremlin Server and that particular ScriptEngine.  Create `scripts/titan.groovy` with the following contents:
+.There are several important parts to this configuration file as they relate to Titan.  
+. In the `graphs` map, there is a key called `graph` and its value is `conf/titan.properties`.  This tells Gremlin Server to instantiate a `Graph` instance called "graph" and use the `conf/titan.properties` file to configure it.  The "graph" key becomes the unique name for the `Graph` instance in Gremlin Server and it can be referenced as such in the scripts submitted to it. 
+. In the `plugins` list, there is a reference to `aurelius.titan`, which tells Gremlin Server to initialize the "Titan Plugin".  The "Titan Plugin" will auto-import Titan specific classes for usage in scripts.  
+. Note the `scripts` key and the reference to `scripts/titan.groovy`.  This Groovy file is an initialization script for Gremlin Server and that particular ScriptEngine.  Create `scripts/titan.groovy` with the following contents:
+
 
 [source,groovy]
 ----
@@ -564,7 +724,7 @@ globals << [g : graph.traversal()]
 
 The above script creates a `Map` called `globals` and assigns to it a key/value pair.  The key is `g` and its value is a `TraversalSource` generated from `graph`, which was configured for Gremlin Server in its configuration file. At this point, there are now two global variables available to scripts provided to Gremlin Server - `graph` and `g`.
 
-At this point, Gremlin Server is setup and configuration of Titan in Gremlin Server is complete.   To start the server:
+At this point, Gremlin Server is configured and can be used to connect to a new or existing Titan database.  To start the server:
 
 [source,bourne]
 ----
@@ -594,42 +754,38 @@ $ bin/gremlin-server.sh conf/gremlin-server-titan.yaml
 
 The following section explains how to connect to the running server.
 
-Connecting to Gremlin Server
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Connecting to Titan via Gremlin Server
+++++++++++++++++++++++++++++++++++++++
 
 Gremlin Server will be ready to listen for WebSocket connections when it is started.  The easiest way to test the connection is with Gremlin Console.
 
-Start http://tinkerpop.incubator.apache.org/docs/{tinkerpop_version}/#gremlin-console[Gremlin Console] with `bin/gremlin.sh` and use the `:remote` and `:>` commands to issue Gremlin to Gremlin Server:
+Follow the instructions here  <<first-example-connecting-gremlin-server>> to verify the Gremlin Server is working.
 
-[source, text]
+IMPORTANT: A difference you should understand is that when working with Titan Server, the Gremlin Console is started from underneath the Titan distribution and when following the test instructions here for a standalone Gremlin Server, the Gremlin Console is started from under the TinkerPop distribution.
+
+
+[source,java]
 ----
-$  bin/gremlin.sh
-         \,,,/
-         (o o)
------oOOo-(3)-oOOo-----
-plugin activated: tinkerpop.server
-plugin activated: tinkerpop.hadoop
-plugin activated: tinkerpop.utilities
-plugin activated: aurelius.titan
-plugin activated: tinkerpop.tinkergraph
-gremlin> :remote connect tinkerpop.server conf/remote.yaml
-==>Connected - localhost/127.0.0.1:8182
-gremlin> :> graph.addVertex("name", "stephen")
-==>v[256]
-gremlin> :> g.V().values('name')
-==>stephen
+GryoMapper mapper = GryoMapper.build().addRegistry(TitanIoRegistry.INSTANCE).create();
+Cluster cluster = Cluster.build().serializer(new GryoMessageSerializerV1d0(mapper)).create();
+Client client = cluster.connect();
+client.submit("g.V()").all().get();
 ----
 
-The `:remote` command tells the console to configure a remote connection to Gremlin Server using the `conf/remote.yaml` file to connect.  That file points to a Gremlin Server instance running on `localhost`.  The `:>` is the "submit" command which sends the Gremlin on that line to the currently active remote.
-
-[TIP]
-To start Titan Server with the REST API, find the `conf/gremlin-server/gremlin-server.yaml` file in the distribution and edit it.  Modify the `channelizer` setting to be `org.apache.tinkerpop.gremlin.server.channel.HttpChannelizer` then start Titan Server.
+By adding the `TitanIoRegistry` to the `org.apache.tinkerpop.gremlin.driver.ser.GryoMessageSerializerV1d0`, the driver will know how to properly deserialize custom data types returned by Titan.
 
 [[indexes]]
 Indexing for better Performance
 -------------------------------
 
 Titan supports two different kinds of indexing to speed up query processing: *graph indexes* and *vertex-centric indexes*. Most graph queries start the traversal from a list of vertices or edges that are identified by their properties. Graph indexes make these global retrieval operations efficient on large graphs. Vertex-centric indexes speed up the actual traversal through the graph, in particular when traversing through vertices with many incident edges.
+
+Extending Titan Server
+^^^^^^^^^^^^^^^^^^^^^^
+
+It is possible to extend Gremlin Server with other means of communication by implementing the interfaces that it provides and leverage this with Titan.  See more details in the appropriate TinkerPop documentation.
+
+
 
 [[graph-indexes]]
 Graph Index
@@ -943,7 +1099,7 @@ This section describes Titan's transactional semantics and API.
 Transaction Handling
 ~~~~~~~~~~~~~~~~~~~~
 
-Every graph operation in Titan occurs within the context of a transaction. According to the Blueprints' specification, each thread opens its own transaction against the graph database with the first operation (i.e. retrieval or mutation) on the graph::
+Every graph operation in Titan occurs within the context of a transaction. According to the TinkerPop's transactional specification, each thread opens its own transaction against the graph database with the first operation (i.e. retrieval or mutation) on the graph:
 
 [source, gremlin]
 ----
@@ -958,7 +1114,7 @@ In this example, a local Titan graph database is opened. Adding the vertex "juno
 Transactional Scope
 ~~~~~~~~~~~~~~~~~~~
 
-All graph elements (vertices, edges, and types) are associated with the transactional scope in which they were retrieved or created. Under Blueprint's default transactional semantics, transactions are automatically created with the first operation on the graph and closed explicitly using `commit()` or `rollback()`. Once the transaction is closed, all graph elements associated with that transaction become stale and unavailable. However, Titan will automatically transition vertices and types into the new transactional scope as shown in this example::
+All graph elements (vertices, edges, and types) are associated with the transactional scope in which they were retrieved or created. Under TinkerPop's default transactional semantics, transactions are automatically created with the first operation on the graph and closed explicitly using `commit()` or `rollback()`. Once the transaction is closed, all graph elements associated with that transaction become stale and unavailable. However, Titan will automatically transition vertices and types into the new transactional scope as shown in this example:
 
 [source, gremlin]
 graph = TitanFactory.open("berkeleyje:/tmp/titan")
@@ -966,7 +1122,7 @@ juno = graph.addVertex() //Automatically opens a new transaction
 graph.tx().commit() //Ends transaction
 juno.property("name", "juno") //Vertex is automatically transitioned
 
-Edges, on the other hand, are not automatically transitioned and cannot be accessed outside their original transaction. They must be explicitly transitioned.
+Edges, on the other hand, are not automatically transitioned and cannot be accessed outside their original transaction. They must be explicitly transitioned:
 
 [source, gremlin]
 e = juno.addEdge("knows", graph.addVertex())
@@ -977,7 +1133,7 @@ e.property("time", 99)
 Transaction Failures
 ~~~~~~~~~~~~~~~~~~~~
 
-When committing a transaction, Titan will attempt to persist all changes to the storage backend. This might not always be successful due to IO exceptions, network errors, machine crashes or resource unavailability. Hence, transactions can fail. In fact, transactions *will eventually fail* in sufficiently large systems. Therefore, we highly recommend that your code expects and accommodates such failures.
+When committing a transaction, Titan will attempt to persist all changes to the storage backend. This might not always be successful due to IO exceptions, network errors, machine crashes or resource unavailability. Hence, transactions can fail. In fact, transactions *will eventually fail* in sufficiently large systems. Therefore, we highly recommend that your code expects and accommodates such failures:
 
 [source, gremlin]
 try {
@@ -995,7 +1151,7 @@ The example above demonstrates a simplified user signup implementation where `na
 
 If the transaction fails, a `TitanException` is thrown. There are a variety of reasons why a transaction may fail. Titan differentiates between _potentially temporary_ and _permanent_ failures.
 
-Potentially temporary failures are those related to resource unavailability and IO hickups (e.g. network timeouts). Titan automatically tries to recover from temporary failures by retrying to persist the transactional state after some delay. The number of retry attempts and the retry delay are configurable (see <<titan-config-ref>>).
+Potentially temporary failures are those related to resource unavailability and IO hiccups (e.g. network timeouts). Titan automatically tries to recover from temporary failures by retrying to persist the transactional state after some delay. The number of retry attempts and the retry delay are configurable (see <<titan-config-ref>>).
 
 Permanent failures can be caused by complete connection loss, hardware failure or lock contention. To understand the cause of lock contention, consider the signup example above and suppose a user tries to signup with username "juno". That username may still be available at the beginning of the transaction but by the time the transaction is committed, another user might have concurrently registered with "juno" as well and that transaction holds the lock on the username therefore causing the other transaction to fail. Depending on the transaction semantics one can recover from a lock contention failure by re-running the entire transaction.
 
@@ -1008,30 +1164,30 @@ Permanent exceptions that can fail a transaction include:
 Multi-Threaded Transactions
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Titan supports multi-threaded transactions through Blueprint's http://tinkerpop.incubator.apache.org/docs/{tinkerpop_version}/#transactions[ThreadedTransactionalGraph] interface. Hence, to speed up transaction processing and utilize multi-core architectures multiple threads can run concurrently in a single transaction.
+Titan supports multi-threaded transactions through TinkerPop's http://tinkerpop.incubator.apache.org/docs/{tinkerpop_version}/#_threaded_transactions[threaded transactions]. Hence, to speed up transaction processing and utilize multi-core architectures multiple threads can run concurrently in a single transaction.
 
-With Blueprints' default transaction handling, each thread automatically opens its own transaction against the graph database. To open a thread-independent transaction, use the `newTransaction()` method.
+With TinkerPop's default transaction handling, each thread automatically opens its own transaction against the graph database. To open a thread-independent transaction, use the `createThreadedTx()` method.
 
 [source, gremlin]
-tx = graph.newTransaction();
+threadedGraph = graph.tx().createThreadedTx();
 threads = new Thread[10];
 for (int i=0; i<threads.length; i++) {
     threads[i]=new Thread({
-        println("Do something");
+        println("Do something with 'threadedGraph''");
     });
     threads[i].start();
 }
 for (int i=0; i<threads.length; i++) threads[i].join();
-tx.commit();
+threadedGraph.tx().commit();
 
-The `newTransaction()` method returns a new `TransactionalGraph` object that represents this newly opened transaction. The graph object `tx` supports all of the methods that the original graph did, but does so without opening new transactions for each thread. This allows us to start multiple threads which all work concurrently in the same transaction and one of which finally commits the transaction when all threads have completed their work.
+The `createThreadedTx()` method returns a new `Graph` object that represents this newly opened transaction. The graph object `tx` supports all of the methods that the original graph did, but does so without opening new transactions for each thread. This allows us to start multiple threads which all work concurrently in the same transaction and one of which finally commits the transaction when all threads have completed their work.
 
 Titan relies on optimized concurrent data structures to support hundreds of concurrent threads running efficiently in a single transaction.
 
 Concurrent Algorithms
 ~~~~~~~~~~~~~~~~~~~~~
 
-Thread independent transactions started through `newTransaction()` are particularly useful when implementing concurrent graph algorithms. Most traversal or message-passing (ego-centric) like graph algorithms are http://en.wikipedia.org/wiki/Embarrassingly_parallel[embarrassingly parallel] which means they can be parallelized and executed through multiple threads with little effort. Each of these threads can operate on a single `TransactionalGraph` object returned by `newTransaction` without blocking each other.
+Thread independent transactions started through `createThreadedTx()` are particularly useful when implementing concurrent graph algorithms. Most traversal or message-passing (ego-centric) like graph algorithms are http://en.wikipedia.org/wiki/Embarrassingly_parallel[embarrassingly parallel] which means they can be parallelized and executed through multiple threads with little effort. Each of these threads can operate on a single `Graph` object returned by `createThreadedTx()` without blocking each other.
 
 Nested Transactions
 ~~~~~~~~~~~~~~~~~~~
@@ -1054,7 +1210,7 @@ One way around this is to create the vertex in a short, nested thread-independen
 [source, gremlin]
 v1 = graph.addVertex()
 //Do many other things
-tx = graph.newTransaction()
+tx = graph.tx().createThreadedTx()
 v2 = tx.addVertex()
 v2.property("uniqueName", "foo")
 tx.commit() // Any lock contention will be detected here
@@ -1068,7 +1224,7 @@ Common Transaction Handling Problems
 
 Transactions are started automatically with the first operation executed against the graph. One does NOT have to start a transaction manually. The method `newTransaction` is used to start <<multi-thread-tx, multi-threaded transactions>> only.
 
-Transactions are automatically started under the Blueprints semantics but *not* automatically terminated. Transactions have to be terminated manually with `g.commit()` if successful or `g.rollback()` if not. Manual termination of transactions is necessary because only the user knows the transactional boundary.
+Transactions are automatically started under the TinkerPop semantics but *not* automatically terminated. Transactions have to be terminated manually with `g.commit()` if successful or `g.rollback()` if not. Manual termination of transactions is necessary because only the user knows the transactional boundary.
 A transaction will attempt to maintain its state from the beginning of the transaction. This might lead to unexpected behavior in multi-threaded applications as illustrated in the following artificial example::
 
 [source, gremlin]
@@ -1128,7 +1284,10 @@ Within an open transaction, Titan maintains two caches:
 * Vertex Cache: Caches accessed vertices and their adjacency list (or subsets thereof) so that subsequent access is significantly faster within the same transaction. Hence, this cache speeds up iterative traversals.
 * Index Cache: Caches the results for index queries so that subsequent index calls can be served from memory instead of calling the index backend and (usually) waiting for one or more network round trips.
 
-The size of both of those is determined by the _transaction cache size_. The transaction cache size can be configured via `cache.tx-cache-size` or on a per transaction basis by opening a transaction via the transaction builder `graph.buildTransction()` and using the `setVertexCacheSize(int)` method.
+The size of both of those is determined by the _transaction cache size_. The
+transaction cache size can be configured via `cache.tx-cache-size` or on a
+per transaction basis by opening a transaction via the transaction builder
+`graph.buildTransaction()` and using the `setVertexCacheSize(int)` method.
 
 Vertex Cache
 ^^^^^^^^^^^^
@@ -1174,7 +1333,7 @@ The configuration option `cache.db-cache-size` controls how much heap space Tita
 
 The cache size can be configured as a percentage (expressed as a decimal between 0 and 1) of the total heap space available to the JVM running Titan or as an absolute number of bytes.
 
-Note, that the cache size refers to the amount of heap space that is exclusively occupied by the cache. Titan's other data structures and each open transaction will occupy additional heap space. If additional software layers are running in the same JVM, those may occupy a significant amount of heap space as well (e.g. Rexster, embedded Cassandra, etc). Be conservative in your heap memory estimation. Configuring a cache that is too large can lead to out-of-memory exceptions and excessive GC.
+Note, that the cache size refers to the amount of heap space that is exclusively occupied by the cache. Titan's other data structures and each open transaction will occupy additional heap space. If additional software layers are running in the same JVM, those may occupy a significant amount of heap space as well (e.g. Gremlin Server, embedded Cassandra, etc). Be conservative in your heap memory estimation. Configuring a cache that is too large can lead to out-of-memory exceptions and excessive GC.
 
 Clean Up Wait Time
 ^^^^^^^^^^^^^^^^^^
@@ -1359,7 +1518,7 @@ When launching Titan with embedded Cassandra, the following warnings may be disp
 
 `958 [MutationStage:25] WARN  org.apache.cassandra.db.Memtable  - MemoryMeter uninitialized (jamm not specified as java agent); assuming liveRatio of 10.0.  Usually this means cassandra-env.sh disabled jamm because you are using a buggy JRE; upgrade to the Sun JRE instead`
 
-Cassandra uses a Java agent called `MemoryMeter` which allows it to measure the actual memory use of an object, including JVM overhead.  To use https://github.com/jbellis/jamm[JAMM] (Java Agent for Memory Measurements), the path to the JAMM jar must be specific in the Java javaagent parameter when launching the JVM (e.g. `-javaagent:path/to/jamm.jar`) through either titan.sh, gremlin.sh, or Rexster:
+Cassandra uses a Java agent called `MemoryMeter` which allows it to measure the actual memory use of an object, including JVM overhead.  To use https://github.com/jbellis/jamm[JAMM] (Java Agent for Memory Measurements), the path to the JAMM jar must be specific in the Java javaagent parameter when launching the JVM (e.g. `-javaagent:path/to/jamm.jar`) through either titan.sh, gremlin.sh, or Gremlin Server:
 
 [source, bash]
 export TITAN_JAVA_OPTS=-javaagent:$TITAN_HOME/lib/jamm-$MAVEN{jamm.version}.jar

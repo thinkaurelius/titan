@@ -22,27 +22,8 @@ import org.apache.tinkerpop.gremlin.structure.Graph;
 @Graph.OptIn(Graph.OptIn.SUITE_GROOVY_ENVIRONMENT)
 @Graph.OptIn(Graph.OptIn.SUITE_GROOVY_ENVIRONMENT_INTEGRATE)
 @Graph.OptIn(Graph.OptIn.SUITE_GROOVY_ENVIRONMENT_PERFORMANCE)
+@Graph.OptIn("com.thinkaurelius.titan.blueprints.process.traversal.strategy.TitanStrategySuite")
 //------------------------
-@Graph.OptOut(
-        test = "org.apache.tinkerpop.gremlin.structure.EdgeTest$ExceptionConsistencyWhenEdgeRemovedTest",
-        method = "shouldThrowExceptionIfEdgeWasRemoved",
-        specific = "e.remove()",
-        reason = "Titan cannot currently throw an exception on access to removed relations due to internal use.")
-@Graph.OptOut(
-        test = "org.apache.tinkerpop.gremlin.structure.EdgeTest$ExceptionConsistencyWhenEdgeRemovedTest",
-        method = "shouldThrowExceptionIfEdgeWasRemoved",
-        specific = "property(k)",
-        reason = "Titan cannot currently throw an exception on access to removed relations due to internal use.")
-@Graph.OptOut(
-        test = "org.apache.tinkerpop.gremlin.structure.EdgeTest$ExceptionConsistencyWhenEdgeRemovedTest",
-        method = "shouldThrowExceptionIfEdgeWasRemoved",
-        specific = "remove()",
-        reason = "Titan cannot currently throw an exception on access to removed relations due to internal use.")
-@Graph.OptOut(
-        test = "org.apache.tinkerpop.gremlin.structure.VertexPropertyTest$ExceptionConsistencyWhenVertexPropertyRemovedTest",
-        method = "shouldThrowExceptionIfVertexPropertyWasRemoved",
-        specific = "property(k)",
-        reason = "Titan cannot currently throw an exception on access to removed relations due to internal use.")
 @Graph.OptOut(
         test = "org.apache.tinkerpop.gremlin.structure.VertexPropertyTest$VertexPropertyAddition",
         method = "shouldHandleSetVertexProperties",

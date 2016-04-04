@@ -33,11 +33,6 @@ public class HBaseOperationCountingTest extends TitanOperationCountingTest {
     }
 
     @Override
-    public boolean storeUsesConsistentKeyLocker() {
-        return true;
-    }
-
-    @Override
     public void testCacheConcurrency() throws InterruptedException {
         //Don't run this test;
     }

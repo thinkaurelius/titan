@@ -30,6 +30,7 @@ public interface TitanGraphComputer extends GraphComputer {
 
     }
 
+    @Override
     public TitanGraphComputer workers(int threads);
 
     public default TitanGraphComputer resultMode(ResultMode mode) {
@@ -37,7 +38,4 @@ public interface TitanGraphComputer extends GraphComputer {
         persist(mode.toPersist());
         return this;
     }
-
-
-
 }

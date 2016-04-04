@@ -5,12 +5,14 @@ import com.thinkaurelius.titan.core.TitanTransaction;
 import com.thinkaurelius.titan.core.TitanVertex;
 import com.thinkaurelius.titan.core.VertexLabel;
 import com.thinkaurelius.titan.diskstorage.util.Hex;
+import com.thinkaurelius.titan.graphdb.database.StandardTitanGraph;
 import com.thinkaurelius.titan.graphdb.olap.computer.FulgoraGraphComputer;
 import com.thinkaurelius.titan.graphdb.relations.RelationIdentifier;
 import com.thinkaurelius.titan.graphdb.types.system.BaseVertexLabel;
 import org.apache.tinkerpop.gremlin.process.computer.GraphComputer;
 import org.apache.tinkerpop.gremlin.structure.*;
 import org.apache.tinkerpop.gremlin.structure.io.Io;
+import org.apache.tinkerpop.gremlin.structure.util.AbstractThreadedTransaction;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 import org.apache.commons.configuration.Configuration;
@@ -86,7 +88,7 @@ public abstract class TitanBlueprintsTransaction implements TitanTransaction {
     @Override
     public TitanVertex addVertex(Object... keyValues) {
         ElementHelper.legalPropertyKeyValueArray(keyValues);
-        if (ElementHelper.getIdValue(keyValues).isPresent()) throw Vertex.Exceptions.userSuppliedIdsNotSupported();
+        if (ElementHelper.getIdValue(keyValues).isPresent() && !((StandardTitanGraph) getGraph()).getConfiguration().allowVertexIdSetting()) throw Vertex.Exceptions.userSuppliedIdsNotSupported();
         Object labelValue = null;
         for (int i = 0; i < keyValues.length; i = i + 2) {
             if (keyValues[i].equals(T.label)) {
@@ -161,19 +163,19 @@ public abstract class TitanBlueprintsTransaction implements TitanTransaction {
 
     @Override
     public Transaction tx() {
-        return new Transaction() {
+        return new AbstractThreadedTransaction(getGraph()) {
             @Override
-            public void open() {
+            public void doOpen() {
                 if (isClosed()) throw new IllegalStateException("Cannot re-open a closed transaction.");
             }
 
             @Override
-            public void commit() {
+            public void doCommit() {
                 TitanBlueprintsTransaction.this.commit();
             }
 
             @Override
-            public void rollback() {
+            public void doRollback() {
                 TitanBlueprintsTransaction.this.rollback();
             }
 
@@ -194,38 +196,11 @@ public abstract class TitanBlueprintsTransaction implements TitanTransaction {
             }
 
             @Override
-            public void readWrite() {
-                //Does not apply to thread-independent transactions
-            }
-
-            @Override
-            public void close() {
+            public void doClose() {
                 getGraph().tinkerpopTxContainer.close(this);
-            }
 
-            @Override
-            public Transaction onReadWrite(Consumer<Transaction> transactionConsumer) {
-                throw new UnsupportedOperationException("Transaction consumer can only be configured at the graph and not the transaction level.");
-            }
-
-            @Override
-            public Transaction onClose(Consumer<Transaction> transactionConsumer) {
-                throw new UnsupportedOperationException("Transaction consumer can only be configured at the graph and not the transaction level.");
-            }
-
-            @Override
-            public void addTransactionListener(Consumer<Status> listener) {
-                throw new UnsupportedOperationException("Transaction consumer can only be configured at the graph and not the transaction level.");
-            }
-
-            @Override
-            public void removeTransactionListener(Consumer<Status> listener) {
-                throw new UnsupportedOperationException("Transaction consumer can only be configured at the graph and not the transaction level.");
-            }
-
-            @Override
-            public void clearTransactionListeners() {
-                // Could issue a warning here
+                // calling super will clear listeners
+                super.doClose();
             }
         };
     }
