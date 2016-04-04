@@ -5,6 +5,7 @@ import com.thinkaurelius.titan.core.TitanTransaction;
 import com.thinkaurelius.titan.core.TitanVertex;
 import com.thinkaurelius.titan.core.VertexLabel;
 import com.thinkaurelius.titan.diskstorage.util.Hex;
+import com.thinkaurelius.titan.graphdb.database.StandardTitanGraph;
 import com.thinkaurelius.titan.graphdb.olap.computer.FulgoraGraphComputer;
 import com.thinkaurelius.titan.graphdb.relations.RelationIdentifier;
 import com.thinkaurelius.titan.graphdb.types.system.BaseVertexLabel;
@@ -87,7 +88,7 @@ public abstract class TitanBlueprintsTransaction implements TitanTransaction {
     @Override
     public TitanVertex addVertex(Object... keyValues) {
         ElementHelper.legalPropertyKeyValueArray(keyValues);
-        if (ElementHelper.getIdValue(keyValues).isPresent()) throw Vertex.Exceptions.userSuppliedIdsNotSupported();
+        if (ElementHelper.getIdValue(keyValues).isPresent() && !((StandardTitanGraph) getGraph()).getConfiguration().allowVertexIdSetting()) throw Vertex.Exceptions.userSuppliedIdsNotSupported();
         Object labelValue = null;
         for (int i = 0; i < keyValues.length; i = i + 2) {
             if (keyValues[i].equals(T.label)) {
