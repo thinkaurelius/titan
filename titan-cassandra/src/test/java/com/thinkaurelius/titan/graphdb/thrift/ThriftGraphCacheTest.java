@@ -19,10 +19,4 @@ public class ThriftGraphCacheTest extends TitanGraphTest {
         CassandraStorageSetup.startCleanEmbedded();
     }
 
-
-
-    @Override
-    protected boolean isLockingOptimistic() {
-        return true;
-    }
 }

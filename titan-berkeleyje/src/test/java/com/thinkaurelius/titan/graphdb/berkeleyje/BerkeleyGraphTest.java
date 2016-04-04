@@ -70,11 +70,6 @@ public class BerkeleyGraphTest extends TitanGraphTest {
     }
 
     @Override
-    protected boolean isLockingOptimistic() {
-        return false;
-    }
-
-    @Override
     public void testConcurrentConsistencyEnforcement() {
         //Do nothing TODO: Figure out why this is failing in BerkeleyDB!!
     }

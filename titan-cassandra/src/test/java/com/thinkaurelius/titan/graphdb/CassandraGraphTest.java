@@ -24,11 +24,6 @@ public abstract class CassandraGraphTest extends TitanGraphTest {
         CassandraStorageSetup.startCleanEmbedded();
     }
 
-    @Override
-    protected boolean isLockingOptimistic() {
-        return true;
-    }
-
     @Test
     public void testHasTTL() throws Exception {
         assertTrue(features.hasCellTTL());
