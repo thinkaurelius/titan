@@ -18,11 +18,20 @@
     
     <dependencies>
         <dependency>
+	    <groupId>org.apache.curator</groupId>
+	    <artifactId>curator-recipes</artifactId>
+	    <version>2.7.1</version>
+        </dependency>      
+        <dependency>
             <groupId>org.apache.hbase</groupId>
             <artifactId>hbase-client</artifactId>
             <version>${hbase.version}</version>
             <optional>true</optional>
             <exclusions>
+	        <exclusion>
+		    <artifactId>curator-recipes</artifactId>
+		    <groupId>org.apache.curator</groupId>
+	        </exclusion>
                 <exclusion>
                     <artifactId>avro</artifactId>
                     <groupId>org.apache.avro</groupId>

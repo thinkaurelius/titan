@@ -22,15 +22,32 @@
 
     <dependencies>
         <dependency>
+	    <groupId>org.apache.curator</groupId>
+	    <artifactId>curator-recipes</artifactId>
+	    <version>2.7.1</version>
+        </dependency>
+        <dependency>
             <groupId>org.apache.hbase</groupId>
             <artifactId>hbase-client</artifactId>
             <version>${hbase098.version}</version>
+	    <exclusions>
+	      <exclusion>
+		<groupId>org.apache.curator</groupId>
+		<artifactId>curator-recipes</artifactId>
+              </exclusion>
+	    </exclusions>
         </dependency>
         <dependency>
             <groupId>org.apache.hbase</groupId>
             <artifactId>hbase-server</artifactId>
             <!-- Need the -server artifact for hbase.mapreduce.TableInputFormat (Faunus) -->
             <version>${hbase098.version}</version>
+	    <exclusions>
+	      <exclusion>
+		<groupId>org.apache.curator</groupId>
+		<artifactId>curator-recipes</artifactId>
+              </exclusion>
+	    </exclusions>	    
         </dependency>
     </dependencies>
 

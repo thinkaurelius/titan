@@ -19,16 +19,34 @@
             <groupId>org.apache.hadoop</groupId>
             <artifactId>hadoop-client</artifactId>
             <version>${hadoop2.version}</version>
+	    <exclusions>
+	        <exclusion>
+		    <groupId>org.apache.curator</groupId>
+		    <artifactId>curator-recipes</artifactId>
+	        </exclusion>
+	    </exclusions>	    
         </dependency>
         <dependency>
             <groupId>${project.groupId}</groupId>
             <artifactId>titan-hadoop-core</artifactId>
             <version>${project.version}</version>
+	    <exclusions>
+	        <exclusion>
+		    <groupId>org.apache.curator</groupId>
+		    <artifactId>curator-recipes</artifactId>
+	        </exclusion>
+	    </exclusions>	    
         </dependency>
         <dependency>
             <groupId>${project.groupId}</groupId>
             <artifactId>titan-hadoop-core</artifactId>
             <version>${project.version}</version>
+	    <exclusions>
+	        <exclusion>
+		    <groupId>org.apache.curator</groupId>
+		    <artifactId>curator-recipes</artifactId>
+	        </exclusion>
+	    </exclusions>	    
             <classifier>tests</classifier>
             <scope>test</scope>
         </dependency>
@@ -36,6 +54,12 @@
             <groupId>${project.groupId}</groupId>
             <artifactId>titan-hadoop-core</artifactId>
             <version>${project.version}</version>
+	    <exclusions>
+	        <exclusion>
+		    <groupId>org.apache.curator</groupId>
+		    <artifactId>curator-recipes</artifactId>
+	        </exclusion>
+	    </exclusions>	    
             <classifier>shared-resources</classifier>
             <scope>test</scope>
             <optional>true</optional>
