@@ -812,7 +812,7 @@ public class ElasticSearchIndex implements IndexProvider {
                     Geoshape.Point northeast = shape.getPoint(1);
                     return QueryBuilders.geoBoundingBoxQuery(key).bottomRight(southwest.getLatitude(), northeast.getLongitude()).topLeft(northeast.getLatitude(), southwest.getLongitude());
                 } else if (shape.getType() == Geoshape.Type.POLYGON) {
-                    GeoPolygonFilterBuilder polygonFilter = FilterBuilders.geoPolygonFilter(key);
+                    GeoPolygonQueryBuilder polygonFilter = QueryBuilders.geoPolygonQuery(key);
                     for (int i = 0; i < shape.size(); i++) {
                         Geoshape.Point point = shape.getPoint(i);
                         polygonFilter.addPoint(point.getLatitude(), point.getLongitude());
