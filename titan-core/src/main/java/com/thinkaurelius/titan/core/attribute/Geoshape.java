@@ -308,6 +308,39 @@ public class Geoshape {
     }
 
     /**
+     * Constructs a new polygon shape which is identified by its coordinates
+     * @param coordinates
+     * @return
+     */
+    public static final Geoshape polygon(final float ... coordinates) {
+        Preconditions.checkArgument(coordinates.length % 2 == 0, "Odd number of coordinates provided");
+        Preconditions.checkArgument(coordinates.length >= 6, "Too few coordinate pairs provided");
+        float[] latitudes = new float[coordinates.length / 2];
+        float[] longitudes = new float[coordinates.length / 2];
+        for (int i = 0; i < coordinates.length; i++) {
+            if (i % 2 == 0) {
+                latitudes[i / 2] = coordinates[i];
+            } else {
+                longitudes[i / 2] = coordinates[i];
+            }
+        }
+        return new Geoshape(new float[][]{ latitudes, longitudes });
+    }
+
+    /**
+     * Constructs a new polygon shape which is identified by its coordinates
+     * @param coordinates
+     * @return
+     */
+    public static final Geoshape polygon(final double ... coordinates) {
+        float[] floatCoordinates = new float[coordinates.length];
+        for (int i = 0; i < coordinates.length; i++) {
+            floatCoordinates[i] = (float)coordinates[i];
+        }
+        return polygon(floatCoordinates);
+    }
+
+    /**
      * Whether the given coordinates mark a point on earth.
      * @param latitude
      * @param longitude
