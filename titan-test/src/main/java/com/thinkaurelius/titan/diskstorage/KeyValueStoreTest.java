@@ -196,8 +196,8 @@ public abstract class KeyValueStoreTest extends AbstractKCVSTest {
             String[] values = generateValues();
             loadValues(values);
             RecordIterator<KeyValueEntry> iterator0 = getAllData(tx);
-            Assert.assertEquals(numKeys, KeyValueStoreUtil.count(iterator0));
             clopen();
+            Assert.assertEquals(numKeys, KeyValueStoreUtil.count(iterator0));
             RecordIterator<KeyValueEntry> iterator1 = getAllData(tx);
             RecordIterator<KeyValueEntry> iterator2 = getAllData(tx);
 
