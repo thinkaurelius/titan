@@ -5,6 +5,8 @@ import com.thinkaurelius.titan.diskstorage.Entry;
 import com.thinkaurelius.titan.diskstorage.StaticBuffer;
 import com.thinkaurelius.titan.diskstorage.util.StaticArrayBuffer;
 import com.thinkaurelius.titan.diskstorage.util.StaticArrayEntry;
+import org.apache.hadoop.hbase.client.Result;
+import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
 import org.apache.hadoop.hbase.mapreduce.TableRecordReader;
 import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.RecordReader;
@@ -17,11 +19,11 @@ import java.util.NavigableMap;
 
 public class HBaseBinaryRecordReader  extends RecordReader<StaticBuffer, Iterable<Entry>> {
 
-    private TableRecordReader reader;
+    private RecordReader<ImmutableBytesWritable, Result> reader;
 
     private final byte[] edgestoreFamilyBytes;
 
-    public HBaseBinaryRecordReader(final TableRecordReader reader, final byte[] edgestoreFamilyBytes) {
+    public HBaseBinaryRecordReader(final RecordReader<ImmutableBytesWritable, Result> reader, final byte[] edgestoreFamilyBytes) {
         this.reader = reader;
         this.edgestoreFamilyBytes = edgestoreFamilyBytes;
     }
@@ -52,7 +54,7 @@ public class HBaseBinaryRecordReader  extends RecordReader<StaticBuffer, Iterabl
     }
 
     @Override
-    public float getProgress() {
+    public float getProgress() throws IOException, InterruptedException {
         return this.reader.getProgress();
     }
 
