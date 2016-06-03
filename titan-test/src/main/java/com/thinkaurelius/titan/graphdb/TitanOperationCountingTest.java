@@ -57,7 +57,9 @@ public abstract class TitanOperationCountingTest extends TitanGraphBaseTest {
 
     public abstract WriteConfiguration getBaseConfiguration();
 
-    public abstract boolean storeUsesConsistentKeyLocker();
+    public boolean storeUsesConsistentKeyLocker() {
+        return !features.hasLocking();
+    }
 
     @Override
     public WriteConfiguration getConfiguration() {
