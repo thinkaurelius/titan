@@ -58,6 +58,8 @@ When id blocks are frequently allocated by many Titan instances in parallel, all
 
 *Rule of thumb*: Set this value to be as large feasible to not have to wait too long for unrecoverable failures. The only downside of increasing it is that Titan will try for a long time on an unavailable storage backend cluster.
 
+3) `ids.renew-buffer-percentage` configures when the id pool manager will start an attempt to allocate a new id block. When all but the configured percentage of the current block is consumed, a new block will be allocated. Larger values should be used if a lot of ids are allocated in a short amount of time, such as during bulk loading.
+
 Optimizing Writes and Reads
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
