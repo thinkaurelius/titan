@@ -85,9 +85,4 @@ public class InMemoryGraphTest extends TitanGraphTest {
     @Override
     public void testIndexUpdateSyncWithMultipleInstances() {}
 
-    @Override
-    protected boolean isLockingOptimistic() {
-        return true;
-    }
-
 }

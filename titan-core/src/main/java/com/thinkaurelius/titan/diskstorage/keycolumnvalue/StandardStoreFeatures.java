@@ -12,6 +12,7 @@ public class StandardStoreFeatures implements StoreFeatures {
     private final boolean orderedScan;
     private final boolean multiQuery;
     private final boolean locking;
+    private final boolean optimisticLocking;
     private final boolean batchMutation;
     private final boolean localKeyPartition;
     private final boolean keyOrdered;
@@ -52,6 +53,11 @@ public class StandardStoreFeatures implements StoreFeatures {
     @Override
     public boolean hasLocking() {
         return locking;
+    }
+
+    @Override
+    public boolean isLockingOptimistic() {
+        return optimisticLocking;
     }
 
     @Override
@@ -142,6 +148,7 @@ public class StandardStoreFeatures implements StoreFeatures {
         private boolean orderedScan;
         private boolean multiQuery;
         private boolean locking;
+        private boolean optimisticLocking;
         private boolean batchMutation;
         private boolean localKeyPartition;
         private boolean keyOrdered;
@@ -208,6 +215,11 @@ public class StandardStoreFeatures implements StoreFeatures {
 
         public Builder locking(boolean b) {
             locking = b;
+            return this;
+        }
+
+        public Builder optimisticLocking(boolean b) {
+            optimisticLocking = b;
             return this;
         }
 
@@ -298,7 +310,7 @@ public class StandardStoreFeatures implements StoreFeatures {
 
         public StandardStoreFeatures build() {
             return new StandardStoreFeatures(unorderedScan, orderedScan,
-                    multiQuery, locking, batchMutation, localKeyPartition,
+                    multiQuery, locking, optimisticLocking, batchMutation, localKeyPartition,
                     keyOrdered, distributed, transactional, keyConsistent,
                     timestamps, preferredTimestamps, cellLevelTTL,
                     storeLevelTTL, visibility, supportsPersist,
@@ -308,7 +320,7 @@ public class StandardStoreFeatures implements StoreFeatures {
     }
 
     private StandardStoreFeatures(boolean unorderedScan, boolean orderedScan,
-            boolean multiQuery, boolean locking, boolean batchMutation,
+            boolean multiQuery, boolean locking, boolean optimisticLocking, boolean batchMutation,
             boolean localKeyPartition, boolean keyOrdered, boolean distributed,
             boolean transactional, boolean keyConsistent,
             boolean timestamps, TimestampProviders preferredTimestamps,
@@ -321,6 +333,7 @@ public class StandardStoreFeatures implements StoreFeatures {
         this.orderedScan = orderedScan;
         this.multiQuery = multiQuery;
         this.locking = locking;
+        this.optimisticLocking = optimisticLocking;
         this.batchMutation = batchMutation;
         this.localKeyPartition = localKeyPartition;
         this.keyOrdered = keyOrdered;

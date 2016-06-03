@@ -28,9 +28,4 @@ public class HBaseGraphTest extends TitanGraphTest {
         return HBaseStorageSetup.getHBaseGraphConfiguration();
     }
 
-    @Override
-    protected boolean isLockingOptimistic() {
-        return true;
-    }
-
 }

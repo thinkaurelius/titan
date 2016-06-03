@@ -45,6 +45,12 @@ public interface StoreFeatures {
     public boolean hasLocking();
 
     /**
+      * Whether this store uses optimistic locking.
+      * @return
+      */
+    public boolean isLockingOptimistic();
+
+    /**
      * Whether this storage backend supports batch mutations via
      * {@link KeyColumnValueStoreManager#mutateMany(java.util.Map, StoreTransaction)}.
      *

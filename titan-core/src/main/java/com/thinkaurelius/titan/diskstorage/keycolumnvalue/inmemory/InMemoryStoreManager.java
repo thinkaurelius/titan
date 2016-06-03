@@ -40,6 +40,7 @@ public class InMemoryStoreManager implements KeyColumnValueStoreManager {
             .keyOrdered(true)
             .persists(false)
             .keyConsistent(GraphDatabaseConfiguration.buildGraphConfiguration())
+            .optimisticLocking(true)
             .build();
 
 //        features = new StoreFeatures();
