@@ -52,6 +52,7 @@ public class FulgoraGraphComputer implements TitanGraphComputer {
 
     public static final Set<String> NON_PERSISTING_KEYS = ImmutableSet.of(TraversalSideEffects.SIDE_EFFECTS,
             TraversalVertexProgram.HALTED_TRAVERSERS);
+    public static final int WRITE_BATCH_SIZE_LIMIT = Math.floorDiv(Integer.MAX_VALUE, 10);
 
     private VertexProgram<?> vertexProgram;
     private final Set<MapReduce> mapReduces = new HashSet<>();
@@ -63,8 +64,8 @@ public class FulgoraGraphComputer implements TitanGraphComputer {
     private boolean executed = false;
 
     private int numThreads = 1;//Math.max(1,Runtime.getRuntime().availableProcessors());
-    private int readBatchSize = 10000;
-    private int writeBatchSize;
+    private final int readBatchSize;
+    private final int writeBatchSize;
 
     private ResultGraph resultGraphMode = null;
     private Persist persistMode = null;
@@ -76,6 +77,9 @@ public class FulgoraGraphComputer implements TitanGraphComputer {
     public FulgoraGraphComputer(final StandardTitanGraph graph, final Configuration configuration) {
         this.graph = graph;
         this.writeBatchSize = configuration.get(GraphDatabaseConfiguration.BUFFER_SIZE);
+        if(this.writeBatchSize > WRITE_BATCH_SIZE_LIMIT) {
+            throw new IllegalArgumentException("Set storage.buffer-size less than Int.MAX_VALUE/10. Otherwise Fulgora readBatchSize will overflow.");
+        }
         this.readBatchSize = this.writeBatchSize * 10;
         this.name = "compute" + computerCounter.incrementAndGet();
     }
