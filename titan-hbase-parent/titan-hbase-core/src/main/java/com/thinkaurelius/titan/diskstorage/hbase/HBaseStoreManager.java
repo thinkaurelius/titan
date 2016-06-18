@@ -220,7 +220,8 @@ public class HBaseStoreManager extends DistributedStoreManager implements KeyCol
             "at runtime.  Setting this option forces Titan to instead reflectively load and instantiate the specified class.",
             ConfigOption.Type.MASKABLE, String.class);
 
-    public static final int PORT_DEFAULT = 9160;
+    // default port for HBase (which is really zookeeper) is 2181
+    public static final int PORT_DEFAULT = 2181;
 
     public static final TimestampProviders PREFERRED_TIMESTAMPS = TimestampProviders.MILLI;
 
