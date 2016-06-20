@@ -78,6 +78,7 @@ public enum ElasticSearchSetup {
                 log.debug("Set {}: {}", k, config.get(ElasticSearchIndex.CLIENT_SNIFF));
             }
 
+            settingsBuilder.put("index.max_result_window", Integer.MAX_VALUE);
             makeLocalDirsIfNecessary(settingsBuilder, config);
 
             TransportClient tc = TransportClient.builder().settings(settingsBuilder.build()).build();
@@ -113,7 +114,7 @@ public enum ElasticSearchSetup {
 
             makeLocalDirsIfNecessary(settingsBuilder, config);
 
-            NodeBuilder nodeBuilder = NodeBuilder.nodeBuilder().settings(settingsBuilder.build());
+            NodeBuilder nodeBuilder = NodeBuilder.nodeBuilder();
 
             // Apply explicit Titan properties file overrides (otherwise conf-file or ES defaults apply)
             if (config.has(ElasticSearchIndex.CLIENT_ONLY)) {
@@ -124,9 +125,14 @@ public enum ElasticSearchSetup {
             if (config.has(ElasticSearchIndex.LOCAL_MODE))
                 nodeBuilder.local(config.get(ElasticSearchIndex.LOCAL_MODE));
 
-            if (config.has(ElasticSearchIndex.LOAD_DEFAULT_NODE_SETTINGS))
-                nodeBuilder.loadConfigSettings(config.get(ElasticSearchIndex.LOAD_DEFAULT_NODE_SETTINGS));
+            if (config.has(ElasticSearchIndex.LOAD_DEFAULT_NODE_SETTINGS)) {
+                // Elasticsearch >2.3 always loads default settings
+                String k = "config.ignore_system_properties";
+                settingsBuilder.put(k, !config.get(ElasticSearchIndex.LOAD_DEFAULT_NODE_SETTINGS));
+            }
 
+            settingsBuilder.put("index.max_result_window", Integer.MAX_VALUE);
+            nodeBuilder.settings(settingsBuilder.build());
             Node node = nodeBuilder.node();
             Client client = node.client();
             return new Connection(node, client);

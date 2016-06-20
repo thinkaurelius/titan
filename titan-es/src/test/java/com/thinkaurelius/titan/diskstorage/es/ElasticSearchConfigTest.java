@@ -75,7 +75,7 @@ public class ElasticSearchConfigTest {
 
     @Test
     public void testTransportClient() throws BackendException, InterruptedException {
-        ElasticsearchRunner esr = new ElasticsearchRunner(".", "transportClient.yml");
+        ElasticsearchRunner esr = new ElasticsearchRunner(".");
         esr.start();
         ModifiableConfiguration config = GraphDatabaseConfiguration.buildGraphConfiguration();
         config.set(INTERFACE, ElasticSearchSetup.TRANSPORT_CLIENT.toString(), INDEX_NAME);
@@ -172,12 +172,11 @@ public class ElasticSearchConfigTest {
 
     @Test
     public void testNetworkNodeUsingExt() throws BackendException, InterruptedException {
-        ElasticsearchRunner esr = new ElasticsearchRunner(".", "networkNodeUsingExt.yml");
+        ElasticsearchRunner esr = new ElasticsearchRunner(".");
         esr.start();
         CommonsConfiguration cc = new CommonsConfiguration(new BaseConfiguration());
         cc.set("index." + INDEX_NAME + ".elasticsearch.ext.node.data", "false");
         cc.set("index." + INDEX_NAME + ".elasticsearch.ext.node.client", "true");
-        cc.set("index." + INDEX_NAME + ".elasticsearch.ext.cluster.name", "networkNodeUsingExt");
         cc.set("index." + INDEX_NAME + ".elasticsearch.ext.discovery.zen.ping.multicast.enabled", "false");
         cc.set("index." + INDEX_NAME + ".elasticsearch.ext.discovery.zen.ping.unicast.hosts", "localhost,127.0.0.1:9300");
         ModifiableConfiguration config =
@@ -209,7 +208,7 @@ public class ElasticSearchConfigTest {
 
     @Test
     public void testNetworkNodeUsingYaml() throws BackendException, InterruptedException {
-        ElasticsearchRunner esr = new ElasticsearchRunner(".", "networkNodeUsingYaml.yml");
+        ElasticsearchRunner esr = new ElasticsearchRunner(".");
         esr.start();
         ModifiableConfiguration config = GraphDatabaseConfiguration.buildGraphConfiguration();
         config.set(INTERFACE, ElasticSearchSetup.NODE.toString(), INDEX_NAME);
@@ -240,17 +239,22 @@ public class ElasticSearchConfigTest {
 
     @Test
     public void testIndexCreationOptions() throws InterruptedException, BackendException {
-        final int shards = 77;
 
-        ElasticsearchRunner esr = new ElasticsearchRunner(".", "indexCreationOptions.yml");
+        String baseDir = Joiner.on(File.separator).join("target", "es", "jvmlocal_opts");
+
+        assertFalse(new File(baseDir + File.separator + "data").exists());
+
+        final int shards = 7;
+
+        ElasticsearchRunner esr = new ElasticsearchRunner(".");
         esr.start();
         CommonsConfiguration cc = new CommonsConfiguration(new BaseConfiguration());
         cc.set("index." + INDEX_NAME + ".elasticsearch.create.ext.number_of_shards", String.valueOf(shards));
-        cc.set("index." + INDEX_NAME + ".elasticsearch.ext.cluster.name", "indexCreationOptions");
         ModifiableConfiguration config =
                 new ModifiableConfiguration(GraphDatabaseConfiguration.ROOT_NS,
                         cc, BasicConfiguration.Restriction.NONE);
         config.set(INTERFACE, ElasticSearchSetup.NODE.toString(), INDEX_NAME);
+        config.set(GraphDatabaseConfiguration.INDEX_DIRECTORY, baseDir, INDEX_NAME);
         Configuration indexConfig = config.restrictTo(INDEX_NAME);
         IndexProvider idx = new ElasticSearchIndex(indexConfig);
         simpleWriteAndQuery(idx);
@@ -260,7 +264,7 @@ public class ElasticSearchConfigTest {
         Settings.Builder settingsBuilder = Settings.settingsBuilder();
         settingsBuilder.put("discovery.zen.ping.multicast.enabled", "false");
         settingsBuilder.put("discovery.zen.ping.unicast.hosts", "localhost,127.0.0.1:9300");
-        settingsBuilder.put("cluster.name", "indexCreationOptions");
+        settingsBuilder.put("path.home", baseDir);
         NodeBuilder nodeBuilder = NodeBuilder.nodeBuilder().settings(settingsBuilder.build());
         nodeBuilder.client(true).data(false).local(false);
         Node n = nodeBuilder.build().start();

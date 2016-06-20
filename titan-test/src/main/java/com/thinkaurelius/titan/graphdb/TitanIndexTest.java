@@ -63,6 +63,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 
 import static com.thinkaurelius.titan.graphdb.TitanGraphTest.evaluateQuery;
 import static com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfiguration.*;
@@ -199,6 +200,10 @@ public abstract class TitanIndexTest extends TitanGraphBaseTest {
         createExternalVertexIndex(location, INDEX);
         createExternalEdgeIndex(location, INDEX);
 
+        PropertyKey boundary = makeKey("boundary", Geoshape.class);
+        mgmt.addIndexKey(getExternalIndex(Vertex.class,INDEX),boundary, Parameter.of("mapping", Mapping.PREFIX_TREE), Parameter.of("index-geo-dist-error-pct", 0.0025));
+        mgmt.addIndexKey(getExternalIndex(Edge.class,INDEX),boundary, Parameter.of("mapping", Mapping.PREFIX_TREE), Parameter.of("index-geo-dist-error-pct", 0.0025));
+
         PropertyKey time = makeKey("time", Long.class);
         createExternalVertexIndex(time, INDEX);
         createExternalEdgeIndex(time, INDEX);
@@ -212,7 +217,7 @@ public abstract class TitanIndexTest extends TitanGraphBaseTest {
         createExternalEdgeIndex(group, INDEX);
 
         PropertyKey id = makeVertexIndexedKey("uid", Integer.class);
-        EdgeLabel knows = ((StandardEdgeLabelMaker) mgmt.makeEdgeLabel("knows")).sortKey(time).signature(location).make();
+        EdgeLabel knows = ((StandardEdgeLabelMaker) mgmt.makeEdgeLabel("knows")).sortKey(time).signature(location,boundary).make();
         finishSchema();
 
         clopen();
@@ -231,13 +236,22 @@ public abstract class TitanIndexTest extends TitanGraphBaseTest {
             v.property(VertexProperty.Cardinality.single, "time", i);
             offset = (i % 2 == 0 ? 1 : -1) * (i * 50.0 / numV);
             v.property(VertexProperty.Cardinality.single, "location", Geoshape.point(0.0 + offset, 0.0 + offset));
-
+            if (i % 2 == 0) {
+                v.property(VertexProperty.Cardinality.single, "boundary", Geoshape.line(offset-0.1, offset-0.1, offset+0.1, offset-0.1, offset+0.1, offset+0.1, offset-0.1, offset+0.1));
+            } else {
+                v.property(VertexProperty.Cardinality.single, "boundary", Geoshape.polygon(offset-0.1, offset-0.1, offset+0.1, offset-0.1, offset+0.1, offset+0.1, offset-0.1, offset+0.1, offset-0.1, offset-0.1));
+            }
             Edge e = v.addEdge("knows", getVertex("uid", Math.max(0, i - 1)));
             e.property("text", "Vertex " + words[i % words.length]);
             e.property("time", i);
             e.property("category", i % numCategories);
             e.property("group", i % numGroups);
             e.property("location", Geoshape.point(0.0 + offset, 0.0 + offset));
+            if (i % 2 == 0) {
+                e.property("boundary", Geoshape.line(offset-0.1, offset-0.1, offset+0.1, offset-0.1, offset+0.1, offset+0.1, offset-0.1, offset+0.1));
+            } else {
+                e.property("boundary", Geoshape.polygon(offset-0.1, offset-0.1, offset+0.1, offset-0.1, offset+0.1, offset+0.1, offset-0.1, offset+0.1, offset-0.1, offset-0.1));
+            }
         }
 
         for (int i = 0; i < words.length; i++) {
@@ -266,11 +280,8 @@ public abstract class TitanIndexTest extends TitanGraphBaseTest {
             assertCount(i, tx.query().has("time", Cmp.GREATER_THAN_EQUAL, i).has("time", Cmp.LESS_THAN, i + i).edges());
         }
 
-        for (int i = 0; i < numV; i += 10) {
-            offset = (i * 50.0 / originalNumV);
-            distance = Geoshape.point(0.0, 0.0).getPoint().distance(Geoshape.point(offset, offset).getPoint()) + 20;
-            assertCount(i + 1, tx.query().has("location", Geo.WITHIN, Geoshape.circle(0.0, 0.0, distance)).vertices());
-            assertCount(i + 1, tx.query().has("location", Geo.WITHIN, Geoshape.circle(0.0, 0.0, distance)).edges());
+        for (int i = 0; i < numV; i += 5) {
+            testGeo(i, originalNumV, numV, "location", "boundary");
         }
 
         //Queries combining mixed and composite indexes
@@ -281,6 +292,7 @@ public abstract class TitanIndexTest extends TitanGraphBaseTest {
         offset = (19 * 50.0 / originalNumV);
         distance = Geoshape.point(0.0, 0.0).getPoint().distance(Geoshape.point(offset, offset).getPoint()) + 20;
         assertCount(5, tx.query().has("location", Geo.INTERSECT, Geoshape.circle(0.0, 0.0, distance)).has("text", Text.CONTAINS, words[0]).vertices());
+        assertCount(5, tx.query().has("boundary", Geo.INTERSECT, Geoshape.circle(0.0, 0.0, distance)).has("text", Text.CONTAINS, words[0]).vertices());
 
         assertCount(numV, tx.query().vertices());
         assertCount(numV, tx.query().edges());
@@ -319,11 +331,8 @@ public abstract class TitanIndexTest extends TitanGraphBaseTest {
             assertCount(i, tx.query().has("time", Cmp.GREATER_THAN_EQUAL, i).has("time", Cmp.LESS_THAN, i + i).edges());
         }
 
-        for (int i = 0; i < numV; i += 10) {
-            offset = (i * 50.0 / originalNumV);
-            distance = Geoshape.point(0.0, 0.0).getPoint().distance(Geoshape.point(offset, offset).getPoint()) + 20;
-            assertCount(i + 1, tx.query().has("location", Geo.WITHIN, Geoshape.circle(0.0, 0.0, distance)).vertices());
-            assertCount(i + 1, tx.query().has("location", Geo.WITHIN, Geoshape.circle(0.0, 0.0, distance)).edges());
+        for (int i = 0; i < numV; i += 5) {
+            testGeo(i, originalNumV, numV, "location", "boundary");
         }
 
         //Queries combining mixed and composite indexes
@@ -334,6 +343,7 @@ public abstract class TitanIndexTest extends TitanGraphBaseTest {
         offset = (19 * 50.0 / originalNumV);
         distance = Geoshape.point(0.0, 0.0).getPoint().distance(Geoshape.point(offset, offset).getPoint()) + 20;
         assertCount(5, tx.query().has("location", Geo.INTERSECT, Geoshape.circle(0.0, 0.0, distance)).has("text", Text.CONTAINS, words[0]).vertices());
+        assertCount(5, tx.query().has("boundary", Geo.INTERSECT, Geoshape.circle(0.0, 0.0, distance)).has("text", Text.CONTAINS, words[0]).vertices());
 
         assertCount(numV, tx.query().vertices());
         assertCount(numV, tx.query().edges());
@@ -358,17 +368,15 @@ public abstract class TitanIndexTest extends TitanGraphBaseTest {
             assertCount(i, tx.query().has("time", Cmp.GREATER_THAN_EQUAL, i).has("time", Cmp.LESS_THAN, i + i).edges());
         }
 
-        for (int i = 0; i < numV; i += 10) {
-            offset = (i * 50.0 / originalNumV);
-            distance = Geoshape.point(0.0, 0.0).getPoint().distance(Geoshape.point(offset, offset).getPoint()) + 20;
-            assertCount(i + 1, tx.query().has("location", Geo.WITHIN, Geoshape.circle(0.0, 0.0, distance)).vertices());
-            assertCount(i + 1, tx.query().has("location", Geo.WITHIN, Geoshape.circle(0.0, 0.0, distance)).edges());
+        for (int i = 0; i < numV; i += 5) {
+            testGeo(i, originalNumV, numV, "location", "boundary");
         }
 
         assertCount(5, tx.query().has("time", Cmp.GREATER_THAN_EQUAL, 10).has("time", Cmp.LESS_THAN, 30).has("text", Text.CONTAINS, words[0]).vertices());
         offset = (19 * 50.0 / originalNumV);
         distance = Geoshape.point(0.0, 0.0).getPoint().distance(Geoshape.point(offset, offset).getPoint()) + 20;
         assertCount(5, tx.query().has("location", Geo.INTERSECT, Geoshape.circle(0.0, 0.0, distance)).has("text", Text.CONTAINS, words[0]).vertices());
+        assertCount(5, tx.query().has("boundary", Geo.INTERSECT, Geoshape.circle(0.0, 0.0, distance)).has("text", Text.CONTAINS, words[0]).vertices());
 
         assertCount(numV, tx.query().vertices());
         assertCount(numV, tx.query().edges());
@@ -1667,15 +1675,15 @@ public abstract class TitanIndexTest extends TitanGraphBaseTest {
             PropertyKey intProperty = mgmt.makePropertyKey("age").dataType(Integer.class).cardinality(cardinality).make();
             PropertyKey longProperty = mgmt.makePropertyKey("long").dataType(Long.class).cardinality(cardinality).make();
             PropertyKey uuidProperty = mgmt.makePropertyKey("uuid").dataType(UUID.class).cardinality(cardinality).make();
-            PropertyKey geoProperty = mgmt.makePropertyKey("geo").dataType(Geoshape.class).cardinality(cardinality).make();
-            mgmt.buildIndex("collectionIndex", Vertex.class).addKey(stringProperty, getStringMapping()).addKey(intProperty).addKey(longProperty).addKey(uuidProperty).addKey(geoProperty).buildMixedIndex(INDEX);
+            PropertyKey geopointProperty = mgmt.makePropertyKey("geopoint").dataType(Geoshape.class).cardinality(cardinality).make();
+            mgmt.buildIndex("collectionIndex", Vertex.class).addKey(stringProperty, getStringMapping()).addKey(intProperty).addKey(longProperty).addKey(uuidProperty).addKey(geopointProperty).buildMixedIndex(INDEX);
 
             finishSchema();
             testCollection(cardinality, "name", "Totoro", "Hiro");
             testCollection(cardinality, "age", 1, 2);
             testCollection(cardinality, "long", 1L, 2L);
             testCollection(cardinality, "uuid", UUID.randomUUID(), UUID.randomUUID());
-            testCollection(cardinality, "geo", Geoshape.point(1.0, 1.0), Geoshape.point(2.0, 2.0));
+            testCollection(cardinality, "geopoint", Geoshape.point(1.0, 1.0), Geoshape.point(2.0, 2.0));
         } else {
             try {
                 PropertyKey stringProperty = mgmt.makePropertyKey("name").dataType(String.class).cardinality(cardinality).make();
@@ -1759,6 +1767,61 @@ public abstract class TitanIndexTest extends TitanGraphBaseTest {
         }
 
 
+    }
+
+    private void testGeo(int i, int origNumV, int numV, String geoPointProperty, String geoShapeProperty) {
+        double offset = (i * 50.0 / origNumV);
+        double bufferKm = 20;
+        double distance = Geoshape.point(0.0, 0.0).getPoint().distance(Geoshape.point(offset, offset).getPoint()) + bufferKm;
+
+        assertCount(i + 1, tx.query().has(geoPointProperty, Geo.WITHIN, Geoshape.circle(0.0, 0.0, distance)).vertices());
+        assertCount(i + 1, tx.query().has(geoPointProperty, Geo.WITHIN, Geoshape.circle(0.0, 0.0, distance)).edges());
+        assertCount(i + 1, tx.query().has(geoPointProperty, Geo.INTERSECT, Geoshape.circle(0.0, 0.0, distance)).vertices());
+        assertCount(i + 1, tx.query().has(geoPointProperty, Geo.INTERSECT, Geoshape.circle(0.0, 0.0, distance)).edges());
+        assertCount(numV-(i + 1), tx.query().has(geoPointProperty, Geo.DISJOINT, Geoshape.circle(0.0, 0.0, distance)).vertices());
+        assertCount(numV-(i + 1), tx.query().has(geoPointProperty, Geo.DISJOINT, Geoshape.circle(0.0, 0.0, distance)).edges());
+        assertCount(i + 1, tx.query().has(geoShapeProperty, Geo.INTERSECT, Geoshape.circle(0.0, 0.0, distance)).vertices());
+        assertCount(i + 1, tx.query().has(geoShapeProperty, Geo.INTERSECT, Geoshape.circle(0.0, 0.0, distance)).edges());
+        if (i > 0) {
+            assertCount(i, tx.query().has(geoShapeProperty, Geo.WITHIN, Geoshape.circle(0.0, 0.0, distance-bufferKm)).vertices());
+            assertCount(i, tx.query().has(geoShapeProperty, Geo.WITHIN, Geoshape.circle(0.0, 0.0, distance-bufferKm)).edges());
+        }
+        assertCount(numV-(i + 1), tx.query().has(geoShapeProperty, Geo.DISJOINT, Geoshape.circle(0.0, 0.0, distance)).vertices());
+        assertCount(numV-(i + 1), tx.query().has(geoShapeProperty, Geo.DISJOINT, Geoshape.circle(0.0, 0.0, distance)).edges());
+
+        assertCount(i % 2, tx.query().has(geoShapeProperty, Geo.CONTAINS, Geoshape.point(-offset,-offset)).vertices());
+        assertCount(i % 2, tx.query().has(geoShapeProperty, Geo.CONTAINS, Geoshape.point(-offset,-offset)).edges());
+
+        double buffer = bufferKm/111.;
+        double min = -Math.abs(offset);
+        double max = Math.abs(offset);
+        Geoshape bufferedBox = Geoshape.box(min-buffer, min-buffer, max+buffer, max+buffer);
+        assertCount(i + 1, tx.query().has(geoPointProperty, Geo.WITHIN, bufferedBox).vertices());
+        assertCount(i + 1, tx.query().has(geoPointProperty, Geo.WITHIN, bufferedBox).edges());
+        assertCount(i + 1, tx.query().has(geoPointProperty, Geo.INTERSECT, bufferedBox).vertices());
+        assertCount(i + 1, tx.query().has(geoPointProperty, Geo.INTERSECT, bufferedBox).edges());
+        assertCount(numV-(i + 1), tx.query().has(geoPointProperty, Geo.DISJOINT, bufferedBox).vertices());
+        assertCount(numV-(i + 1), tx.query().has(geoPointProperty, Geo.DISJOINT, bufferedBox).edges());
+        if (i > 0) {
+            Geoshape exactBox = Geoshape.box(min, min, max, max);
+            assertCount(i, tx.query().has(geoShapeProperty, Geo.WITHIN, exactBox).vertices());
+            assertCount(i, tx.query().has(geoShapeProperty, Geo.WITHIN, exactBox).edges());
+        }
+        assertCount(i + 1, tx.query().has(geoShapeProperty, Geo.INTERSECT, bufferedBox).vertices());
+        assertCount(i + 1, tx.query().has(geoShapeProperty, Geo.INTERSECT, bufferedBox).edges());
+        assertCount(numV-(i + 1), tx.query().has(geoShapeProperty, Geo.DISJOINT, bufferedBox).vertices());
+        assertCount(numV-(i + 1), tx.query().has(geoShapeProperty, Geo.DISJOINT, bufferedBox).edges());
+
+        Geoshape bufferedPoly = Geoshape.polygon(min-buffer, min-buffer, max+buffer, min-buffer, max+buffer, max+buffer, min-buffer, max+buffer, min-buffer, min-buffer);
+        if (i > 0) {
+            Geoshape exactPoly = Geoshape.polygon(min, min, max, min, max, max, min, max, min, min);
+            assertCount(i, tx.query().has(geoShapeProperty, Geo.WITHIN, exactPoly).vertices());
+            assertCount(i, tx.query().has(geoShapeProperty, Geo.WITHIN, exactPoly).edges());
+        }
+        assertCount(i + 1, tx.query().has(geoShapeProperty, Geo.INTERSECT, bufferedPoly).vertices());
+        assertCount(i + 1, tx.query().has(geoShapeProperty, Geo.INTERSECT, bufferedPoly).edges());
+        assertCount(numV-(i + 1), tx.query().has(geoShapeProperty, Geo.DISJOINT, bufferedPoly).vertices());
+        assertCount(numV-(i + 1), tx.query().has(geoShapeProperty, Geo.DISJOINT, bufferedPoly).edges());
     }
 
 }
