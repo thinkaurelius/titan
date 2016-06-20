@@ -4,7 +4,7 @@
     <parent>
         <groupId>com.thinkaurelius.titan</groupId>
         <artifactId>titan</artifactId>
-        <version>1.1.0-SNAPSHOT</version>
+        <version>1.1.0g-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
     <artifactId>titan-es</artifactId>
@@ -209,7 +209,7 @@
                             <includeGroupIds>org.elasticsearch.module</includeGroupIds>
                             <excludeTransitive>true</excludeTransitive>
                             <excludeTypes>pom</excludeTypes>
-                            <excludes>groovy*.jar</excludes>excludes>
+                            <excludes>groovy*.jar</excludes>excludes&gt;
                             <scope>test</scope>
                         </configuration>
                     </execution>

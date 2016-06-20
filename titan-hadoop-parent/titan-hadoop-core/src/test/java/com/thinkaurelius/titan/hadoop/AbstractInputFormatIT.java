@@ -2,27 +2,25 @@ package com.thinkaurelius.titan.hadoop;
 
 import com.thinkaurelius.titan.core.Cardinality;
 import com.thinkaurelius.titan.core.TitanVertex;
-import com.thinkaurelius.titan.diskstorage.configuration.WriteConfiguration;
 import com.thinkaurelius.titan.example.GraphOfTheGodsFactory;
 import com.thinkaurelius.titan.graphdb.TitanGraphBaseTest;
 import org.apache.commons.configuration.ConfigurationException;
+import org.apache.commons.io.FileUtils;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.spark.process.computer.SparkGraphComputer;
 import org.apache.tinkerpop.gremlin.structure.Direction;
-import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
-import org.apache.tinkerpop.gremlin.structure.util.GraphFactory;
+import org.junit.Before;
 import org.junit.Test;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import com.google.common.collect.Iterators;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
 import static org.junit.Assert.assertEquals;
@@ -31,6 +29,10 @@ import static org.junit.Assert.assertTrue;
 
 public abstract class AbstractInputFormatIT extends TitanGraphBaseTest {
 
+    @Before
+    public void setup() throws IOException {
+        FileUtils.deleteDirectory(new File("output"));
+    }
 
     @Test
     public void testReadGraphOfTheGods() throws Exception {
