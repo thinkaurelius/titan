@@ -1170,11 +1170,6 @@
             <dependencyManagement>
                 <dependencies>
                     <dependency>
-                        <groupId>org.apache.curator</groupId>
-                        <artifactId>curator-recipes</artifactId>
-                        <version>${hadoop2.version}</version>
-                    </dependency>
-                    <dependency>
                         <groupId>org.apache.hadoop</groupId>
                         <artifactId>hadoop-annotations</artifactId>
                         <version>${hadoop2.version}</version>

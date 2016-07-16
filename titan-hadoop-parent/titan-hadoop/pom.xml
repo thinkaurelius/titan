@@ -19,37 +19,19 @@
         <dependency>
             <groupId>${project.groupId}</groupId>
             <artifactId>titan-hadoop-core</artifactId>
-            <version>${project.version}</version>
-	    <exclusions>
-	        <exclusion>
-		    <groupId>org.apache.curator</groupId>
-		    <artifactId>curator-recipes</artifactId>
-	        </exclusion>
-	    </exclusions>	    	    
+            <version>${project.version}</version>	    	    
             <optional>true</optional>
         </dependency>
         <dependency>
             <groupId>${project.groupId}</groupId>
             <artifactId>titan-hadoop-1</artifactId>
             <version>${project.version}</version>
-	    <exclusions>
-	        <exclusion>
-		    <groupId>org.apache.curator</groupId>
-		    <artifactId>curator-recipes</artifactId>
-	        </exclusion>
-	    </exclusions>	    	    	    
             <optional>true</optional>
         </dependency>
         <dependency>
             <groupId>${project.groupId}</groupId>
             <artifactId>titan-hadoop-2</artifactId>
             <version>${project.version}</version>
-	    <exclusions>
-	        <exclusion>
-		    <groupId>org.apache.curator</groupId>
-		    <artifactId>curator-recipes</artifactId>
-	        </exclusion>
-	    </exclusions>	    	    	    
             <optional>true</optional>
         </dependency>
     </dependencies>
@@ -63,12 +45,6 @@
                     <groupId>${project.groupId}</groupId>
                     <artifactId>titan-hadoop-core</artifactId>
                     <version>${project.version}</version>
-		    <exclusions>
-	              <exclusion>
-			<groupId>org.apache.curator</groupId>
-			<artifactId>curator-recipes</artifactId>
-	              </exclusion>
-		    </exclusions>	    		    
                     <classifier>sources</classifier>
                     <optional>true</optional>
                 </dependency>
