@@ -66,7 +66,6 @@ public final class RelationIdentifier implements Serializable {
     }
 
     public long getInVertexId() {
-        Preconditions.checkState(inVertexId != 0);
         return inVertexId;
     }
 
