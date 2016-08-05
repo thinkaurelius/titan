@@ -142,6 +142,7 @@ import static com.thinkaurelius.titan.graphdb.internal.RelationCategory.*;
 import static com.thinkaurelius.titan.testutil.TitanAssert.*;
 import static org.apache.tinkerpop.gremlin.process.traversal.Order.decr;
 import static org.apache.tinkerpop.gremlin.process.traversal.Order.incr;
+import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.out;
 import static org.apache.tinkerpop.gremlin.structure.Direction.*;
 import static org.apache.tinkerpop.gremlin.structure.VertexProperty.Cardinality.single;
 import static org.junit.Assert.*;
@@ -3448,6 +3449,14 @@ public abstract class TitanGraphTest extends TitanGraphBaseTest {
         metrics = (TraversalMetrics) t.asAdmin().getSideEffects().get("~metrics").get();
         verifyMetrics(metrics.getMetrics(0), true, false);
         verifyMetrics(metrics.getMetrics(1), true, true);
+
+        //Verify that repeat works with multi query
+        t = gts.V().has("id", sid).emit().repeat(out("knows")).profile();
+        assertCount(superV, t);
+        metrics = (TraversalMetrics) t.asAdmin().getSideEffects().get("~metrics").get();
+        verifyMetrics(metrics.getMetrics(0), true, false);
+        /* TODO: this fails because the nested metrics under repeat have empty annotations
+        verifyMetrics(metrics.getMetrics(1), true, true); */
 
         clopen(option(USE_MULTIQUERY), true);
         gts = graph.traversal();
