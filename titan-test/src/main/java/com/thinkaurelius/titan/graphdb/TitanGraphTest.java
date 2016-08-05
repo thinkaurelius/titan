@@ -39,6 +39,7 @@ import com.thinkaurelius.titan.graphdb.internal.ElementCategory;
 import com.thinkaurelius.titan.graphdb.internal.InternalRelationType;
 import com.thinkaurelius.titan.graphdb.internal.OrderList;
 import com.thinkaurelius.titan.graphdb.internal.RelationCategory;
+import com.thinkaurelius.titan.graphdb.internal.Token;
 
 import static com.thinkaurelius.titan.graphdb.internal.RelationCategory.*;
 
@@ -1626,13 +1627,13 @@ public abstract class TitanGraphTest extends TitanGraphBaseTest {
         assertEquals(BaseVertexLabel.DEFAULT_VERTEXLABEL.getName(),v.getProperty("label"));
         assertEquals(1,v.query().labels("knows").direction(BOTH).has("id",eid).count());
         assertEquals(0,v.query().labels("knows").direction(BOTH).has("id",RelationIdentifier.get(new long[]{4,5,6,7})).count());
-        assertEquals(1,v.query().labels("knows").direction(BOTH).has("$titanid",eid.getRelationId()).count());
-        assertEquals(0,v.query().labels("knows").direction(BOTH).has("$titanid",110111).count());
-        assertEquals(1,v.query().has("$adjacent",u.getLongId()).count());
-        assertEquals(1,v.query().has("$adjacent",(int)u.getLongId()).count());
+        assertEquals(1,v.query().labels("knows").direction(BOTH).has(String.valueOf(Token.SPECIAL_TYPE_CHAR) + "titanid",eid.getRelationId()).count());
+        assertEquals(0,v.query().labels("knows").direction(BOTH).has(String.valueOf(Token.SPECIAL_TYPE_CHAR) + "titanid",110111).count());
+        assertEquals(1,v.query().has(String.valueOf(Token.SPECIAL_TYPE_CHAR) + "adjacent",u.getLongId()).count());
+        assertEquals(1,v.query().has(String.valueOf(Token.SPECIAL_TYPE_CHAR) + "adjacent",(int)u.getLongId()).count());
         try {
             //Not a valid vertex
-             assertEquals(0,v.query().has("$adjacent",110111).count());
+             assertEquals(0,v.query().has(String.valueOf(Token.SPECIAL_TYPE_CHAR) + "adjacent",110111).count());
             fail();
         } catch (IllegalArgumentException ex) {}
         assertNotNull(graph.getEdge(eid));
@@ -4931,7 +4932,7 @@ public abstract class TitanGraphTest extends TitanGraphBaseTest {
 
         clopen(option(GraphDatabaseConfiguration.STORE_META_TTL, "edgestore"), true);
 
-        assertEquals("$ttl", ImplicitKey.TTL.getName());
+        assertEquals(String.valueOf(Token.SPECIAL_TYPE_CHAR) + "ttl", ImplicitKey.TTL.getName());
 
         int ttl = 24*60*60;
         EdgeLabel likes = mgmt.makeEdgeLabel("likes").make();
@@ -4948,23 +4949,23 @@ public abstract class TitanGraphTest extends TitanGraphBaseTest {
         graph.commit();
 
         // read from the edge created in this transaction
-        d = e1.getProperty("$ttl");
+        d = e1.getProperty(String.valueOf(Token.SPECIAL_TYPE_CHAR) + "ttl");
         assertEquals(86400, d.getLength(TimeUnit.SECONDS));
 
         // get the edge via a vertex
         e1 = v1.getEdges(Direction.OUT, "likes").iterator().next();
-        d = e1.getProperty("$ttl");
+        d = e1.getProperty(String.valueOf(Token.SPECIAL_TYPE_CHAR) + "ttl");
         assertEquals(86400, d.getLength(TimeUnit.SECONDS));
 
-        // returned value of $ttl is the total time to live since commit, not remaining time
+        // returned value of Token.SPECIAL_TYPE_CHAR + ttl is the total time to live since commit, not remaining time
         Thread.sleep(1001);
         graph.rollback();
         e1 = v1.getEdges(Direction.OUT, "likes").iterator().next();
-        d = e1.getProperty("$ttl");
+        d = e1.getProperty(String.valueOf(Token.SPECIAL_TYPE_CHAR) + "ttl");
         assertEquals(86400, d.getLength(TimeUnit.SECONDS));
 
         // no ttl on edges of this label
-        d = e2.getProperty("$ttl");
+        d = e2.getProperty(String.valueOf(Token.SPECIAL_TYPE_CHAR) + "ttl");
         assertEquals(0, d.getLength(TimeUnit.SECONDS));
     }
 
@@ -5000,9 +5001,9 @@ public abstract class TitanGraphTest extends TitanGraphBaseTest {
         v1 = graph.getVertex(v1id);
         v2 = graph.getVertex(v2id);
 
-        d = v1.getProperty("$ttl");
+        d = v1.getProperty(String.valueOf(Token.SPECIAL_TYPE_CHAR) + "ttl");
         assertEquals(1, d.getLength(TimeUnit.SECONDS));
-        d = v2.getProperty("$ttl");
+        d = v2.getProperty(String.valueOf(Token.SPECIAL_TYPE_CHAR) + "ttl");
         assertEquals(0, d.getLength(TimeUnit.SECONDS));
     }
 }
