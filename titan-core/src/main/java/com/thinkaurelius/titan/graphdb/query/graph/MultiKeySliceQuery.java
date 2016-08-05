@@ -1,6 +1,7 @@
 package com.thinkaurelius.titan.graphdb.query.graph;
 
 import com.google.common.base.Preconditions;
+import com.thinkaurelius.titan.core.Cardinality;
 import com.thinkaurelius.titan.diskstorage.BackendTransaction;
 import com.thinkaurelius.titan.diskstorage.EntryList;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.KeySliceQuery;
@@ -30,13 +31,15 @@ public class MultiKeySliceQuery extends BaseQuery implements BackendQuery<MultiK
         return newQuery;
     }
 
-    public List<EntryList> execute(final BackendTransaction tx) {
+    public List<EntryList> execute(final BackendTransaction tx, Cardinality indexCardinality) {
         int total = 0;
         List<EntryList> result = new ArrayList<EntryList>(4);
         for (KeySliceQuery ksq : queries) {
             EntryList next =tx.indexQuery(ksq.updateLimit(getLimit()-total));
+            int nextSize = next.size();
             result.add(next);
-            total+=next.size();
+            Preconditions.checkArgument(indexCardinality != Cardinality.SINGLE || nextSize <= 1);
+            total+=nextSize;
             if (total>=getLimit()) break;
         }
         return result;

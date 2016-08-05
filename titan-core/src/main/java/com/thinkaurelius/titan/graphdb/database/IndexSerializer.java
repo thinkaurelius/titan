@@ -507,7 +507,7 @@ public class IndexSerializer {
         IndexType index = query.getIndex();
         if (index.isCompositeIndex()) {
             MultiKeySliceQuery sq = query.getCompositeQuery();
-            List<EntryList> rs = sq.execute(tx);
+            List<EntryList> rs = sq.execute(tx, ((CompositeIndexType)index).getCardinality());
             List<Object> results = new ArrayList<Object>(rs.get(0).size());
             for (EntryList r : rs) {
                 for (java.util.Iterator<Entry> iterator = r.reuseIterator(); iterator.hasNext(); ) {
