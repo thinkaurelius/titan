@@ -345,7 +345,7 @@ public class ConsistentKeyIDAuthority extends AbstractIDAuthority implements Bac
             }
         }
 
-        throw new TemporaryLockingException(String.format("Reached timeout %d (%s elapsed) when attempting to allocate id block on partition(%d)-namespace(%d)",
+        throw new TemporaryLockingException(String.format("Reached timeout %s (%s elapsed) when attempting to allocate id block on partition(%d)-namespace(%d)",
                 timeout, methodTime.toString(), partition, idNamespace));
     }
 
