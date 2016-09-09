@@ -1,0 +1,27 @@
+sudo: false
+language: java
+jdk:
+- oraclejdk8
+cache:
+  directories:
+  - "$HOME/.m2"
+matrix:
+  - env: MODULES="titan-test"
+  - env: MODULES="titan-berkeleyje"
+  - env: MODULES="titan-es,titan-solr,titan-lucene"
+  - env: MODULES="titan-hadoop-parent"
+install: "mvn install -DskipTests=true"
+script: "mvn verify -pl $MODULES"
+before_deploy:
+  - mvn package -DskipTests -Dgpg.skip=true -Paurelius-release
+  - export TITAN_DIST_ZIP="$(ls titan-dist/titan-dist-hadoop-2/target/titan-*-hadoop2.zip)"
+  - echo "Deploying $TITAN_DIST_ZIP to GitHub releases"
+deploy:
+  provider: releases
+  api_key:
+    secure: UiMZusRpTSbs3BQWZxououT1VPj8LzUN4UYH8H+PcPdEEZfx/lDNCxlaj1YG8eVCflJL1TItPdU8jIEU435weP4v3cnSyUjq/3Oc4ey9CK/iuphoqvkqfCgRxpVsj9wuZkJqLobi9+9JFLz6NziCnX9ME5WxRgMPlfRU2jot/GM=
+  file_glob: true
+  skip_cleanup: true
+  file: "$PLUGIN_FILE"
+  on:
+    tags: true
