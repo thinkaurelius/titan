@@ -71,6 +71,19 @@
                 </exclusion>
             </exclusions>
         </dependency>
+        <!-- Logging backends.
+             Enforce a classpath ordering constraint to ensure log4j is used for logging.
+             See comment in titan-cassandra POM for more information. -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-log4j12</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <version>1.1.2</version>
+        </dependency>
+        <!-- End logging backends. -->
     </dependencies>
     <build>
         <resources>
