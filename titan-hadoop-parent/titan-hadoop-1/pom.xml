@@ -13,7 +13,7 @@
     <properties>
         <top.level.basedir>${basedir}/../..</top.level.basedir>
         <!-- Hadoop1 tests are no longer supported. Skip by default. -->
-        <skipCassandra>true</skipCassandra>
+        <maven.test.skip>true</maven.test.skip>
     </properties>
 
     <dependencies>

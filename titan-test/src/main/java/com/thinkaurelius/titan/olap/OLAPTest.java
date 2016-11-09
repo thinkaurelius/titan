@@ -8,11 +8,13 @@ import com.thinkaurelius.titan.diskstorage.keycolumnvalue.scan.ScanJob;
 import com.thinkaurelius.titan.diskstorage.keycolumnvalue.scan.ScanMetrics;
 import com.thinkaurelius.titan.graphdb.TitanGraphBaseTest;
 import com.thinkaurelius.titan.graphdb.olap.*;
+import com.thinkaurelius.titan.graphdb.olap.computer.FulgoraGraphComputer;
 import com.thinkaurelius.titan.graphdb.olap.job.GhostVertexRemover;
 import org.apache.tinkerpop.gremlin.process.computer.*;
 import org.apache.tinkerpop.gremlin.process.computer.util.StaticMapReduce;
 import org.apache.tinkerpop.gremlin.process.computer.util.StaticVertexProgram;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
+import org.apache.tinkerpop.gremlin.process.traversal.Operator;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
@@ -186,7 +188,7 @@ public abstract class OLAPTest extends TitanGraphBaseTest {
 
     @Test
     public void testBasicComputeJob() throws Exception {
-        GraphTraversalSource g = graph.traversal(GraphTraversalSource.computer());
+        GraphTraversalSource g = graph.traversal().withComputer(FulgoraGraphComputer.class);
         System.out.println(g.V().count().next());
     }
 
@@ -273,7 +275,7 @@ public abstract class OLAPTest extends TitanGraphBaseTest {
             }
             if (mode== TitanGraphComputer.ResultMode.LOCALTX) {
                 assertTrue(gview instanceof TitanTransaction);
-                ((TitanTransaction)gview).rollback();
+                ((TitanTransaction) gview).rollback();
             }
         }
     }
@@ -370,8 +372,13 @@ public abstract class OLAPTest extends TitanGraphBaseTest {
         }
 
         @Override
-        public Set<String> getElementComputeKeys() {
-            return ImmutableSet.of(DEGREE);
+        public Set<VertexComputeKey> getVertexComputeKeys() {
+            return new HashSet<>(Arrays.asList(VertexComputeKey.of(DEGREE, false)));
+        }
+
+        @Override
+        public Set<MemoryComputeKey> getMemoryComputeKeys() {
+            return new HashSet<>(Arrays.asList(MemoryComputeKey.of(DEGREE, Operator.assign, true, false)));
         }
 
         @Override
