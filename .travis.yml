@@ -8,7 +8,6 @@ cache:
 env:
   matrix:
   - MODULES='titan-test'
-  - MODULES='titan-berkeleyje'
   #- MODULES='titan-es' ARGS="-DthreadCount=1"
   - MODULES='titan-solr' ARGS="-DthreadCount=1"
   - MODULES='titan-lucene' ARGS="-DthreadCount=1"
