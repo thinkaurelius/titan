@@ -7,7 +7,7 @@
     </parent>
     <groupId>com.thinkaurelius.titan</groupId>
     <artifactId>titan</artifactId>
-    <version>1.2.0g</version>
+    <version>1.2.1g-SNAPSHOT</version>
     <packaging>pom</packaging>
     <prerequisites>
         <maven>2.2.1</maven>
@@ -60,7 +60,7 @@
         <connection>scm:git:git@github.com:thinkaurelius/titan.git</connection>
         <developerConnection>scm:git:git@github.com:thinkaurelius/titan.git</developerConnection>
         <url>git@github.com:thinkaurelius/titan.git</url>
-        <tag>1.2.0g-UNOFFICIAL</tag>
+        <tag>HEAD</tag>
     </scm>
     <properties>
         <titan.compatible.versions />
