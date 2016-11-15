@@ -5,9 +5,21 @@
 	     src="https://travis-ci.org/ngageoint/titan.svg?branch=master"/>
 </a>
 
-## About this Branch
+## About
 
-This branch is a fork of [Titan](https://github.com/thinkaurelius/titan), currently based on the `titan11` branch. See Titan [project](http://titandb.io/) and [GitHub](https://github.com/thinkaurelius/titan) pages for more information.
+This is a fork of [Titan](https://github.com/thinkaurelius/titan), currently based on the `titan11` branch.
+
+## Downloads
+
+Binaries are available for download on the [GitHub Releases](https://github.com/ngageoint/titan/releases) page. Note only `hadoop2` binaries are provided.
+
+## Documentation
+
+Original documentation is available on Titan [project](http://titandb.io/) and [GitHub](https://github.com/thinkaurelius/titan) pages. Updated documentation for this fork must currently be built from source (see `titan-doc/target/docs/chunk/index.html`).
+
+```bash
+mvn clean install -pl titan-doc
+```
 
 ## Contributing
 
