@@ -16,6 +16,8 @@ import org.apache.tinkerpop.gremlin.structure.io.graphson.GraphSONMapper;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import org.apache.tinkerpop.gremlin.structure.io.graphson.GraphSONVersion;
+import org.apache.tinkerpop.gremlin.structure.io.graphson.TypeInfo;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -42,13 +44,23 @@ public abstract class TitanIoTest extends TitanGraphBaseTest {
     }
 
     @Test
-    public void testSerializationReadWriteAsGraphSONEmbedded() throws Exception {
-        testSerializationReadWriteAsGraphSONEmbedded(null);
-        testSerializationReadWriteAsGraphSONEmbedded(makeLine);
-        testSerializationReadWriteAsGraphSONEmbedded(makePoly);
-        testSerializationReadWriteAsGraphSONEmbedded(makeMultiPoint);
-        testSerializationReadWriteAsGraphSONEmbedded(makeMultiLine);
-        testSerializationReadWriteAsGraphSONEmbedded(makeMultiPolygon);
+    public void testSerializationReadWriteAsGraphSONVersion1Embedded() throws Exception {
+        testSerializationReadWriteAsGraphSONEmbedded(null, GraphSONVersion.V1_0);
+        testSerializationReadWriteAsGraphSONEmbedded(makeLine, GraphSONVersion.V1_0);
+        testSerializationReadWriteAsGraphSONEmbedded(makePoly, GraphSONVersion.V1_0);
+        testSerializationReadWriteAsGraphSONEmbedded(makeMultiPoint, GraphSONVersion.V1_0);
+        testSerializationReadWriteAsGraphSONEmbedded(makeMultiLine, GraphSONVersion.V1_0);
+        testSerializationReadWriteAsGraphSONEmbedded(makeMultiPolygon, GraphSONVersion.V1_0);
+    }
+
+    @Test
+    public void testSerializationReadWriteAsGraphSONVersion2Embedded() throws Exception {
+        testSerializationReadWriteAsGraphSONEmbedded(null, GraphSONVersion.V2_0);
+        testSerializationReadWriteAsGraphSONEmbedded(makeLine, GraphSONVersion.V2_0);
+        testSerializationReadWriteAsGraphSONEmbedded(makePoly, GraphSONVersion.V2_0);
+        testSerializationReadWriteAsGraphSONEmbedded(makeMultiPoint, GraphSONVersion.V2_0);
+        testSerializationReadWriteAsGraphSONEmbedded(makeMultiLine, GraphSONVersion.V2_0);
+        testSerializationReadWriteAsGraphSONEmbedded(makeMultiPolygon, GraphSONVersion.V2_0);
     }
 
     @Test
@@ -61,11 +73,11 @@ public abstract class TitanIoTest extends TitanGraphBaseTest {
         testSerializationReadWriteAsGryo(makeMultiPolygon);
     }
 
-    public void testSerializationReadWriteAsGraphSONEmbedded(Function<Geoshape,Geoshape> makeGeoshape) throws Exception {
+    public void testSerializationReadWriteAsGraphSONEmbedded(Function<Geoshape,Geoshape> makeGeoshape, GraphSONVersion version) throws Exception {
         if (makeGeoshape != null) {
             addGeoshape(makeGeoshape);
         }
-        GraphSONMapper m = graph.io(IoCore.graphson()).mapper().embedTypes(true).create();
+        GraphSONMapper m = graph.io(IoCore.graphson()).mapper().typeInfo(TypeInfo.PARTIAL_TYPES).version(version).create();
         GraphWriter writer = graph.io(IoCore.graphson()).writer().mapper(m).create();
         FileOutputStream fos = new FileOutputStream("/tmp/test.json");
         writer.writeGraph(fos, graph);

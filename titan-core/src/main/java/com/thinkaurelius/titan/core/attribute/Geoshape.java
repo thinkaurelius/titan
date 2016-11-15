@@ -708,17 +708,18 @@ public class Geoshape {
         public void serializeWithType(Geoshape geoshape, JsonGenerator jgen, SerializerProvider serializerProvider,
                                       TypeSerializer typeSerializer) throws IOException, JsonProcessingException {
 
+            typeSerializer.writeTypePrefixForScalar(geoshape, jgen);
             jgen.writeStartObject();
-            if (typeSerializer != null) jgen.writeStringField(GraphSONTokens.CLASS, Geoshape.class.getName());
             String geojson = toGeoJson(geoshape);
             Map json = new ObjectMapper().readValue(geojson, LinkedHashMap.class);
             if (geoshape.getType() == Type.POINT) {
-                double[] coords = ((List<Number>) json.get("coordinates")).stream().map(i -> i.doubleValue()).mapToDouble(i -> i).toArray();
-                GraphSONUtil.writeWithType(FIELD_COORDINATES, coords, jgen, serializerProvider, typeSerializer);
+                GraphSONUtil.writeWithType(FIELD_COORDINATES, (List) json.get("coordinates"), jgen, serializerProvider, typeSerializer);
             } else {
                 GraphSONUtil.writeWithType(FIELD_LABEL, json, jgen, serializerProvider, typeSerializer);
             }
+            jgen.writeStringField(GraphSONTokens.CLASS, HashMap.class.getName());
             jgen.writeEndObject();
+            typeSerializer.writeTypeSuffixForScalar(geoshape, jgen);
         }
 
         public static String toGeoJson(Geoshape geoshape) {
@@ -737,19 +738,17 @@ public class Geoshape {
         }
 
         @Override
-        public Geoshape deserialize(JsonParser jsonParser, DeserializationContext deserializationContext) throws IOException, JsonProcessingException {
+        public Geoshape deserialize(JsonParser jsonParser, DeserializationContext deserializationContext) throws IOException {
             jsonParser.nextToken();
-            if (jsonParser.getCurrentName().equals("coordinates")) {
-                double[] f = jsonParser.readValueAs(double[].class);
-                jsonParser.nextToken();
-                return Geoshape.point(f[1], f[0]);
+            final Map<String, Object> mapData = deserializationContext.readValue(jsonParser, Map.class);
+            if (mapData.containsKey(FIELD_COORDINATES)) {
+                List<Number> coords = (List<Number>) mapData.get(FIELD_COORDINATES);
+                return Geoshape.point(coords.get(1).doubleValue(), coords.get(0).doubleValue());
             } else {
                 try {
-                    HashMap map = jsonParser.readValueAs(LinkedHashMap.class);
-                    jsonParser.nextToken();
+                    Map map = (Map) mapData.get(FIELD_LABEL);
                     String json = new ObjectMapper().writeValueAsString(map);
-                    Geoshape shape = new Geoshape(geojsonReader.read(new StringReader(json)));
-                    return shape;
+                    return new Geoshape(geojsonReader.read(new StringReader(json)));
                 } catch (ParseException e) {
                     throw new IOException("Unable to read and parse geojson", e);
                 }
