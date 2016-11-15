@@ -3,7 +3,7 @@
     <parent>
         <groupId>com.thinkaurelius.titan</groupId>
         <artifactId>titan</artifactId>
-        <version>1.2.0g-SNAPSHOT</version>
+        <version>1.2.0g</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
     <artifactId>titan-core</artifactId>
