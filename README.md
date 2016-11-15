@@ -1,13 +1,11 @@
-# Titan
+## About
+
+This is a fork of [Titan](https://github.com/thinkaurelius/titan), currently based on the `titan11` branch
 
 <a href="https://travis-ci.org/ngageoint/titan">
 	<img alt="Travis-CI test status" 
 	     src="https://travis-ci.org/ngageoint/titan.svg?branch=master"/>
 </a>
-
-## About
-
-This is a fork of [Titan](https://github.com/thinkaurelius/titan), currently based on the `titan11` branch.
 
 ## Downloads
 
