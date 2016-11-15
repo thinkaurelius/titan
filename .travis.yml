@@ -8,10 +8,6 @@ cache:
 env:
   matrix:
   - MODULES='titan-test'
-  #- MODULES='titan-es' ARGS="-DthreadCount=1"
-  - MODULES='titan-solr' ARGS="-DthreadCount=1"
-  - MODULES='titan-lucene' ARGS="-DthreadCount=1"
-  - MODULES='titan-hadoop-parent'
 install: "mvn install -DskipTests=true -B -pl ${MODULES} -am"
 script: "mvn verify -pl ${MODULES} ${ARGS}"
 before_deploy:
