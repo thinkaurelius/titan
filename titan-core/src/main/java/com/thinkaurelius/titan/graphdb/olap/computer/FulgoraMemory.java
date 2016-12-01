@@ -7,9 +7,18 @@ import org.apache.tinkerpop.gremlin.process.computer.MemoryComputeKey;
 import org.apache.tinkerpop.gremlin.process.computer.VertexProgram;
 import org.apache.tinkerpop.gremlin.process.computer.util.MemoryHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.Operator;
+import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
+import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSet;
+import org.apache.tinkerpop.gremlin.structure.Edge;
+import org.apache.tinkerpop.gremlin.structure.Graph;
+import org.apache.tinkerpop.gremlin.structure.Vertex;
+import org.apache.tinkerpop.gremlin.structure.util.Attachable;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
+import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceEdge;
+import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceVertex;
 
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -45,7 +54,7 @@ public class FulgoraMemory implements Memory.Admin {
 
     @Override
     public Set<String> keys() {
-	return this.previousMap.keySet().stream().filter(key -> !this.inExecute || this.memoryKeys.get(key).isBroadcast()).collect(Collectors.toSet());
+        return this.previousMap.keySet().stream().filter(key -> !this.inExecute || this.memoryKeys.get(key).isBroadcast()).collect(Collectors.toSet());
     }
 
     @Override
@@ -76,12 +85,12 @@ public class FulgoraMemory implements Memory.Admin {
     protected void complete() {
         this.iteration.decrementAndGet();
         this.previousMap = this.currentMap;
-	this.memoryKeys.values().stream().filter(MemoryComputeKey::isTransient).forEach(computeKey -> this.previousMap.remove(computeKey.getKey()));
+        this.memoryKeys.values().stream().filter(MemoryComputeKey::isTransient).forEach(computeKey -> this.previousMap.remove(computeKey.getKey()));
     }
 
     protected void completeSubRound() {
         this.previousMap = new ConcurrentHashMap<>(this.currentMap);
-	this.inExecute = !this.inExecute;
+        this.inExecute = !this.inExecute;
     }
 
     @Override
@@ -94,25 +103,27 @@ public class FulgoraMemory implements Memory.Admin {
         final R r = (R) this.previousMap.get(key);
         if (null == r)
             throw Memory.Exceptions.memoryDoesNotExist(key);
-	else if (this.inExecute && !this.memoryKeys.get(key).isBroadcast())
-	    throw Memory.Exceptions.memoryDoesNotExist(key);
+        else if (this.inExecute && !this.memoryKeys.get(key).isBroadcast())
+            throw Memory.Exceptions.memoryDoesNotExist(key);
         else
             return r;
     }
-    
+
     @Override
     public void add(final String key, final Object value) {
-	checkKeyValue(key, value);
-	if (!this.inExecute)
-	    throw Memory.Exceptions.memoryAddOnlyDuringVertexProgramExecute(key);
-	this.currentMap.compute(key, (k, v) -> null == v ? value : this.memoryKeys.get(key).getReducer().apply(v, value));
+        checkKeyValue(key, value);
+        if (!this.inExecute && ("incr".equals(key) || "and".equals(key) || "or".equals(key)))
+            throw Memory.Exceptions.memoryIsCurrentlyImmutable();
+        else if (!this.inExecute)
+            throw Memory.Exceptions.memoryAddOnlyDuringVertexProgramExecute(key);
+        this.currentMap.compute(key, (k, v) -> null == v ? value : this.memoryKeys.get(key).getReducer().apply(v, value));
     }
 
     @Override
     public void set(final String key, final Object value) {
         checkKeyValue(key, value);
-	if (this.inExecute)
-	    throw Memory.Exceptions.memorySetOnlyDuringVertexProgramSetUpAndTerminate(key);
+        if (this.inExecute)
+            throw Memory.Exceptions.memorySetOnlyDuringVertexProgramSetUpAndTerminate(key);
         this.currentMap.put(key, value);
     }
 
@@ -126,4 +137,25 @@ public class FulgoraMemory implements Memory.Admin {
             throw GraphComputer.Exceptions.providedKeyIsNotAMemoryComputeKey(key);
         MemoryHelper.validateValue(value);
     }
+
+    protected void attachReferenceElements(Graph graph) {
+        currentMap.values().stream().filter(v -> v instanceof TraverserSet)
+                .forEach(v-> attachReferenceElements((TraverserSet<Object>) v, graph));
+    }
+
+    private static void attachReferenceElements(TraverserSet<Object> toProcessTraversers, Graph graph) {
+        final Iterator<Traverser.Admin<Object>> traversers = toProcessTraversers.iterator();
+        while (traversers.hasNext()) {
+            final Traverser.Admin<Object> traverser = traversers.next();
+            Object value = traverser.get();
+            if (value instanceof ReferenceVertex) {
+                Vertex vertex = ((ReferenceVertex) value).attach(Attachable.Method.get(graph));
+                traverser.set(vertex);
+            } else if (value instanceof ReferenceEdge) {
+                Edge edge = ((ReferenceEdge) value).attach(Attachable.Method.get(graph));
+                traverser.set(edge);
+            }
+        }
+    }
+
 }
