@@ -404,7 +404,7 @@ Classpath or Field errors
 When you see exception referring to lucene implementation details, make sure you don't have a conflicting version of Lucene on the classpath. Exception may look like this:
 
 [source, text]
-java.lang.NoSuchFieldError: LUCENE_5_5_0
+java.lang.NoSuchFieldError: LUCENE_5_5_2
 
 Optimizing Elasticsearch
 ~~~~~~~~~~~~~~~~~~~~~~~~
