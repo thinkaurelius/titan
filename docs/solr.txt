@@ -9,7 +9,7 @@ Solr is the popular, blazing fast open source enterprise search platform from th
 Titan supports http://lucene.apache.org/solr/[Solr] as an index backend.  Here are some of the Solr features supported by Titan:
 
 * *Full-Text*: Supports all `Text` predicates to search for text properties that matches a given word, prefix or regular expression.
-* *Geo*: Supports the `Geo.WITHIN` condition to search for points that fall within a given circle. Only supports points for indexing and circles for querying.
+* *Geo*: Supports all `Geo` predicates to search for geo properties that are intersecting, within, disjoint to or contained in a given query geometry. Supports points, lines and polygons for indexing. Supports circles, boxes and polygons for querying point properties and all shapes for querying non-point properties.
 * *Numeric Range*: Supports all numeric comparisons in `Compare`.
 * *TTL*: Supports automatically expiring indexed elements.
 * *Temporal*: Millisecond granularity temporal indexing.

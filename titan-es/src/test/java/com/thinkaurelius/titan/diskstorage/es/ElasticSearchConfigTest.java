@@ -1,7 +1,6 @@
 package com.thinkaurelius.titan.diskstorage.es;
 
 import com.google.common.base.Joiner;
-
 import com.thinkaurelius.titan.core.TitanFactory;
 import com.thinkaurelius.titan.core.TitanGraph;
 import com.thinkaurelius.titan.core.attribute.Text;
@@ -13,15 +12,15 @@ import com.thinkaurelius.titan.diskstorage.configuration.ModifiableConfiguration
 import com.thinkaurelius.titan.diskstorage.configuration.backend.CommonsConfiguration;
 import com.thinkaurelius.titan.diskstorage.indexing.*;
 import com.thinkaurelius.titan.diskstorage.util.StandardBaseTransactionConfig;
-
 import com.thinkaurelius.titan.diskstorage.util.time.TimestampProviders;
 import com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfiguration;
 import com.thinkaurelius.titan.graphdb.query.condition.PredicateCondition;
 import com.thinkaurelius.titan.util.system.IOUtils;
+
 import org.apache.commons.configuration.BaseConfiguration;
 import org.elasticsearch.action.admin.indices.settings.get.GetSettingsRequest;
 import org.elasticsearch.action.admin.indices.settings.get.GetSettingsResponse;
-import org.elasticsearch.common.settings.ImmutableSettings;
+import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.node.Node;
 import org.elasticsearch.node.NodeBuilder;
 import org.junit.Assert;
@@ -35,7 +34,6 @@ import static com.thinkaurelius.titan.diskstorage.es.ElasticSearchIndex.*;
 import static com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfiguration.INDEX_CONF_FILE;
 import static com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfiguration.INDEX_DIRECTORY;
 import static com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfiguration.INDEX_HOSTS;
-
 import static org.junit.Assert.*;
 
 /**
@@ -77,7 +75,7 @@ public class ElasticSearchConfigTest {
 
     @Test
     public void testTransportClient() throws BackendException, InterruptedException {
-        ElasticsearchRunner esr = new ElasticsearchRunner(".", "transportClient.yml");
+        ElasticsearchRunner esr = new ElasticsearchRunner(".");
         esr.start();
         ModifiableConfiguration config = GraphDatabaseConfiguration.buildGraphConfiguration();
         config.set(INTERFACE, ElasticSearchSetup.TRANSPORT_CLIENT.toString(), INDEX_NAME);
@@ -174,12 +172,11 @@ public class ElasticSearchConfigTest {
 
     @Test
     public void testNetworkNodeUsingExt() throws BackendException, InterruptedException {
-        ElasticsearchRunner esr = new ElasticsearchRunner(".", "networkNodeUsingExt.yml");
+        ElasticsearchRunner esr = new ElasticsearchRunner(".");
         esr.start();
         CommonsConfiguration cc = new CommonsConfiguration(new BaseConfiguration());
         cc.set("index." + INDEX_NAME + ".elasticsearch.ext.node.data", "false");
         cc.set("index." + INDEX_NAME + ".elasticsearch.ext.node.client", "true");
-        cc.set("index." + INDEX_NAME + ".elasticsearch.ext.cluster.name", "networkNodeUsingExt");
         cc.set("index." + INDEX_NAME + ".elasticsearch.ext.discovery.zen.ping.multicast.enabled", "false");
         cc.set("index." + INDEX_NAME + ".elasticsearch.ext.discovery.zen.ping.unicast.hosts", "localhost,127.0.0.1:9300");
         ModifiableConfiguration config =
@@ -211,7 +208,7 @@ public class ElasticSearchConfigTest {
 
     @Test
     public void testNetworkNodeUsingYaml() throws BackendException, InterruptedException {
-        ElasticsearchRunner esr = new ElasticsearchRunner(".", "networkNodeUsingYaml.yml");
+        ElasticsearchRunner esr = new ElasticsearchRunner(".");
         esr.start();
         ModifiableConfiguration config = GraphDatabaseConfiguration.buildGraphConfiguration();
         config.set(INTERFACE, ElasticSearchSetup.NODE.toString(), INDEX_NAME);
@@ -242,27 +239,32 @@ public class ElasticSearchConfigTest {
 
     @Test
     public void testIndexCreationOptions() throws InterruptedException, BackendException {
-        final int shards = 77;
 
-        ElasticsearchRunner esr = new ElasticsearchRunner(".", "indexCreationOptions.yml");
+        String baseDir = Joiner.on(File.separator).join("target", "es", "jvmlocal_opts");
+
+        assertFalse(new File(baseDir + File.separator + "data").exists());
+
+        final int shards = 7;
+
+        ElasticsearchRunner esr = new ElasticsearchRunner(".");
         esr.start();
         CommonsConfiguration cc = new CommonsConfiguration(new BaseConfiguration());
         cc.set("index." + INDEX_NAME + ".elasticsearch.create.ext.number_of_shards", String.valueOf(shards));
-        cc.set("index." + INDEX_NAME + ".elasticsearch.ext.cluster.name", "indexCreationOptions");
         ModifiableConfiguration config =
                 new ModifiableConfiguration(GraphDatabaseConfiguration.ROOT_NS,
                         cc, BasicConfiguration.Restriction.NONE);
         config.set(INTERFACE, ElasticSearchSetup.NODE.toString(), INDEX_NAME);
+        config.set(GraphDatabaseConfiguration.INDEX_DIRECTORY, baseDir, INDEX_NAME);
         Configuration indexConfig = config.restrictTo(INDEX_NAME);
         IndexProvider idx = new ElasticSearchIndex(indexConfig);
         simpleWriteAndQuery(idx);
 
 
 
-        ImmutableSettings.Builder settingsBuilder = ImmutableSettings.settingsBuilder();
+        Settings.Builder settingsBuilder = Settings.settingsBuilder();
         settingsBuilder.put("discovery.zen.ping.multicast.enabled", "false");
         settingsBuilder.put("discovery.zen.ping.unicast.hosts", "localhost,127.0.0.1:9300");
-        settingsBuilder.put("cluster.name", "indexCreationOptions");
+        settingsBuilder.put("path.home", baseDir);
         NodeBuilder nodeBuilder = NodeBuilder.nodeBuilder().settings(settingsBuilder.build());
         nodeBuilder.client(true).data(false).local(false);
         Node n = nodeBuilder.build().start();
@@ -271,7 +273,7 @@ public class ElasticSearchConfigTest {
         assertEquals(String.valueOf(shards), response.getSetting("titan", "index.number_of_shards"));
 
         idx.close();
-        n.stop();
+        n.close();
         esr.stop();
     }
 

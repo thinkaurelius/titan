@@ -18,7 +18,8 @@ public enum Mapping {
     DEFAULT,
     TEXT,
     STRING,
-    TEXTSTRING;
+    TEXTSTRING,
+    PREFIX_TREE;
 
     /**
      * Returns the mapping as a parameter so that it can be passed to {@link TitanManagement#addIndexKey(TitanGraphIndex, com.thinkaurelius.titan.core.PropertyKey, Parameter[])}

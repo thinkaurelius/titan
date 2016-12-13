@@ -9,7 +9,7 @@ import org.apache.commons.lang.StringUtils;
  */
 public enum ParameterType {
 
-    MAPPING("mapping"), INDEX_POSITION("index-pos"), MAPPED_NAME("mapped-name"), STATUS("status");
+    MAPPING("mapping"), INDEX_POSITION("index-pos"), MAPPED_NAME("mapped-name"), STATUS("status"), INDEX_GEO_MAX_LEVELS("index-geo-max-levels"), INDEX_GEO_DIST_ERROR_PCT("index-geo-dist-error-pct");
 
     private final String name;
 
