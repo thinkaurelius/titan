@@ -1,6 +1,8 @@
 package com.thinkaurelius.titan.graphdb.database.serialize;
 
 import com.thinkaurelius.titan.core.PropertyKey;
+import com.thinkaurelius.titan.core.attribute.Geoshape;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,6 +38,10 @@ public class AttributeUtil {
 
     public static final boolean isString(Class<?> clazz) {
         return clazz.equals(String.class);
+    }
+
+    public static final boolean isGeo(Class<?> clazz) {
+        return clazz.equals(Geoshape.class);
     }
 
     /**

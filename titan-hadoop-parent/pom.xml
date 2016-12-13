@@ -3,7 +3,7 @@
     <parent>
         <groupId>com.thinkaurelius.titan</groupId>
         <artifactId>titan</artifactId>
-        <version>1.1.0-SNAPSHOT</version>
+        <version>1.2.2g-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
     <artifactId>titan-hadoop-parent</artifactId>
@@ -14,7 +14,7 @@
     <properties>
         <top.level.basedir>${project.parent.basedir}</top.level.basedir>
         <skipCassandra>${skipTests}</skipCassandra>
-        <skipHBase>true</skipHBase>
+        <skipHBase>${skipTests}</skipHBase>
         <skipPipeline>${skipTests}</skipPipeline>
     </properties>
 
@@ -76,6 +76,20 @@
                 <exclusion>
                     <groupId>net.jpountz.lz4</groupId>
                     <artifactId>lz4</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.fasterxml.jackson.module</groupId>
+                    <artifactId>jackson-module-scala_2.10</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.module</groupId>
+            <artifactId>jackson-module-scala_2.10</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.scala-lang</groupId>
+                    <artifactId>scala-library</artifactId>
                 </exclusion>
             </exclusions>
         </dependency>
@@ -143,11 +157,20 @@
             <artifactId>sesame-rio-turtle</artifactId>
         </dependency>
 
-        <!-- LOGGING -->
+        <!-- Logging backends.
+             Enforce a classpath ordering constraint to ensure slf4j-log4j12
+             binding appears on the classpath before logback-classic.
+             See comments in titan-cassandra/pom.xml for more information. -->
         <dependency>
-            <groupId>log4j</groupId>
-            <artifactId>log4j</artifactId>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-log4j12</artifactId>
         </dependency>
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <version>1.1.2</version>
+        </dependency>
+        <!-- End logging backends. -->
 
         <!-- TESTING -->
         <dependency>

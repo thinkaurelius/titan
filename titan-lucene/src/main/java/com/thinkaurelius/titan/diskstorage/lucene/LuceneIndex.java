@@ -18,7 +18,9 @@ import com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfiguration;
 import com.thinkaurelius.titan.graphdb.database.serialize.AttributeUtil;
 import com.thinkaurelius.titan.graphdb.query.TitanPredicate;
 import com.thinkaurelius.titan.graphdb.query.condition.*;
+import com.thinkaurelius.titan.graphdb.types.ParameterType;
 import com.thinkaurelius.titan.util.system.IOUtils;
+
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
@@ -33,23 +35,29 @@ import org.apache.lucene.queryparser.classic.ParseException;
 import org.apache.lucene.queryparser.classic.QueryParser;
 import org.apache.lucene.search.*;
 import org.apache.lucene.spatial.SpatialStrategy;
+import org.apache.lucene.spatial.prefix.PrefixTreeStrategy;
+import org.apache.lucene.spatial.prefix.RecursivePrefixTreeStrategy;
+import org.apache.lucene.spatial.prefix.tree.QuadPrefixTree;
+import org.apache.lucene.spatial.prefix.tree.SpatialPrefixTree;
 import org.apache.lucene.spatial.query.SpatialArgs;
 import org.apache.lucene.spatial.query.SpatialOperation;
 import org.apache.lucene.spatial.vector.PointVectorStrategy;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.util.Version;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.time.Instant;
 import java.util.*;
+import java.util.AbstractMap.SimpleEntry;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * @author Matthias Broecheler (me@matthiasb.com)
@@ -63,10 +71,20 @@ public class LuceneIndex implements IndexProvider {
     private static final String GEOID = "_____geo";
     private static final int MAX_STRING_FIELD_LEN = 256;
 
-    private static final Version LUCENE_VERSION = Version.LUCENE_4_10_4;
+    private static final Version LUCENE_VERSION = Version.LUCENE_5_5_2;
     private static final IndexFeatures LUCENE_FEATURES = new IndexFeatures.Builder().supportedStringMappings(Mapping.TEXT, Mapping.STRING).supportsCardinality(Cardinality.SINGLE).supportsNanoseconds().build();
 
-    private static final int GEO_MAX_LEVELS = 11;
+    /**
+     * Default tree levels used when creating the prefix tree.
+     */
+    public static final int DEFAULT_GEO_MAX_LEVELS = 20;
+
+    /**
+     * Default measure of shape precision used when creating the prefix tree.
+     */
+    public static final double DEFAULT_GEO_DIST_ERROR_PCT = 0.025;
+
+    private static Map<Geo, SpatialOperation> SPATIAL_PREDICATES = spatialPredicates();
 
     private final Analyzer analyzer = new StandardAnalyzer();
 
@@ -74,7 +92,7 @@ public class LuceneIndex implements IndexProvider {
     private final ReentrantLock writerLock = new ReentrantLock();
 
     private Map<String, SpatialStrategy> spatial = new ConcurrentHashMap<String, SpatialStrategy>(12);
-    private SpatialContext ctx = SpatialContext.GEO;
+    private SpatialContext ctx = Geoshape.CTX;
 
     private final String basePath;
 
@@ -97,7 +115,7 @@ public class LuceneIndex implements IndexProvider {
             if (!path.exists() || !path.isDirectory() || !path.canWrite())
                 throw new PermanentBackendException("Cannot access or write to directory: " + dir);
             log.debug("Opening store directory [{}]", path);
-            return FSDirectory.open(path);
+            return FSDirectory.open(path.toPath());
         } catch (IOException e) {
             throw new PermanentBackendException("Could not open directory: " + dir, e);
         }
@@ -107,7 +125,7 @@ public class LuceneIndex implements IndexProvider {
         Preconditions.checkArgument(writerLock.isHeldByCurrentThread());
         IndexWriter writer = writers.get(store);
         if (writer == null) {
-            IndexWriterConfig iwc = new IndexWriterConfig(LUCENE_VERSION, analyzer);
+            IndexWriterConfig iwc = new IndexWriterConfig(analyzer);
             iwc.setOpenMode(IndexWriterConfig.OpenMode.CREATE_OR_APPEND);
             try {
                 writer = new IndexWriter(getStoreDirectory(store), iwc);
@@ -119,14 +137,23 @@ public class LuceneIndex implements IndexProvider {
         return writer;
     }
 
-    private SpatialStrategy getSpatialStrategy(String key) {
+    private SpatialStrategy getSpatialStrategy(String key, KeyInformation ki) {
         SpatialStrategy strategy = spatial.get(key);
+        Mapping mapping = Mapping.getMapping(ki);
+        int maxLevels = (int) ParameterType.INDEX_GEO_MAX_LEVELS.findParameter(ki.getParameters(), DEFAULT_GEO_MAX_LEVELS);
+        double distErrorPct = (double) ParameterType.INDEX_GEO_DIST_ERROR_PCT.findParameter(ki.getParameters(), DEFAULT_GEO_DIST_ERROR_PCT);
         if (strategy == null) {
             synchronized (spatial) {
                 if (!spatial.containsKey(key)) {
 //                    SpatialPrefixTree grid = new GeohashPrefixTree(ctx, GEO_MAX_LEVELS);
 //                    strategy = new RecursivePrefixTreeStrategy(grid, key);
-                    strategy = new PointVectorStrategy(ctx, key);
+                    if (mapping == Mapping.DEFAULT) {
+                        strategy = new PointVectorStrategy(ctx, key);
+                    } else {
+                        SpatialPrefixTree grid = new QuadPrefixTree(ctx, maxLevels);
+                        strategy = new RecursivePrefixTreeStrategy(grid, key);
+                        ((PrefixTreeStrategy) strategy).setDistErrPct(distErrorPct);
+                    }
                     spatial.put(key, strategy);
                 } else return spatial.get(key);
             }
@@ -134,12 +161,23 @@ public class LuceneIndex implements IndexProvider {
         return strategy;
     }
 
+    private static Map<Geo, SpatialOperation> spatialPredicates() {
+        return Collections.unmodifiableMap(Stream.of(
+                new SimpleEntry<>(Geo.WITHIN, SpatialOperation.IsWithin),
+                new SimpleEntry<>(Geo.CONTAINS, SpatialOperation.Contains),
+                new SimpleEntry<>(Geo.INTERSECT, SpatialOperation.Intersects),
+                new SimpleEntry<>(Geo.DISJOINT, SpatialOperation.IsDisjointTo))
+                .collect(Collectors.toMap((e) -> e.getKey(), (e) -> e.getValue())));
+    }
+
     @Override
     public void register(String store, String key, KeyInformation information, BaseTransaction tx) throws BackendException {
         Class<?> dataType = information.getDataType();
         Mapping map = Mapping.getMapping(information);
-        Preconditions.checkArgument(map == Mapping.DEFAULT || AttributeUtil.isString(dataType),
-                "Specified illegal mapping [%s] for data type [%s]", map, dataType);    }
+        Preconditions.checkArgument(map == Mapping.DEFAULT || AttributeUtil.isString(dataType) ||
+                (map == Mapping.PREFIX_TREE && AttributeUtil.isGeo(dataType)),
+                "Specified illegal mapping [%s] for data type [%s]", map, dataType);
+    }
 
     @Override
     public void mutate(Map<String, Map<String, IndexMutation>> mutations, KeyInformation.IndexRetriever informations, BaseTransaction tx) throws BackendException {
@@ -266,7 +304,7 @@ public class LuceneIndex implements IndexProvider {
             for (IndexableField field : doc.getFields()) {
                 if (field.stringValue().startsWith(GEOID)) {
                     try {
-                        geofields.put(field.name(), ctx.readShapeFromWkt(field.stringValue().substring(GEOID.length())));
+                        geofields.put(field.name(), Geoshape.fromWkt(field.stringValue().substring(GEOID.length())).getShape());
                     } catch (java.text.ParseException e) {
                         throw new IllegalArgumentException("Geoshape was unparsable");
                     }
@@ -294,12 +332,16 @@ public class LuceneIndex implements IndexProvider {
 
             if (e.value instanceof Number) {
                 Field field;
+                Field sortField;
                 if (AttributeUtil.isWholeNumber((Number) e.value)) {
                     field = new LongField(e.field, ((Number) e.value).longValue(), Field.Store.YES);
+                    sortField = new NumericDocValuesField(e.field, ((Number) e.value).longValue());
                 } else { //double or float
                     field = new DoubleField(e.field, ((Number) e.value).doubleValue(), Field.Store.YES);
+                    sortField = new DoubleDocValuesField(e.field, ((Number) e.value).doubleValue());
                 }
                 doc.add(field);
+                doc.add(sortField);
             } else if (AttributeUtil.isString(e.value)) {
                 String str = (String) e.value;
                 Mapping mapping = Mapping.getMapping(store, e.field, informations);
@@ -316,10 +358,9 @@ public class LuceneIndex implements IndexProvider {
                 }
                 doc.add(field);
             } else if (e.value instanceof Geoshape) {
-                Shape shape = ((Geoshape) e.value).convert2Spatial4j();
+                Shape shape = ((Geoshape) e.value).getShape();
                 geofields.put(e.field, shape);
-                doc.add(new StoredField(e.field, GEOID +  toWkt(shape)));
-
+                doc.add(new StoredField(e.field, GEOID +  e.value.toString()));
             } else if (e.value instanceof Date) {
                 doc.add(new LongField(e.field, (((Date) e.value).getTime()), Field.Store.YES));
             } else if (e.value instanceof Instant) {
@@ -339,17 +380,14 @@ public class LuceneIndex implements IndexProvider {
             if (log.isTraceEnabled())
                 log.trace("Updating geo-indexes for key {}", geo.getKey());
 
-            for (IndexableField f : getSpatialStrategy(geo.getKey()).createIndexableFields(geo.getValue()))
+            KeyInformation ki = informations.get(store, geo.getKey());
+            SpatialStrategy spatialStrategy = getSpatialStrategy(geo.getKey(), ki);
+            for (IndexableField f : spatialStrategy.createIndexableFields(geo.getValue())) {
                 doc.add(f);
-        }
-    }
-
-    private String toWkt(Shape shape) {
-        if(shape instanceof Point) {
-            return "POINT(" + ((Point) shape).getX() + " " + ((Point) shape).getY() + ")";
-        }
-        else {
-            throw new IllegalArgumentException("Only points are supported");
+                if (spatialStrategy instanceof PointVectorStrategy) {
+                    doc.add(new DoubleDocValuesField(f.name(), f.numericValue().doubleValue()));
+                }
+            }
         }
     }
 
@@ -488,10 +526,11 @@ public class LuceneIndex implements IndexProvider {
                 } else
                     throw new IllegalArgumentException("Relation is not supported for string value: " + titanPredicate);
             } else if (value instanceof Geoshape) {
-                Preconditions.checkArgument(titanPredicate == Geo.WITHIN, "Relation is not supported for geo value: " + titanPredicate);
-                Shape shape = ((Geoshape) value).convert2Spatial4j();
-                SpatialArgs args = new SpatialArgs(SpatialOperation.IsWithin, shape);
-                params.addFilter(getSpatialStrategy(key).makeFilter(args));
+                Preconditions.checkArgument(titanPredicate instanceof Geo, "Relation not supported on geo types: " + titanPredicate);
+                Shape shape = ((Geoshape) value).getShape();
+                SpatialOperation spatialOp = SPATIAL_PREDICATES.get((Geo) titanPredicate);
+                SpatialArgs args = new SpatialArgs(spatialOp, shape);
+                params.addQuery(getSpatialStrategy(key, informations.get(key)).makeQuery(args));
             } else if (value instanceof Date) {
                 Preconditions.checkArgument(titanPredicate instanceof Cmp, "Relation not supported on date types: " + titanPredicate);
                 params.addFilter(numericFilter(key, (Cmp) titanPredicate, ((Date) value).getTime()));
@@ -588,12 +627,13 @@ public class LuceneIndex implements IndexProvider {
         if (information.getCardinality()!= Cardinality.SINGLE) return false;
         Class<?> dataType = information.getDataType();
         Mapping mapping = Mapping.getMapping(information);
-        if (mapping!=Mapping.DEFAULT && !AttributeUtil.isString(dataType)) return false;
+        if (mapping!=Mapping.DEFAULT && !AttributeUtil.isString(dataType) &&
+                !(mapping==Mapping.PREFIX_TREE && AttributeUtil.isGeo(dataType))) return false;
 
         if (Number.class.isAssignableFrom(dataType)) {
             if (titanPredicate instanceof Cmp) return true;
         } else if (dataType == Geoshape.class) {
-            return titanPredicate == Geo.WITHIN;
+            return titanPredicate == Geo.INTERSECT || titanPredicate == Geo.WITHIN || titanPredicate == Geo.CONTAINS;
         } else if (AttributeUtil.isString(dataType)) {
             switch(mapping) {
                 case DEFAULT:
@@ -617,10 +657,12 @@ public class LuceneIndex implements IndexProvider {
         if (information.getCardinality()!= Cardinality.SINGLE) return false;
         Class<?> dataType = information.getDataType();
         Mapping mapping = Mapping.getMapping(information);
-        if (Number.class.isAssignableFrom(dataType) || dataType == Geoshape.class || dataType == Date.class || dataType == Instant.class || dataType == Boolean.class || dataType == UUID.class) {
+        if (Number.class.isAssignableFrom(dataType) || dataType == Date.class || dataType == Instant.class || dataType == Boolean.class || dataType == UUID.class) {
             if (mapping==Mapping.DEFAULT) return true;
         } else if (AttributeUtil.isString(dataType)) {
             if (mapping==Mapping.DEFAULT || mapping==Mapping.STRING || mapping==Mapping.TEXT) return true;
+        } else if (AttributeUtil.isGeo(dataType)) {
+            if (mapping==Mapping.DEFAULT || mapping==Mapping.PREFIX_TREE) return true;
         }
         return false;
     }

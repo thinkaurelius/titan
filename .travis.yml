@@ -1,0 +1,25 @@
+sudo: false
+language: java
+jdk:
+- oraclejdk8
+cache:
+  directories:
+  - "$HOME/.m2"
+env:
+  matrix:
+  - MODULES='titan-test'
+install: "mvn install -DskipTests=true -B -pl ${MODULES} -am"
+script: "mvn verify -pl ${MODULES} ${ARGS}"
+before_deploy:
+  - mvn package -DskipTests -Dgpg.skip=true -Paurelius-release
+  - export TITAN_DIST_ZIP="$(ls titan-dist/titan-dist-hadoop-2/target/titan-*-hadoop2.zip)"
+  - echo "Deploying $TITAN_DIST_ZIP to GitHub releases"
+deploy:
+  provider: releases
+  api_key:
+    secure: FFkzMiTgocwydagUbRh65BoBnvzWG6y4gSAQZKdD830MANatgn4R6hnA+3iAidPuv4gS5ERyukQwrgqGLXF5Anaj4EL+aw37QFVGSkr5gCldlWg52fFOAZitTlflO3uXNHWq6FhqAWC8wf7rzpbV9j9RjnEe65UEfGFw/0YtHdRpHXbVqKspCTLv82vghdGjVyL7gR3nJTDYIb6hFx3n7BQuiNmdOOt2K7/vKlwY8oNMtBCgJ4C9G0IrKQ45WN1+dtTNiNMg928k2vI8QClD0VWwhZLP6oRWziaXOi+5dldCLGLGPxdrxJrYwY2I7+4EjRNqMEZqsavm1vxi/Eyc2pv/DnfKXibqpKh8B3oBG0A5J7GYd4cEooPLLHvqSZAkwSCWrlAvwUhtFZCrvnSOrnT1e3DpvzaAlcRbvz856x1t9R8chyAx3SMlT1t/Dyvk9o9pRguGellkvFwd/MfOaIL6MKeznavMwUJpEVJnnYmCQdcNbVZjEJnOvX7BCo/6Ut9ZD8JamSFKTCTVyufHR2NfO4JWFn9p/y85wj08fmbQ2Vs/Jw19zbPj8MlyIpac8O8LHKZUkFvCe1QpU34FWmKJlIt6SZBeoDgF2k04PO4TB8D/hFFsuuV59Y155mdx7WNmpp0AhKeH+i9CywrvnUFoSURJLS4h9pEVnd1FX4w=
+  file_glob: true
+  skip_cleanup: true
+  file: "$TITAN_DIST_ZIP"
+  on:
+    tags: true

@@ -69,7 +69,7 @@ public enum Geo implements TitanPredicate {
     },
 
     /**
-     * Whether one geographic region is completely contains within another
+     * Whether one geographic region is completely within another
      */
     WITHIN {
         @Override
@@ -83,6 +83,34 @@ public enum Geo implements TitanPredicate {
         @Override
         public String toString() {
             return "within";
+        }
+
+        @Override
+        public boolean hasNegation() {
+            return false;
+        }
+
+        @Override
+        public TitanPredicate negate() {
+            throw new UnsupportedOperationException();
+        }
+    },
+
+    /**
+     * Whether one geographic region completely contains another
+     */
+    CONTAINS {
+        @Override
+        public boolean test(Object value, Object condition) {
+            Preconditions.checkArgument(condition instanceof Geoshape);
+            if (value == null) return false;
+            Preconditions.checkArgument(value instanceof Geoshape);
+            return ((Geoshape) value).contains((Geoshape) condition);
+        }
+
+        @Override
+        public String toString() {
+            return "contains";
         }
 
         @Override
@@ -122,5 +150,8 @@ public enum Geo implements TitanPredicate {
     }
     public static <V> P<V> geoWithin(final V value) {
         return new P(Geo.WITHIN, value);
+    }
+    public static <V> P<V> geoContains(final V value) {
+        return new P(Geo.CONTAINS, value);
     }
 }
