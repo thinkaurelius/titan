@@ -1,3 +1,7 @@
+TitanDB has been forked as a new project called "JanusGraph":https://github.com/JanusGraph/janusgraph which is now part of the "Linux Foundation and has several backers":https://opensource.googleblog.com/2017/01/janusgraph-connects-past-and-future-of-titan.html. The official site is here at "JanusGraph.org":http://janusgraph.org/
+
+---
+
 !http://thinkaurelius.github.io/titan/images/titan-logo.png!
 
 Titan is a highly scalable "graph database":http://en.wikipedia.org/wiki/Graph_database optimized for storing and querying large graphs with billions of vertices and edges distributed across a multi-machine cluster. Titan is a transactional database that can support thousands of concurrent users, complex traversals, and analytic graph queries.
